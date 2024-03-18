@@ -1,203 +1,265 @@
-use std::time::Duration;
+use std::alloc::GlobalAlloc;
 
-use crate::stats::compute_stats;
-use crate::GLOBAL;
+use crate::{bench::Bench, report::report_input, BenchInputSize, Options};
 use peakmem_alloc::*;
-use std::fmt::Debug;
 use yansi::Paint;
 
-pub struct BenchGroup<I> {
+pub(crate) type Alloc = &'static dyn PeakMemAllocTrait;
+pub(crate) const NUM_RUNS: usize = 32;
+
+/// BenchGroup is a collection of benchmarks that are run with the same inputs.
+pub struct BenchGroup<I: BenchInputSize = ()> {
     name: String,
     inputs: Vec<(String, I)>,
     benches: Vec<Bench<I>>,
-    interleave: bool,
+    alloc: Option<Alloc>,
+    cache_trasher: CacheTrasher,
+    options: Options,
 }
 
-type CallBench<I> = Box<dyn FnMut(&I)>;
-struct Bench<I> {
-    name: String,
-    fun: CallBench<I>,
-    results: Vec<BenchResult>,
-}
-impl<I> Bench<I> {
-    #[inline]
-    fn exec_bench(&mut self, input: &(String, I), input_idx: usize) {
-        GLOBAL.reset_peak_memory();
-        let start = std::time::Instant::now();
-        (self.fun)(&input.1);
-        let elapsed = start.elapsed();
-        let mem = GLOBAL.get_peak_memory();
-        let bench_result = BenchResult::new(elapsed, mem, input_idx);
-        // Push the result to the results vector
-        unsafe {
-            let end = self.results.as_mut_ptr().add(self.results.len());
-            std::ptr::write(end, bench_result);
-            self.results.set_len(self.results.len() + 1);
-        }
+impl BenchGroup<()> {
+    /// Create a new BenchGroup with the given name and options.
+    pub fn new(name: String, options: Options) -> Self {
+        Self::new_with_inputs(name, vec![("".to_string(), ())], options)
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct BenchResult {
-    pub duration_ns: u64,
-    pub memory_consumption: usize,
-    pub input_idx: usize,
-}
-impl BenchResult {
-    fn new(duration: Duration, memory_consumption: usize, input_idx: usize) -> Self {
-        BenchResult {
-            duration_ns: duration.as_nanos() as u64, // u64 is more than enough
-            memory_consumption,
-            input_idx,
-        }
+fn matches(input: &str, filter: &Option<String>, exact: bool) -> bool {
+    let Some(filter) = filter else { return true };
+    if exact {
+        input == filter
+    } else {
+        input.contains(filter)
     }
 }
 
-const NUM_RUNS: usize = 128;
-impl<I> BenchGroup<I> {
-    /// Run the benchmarks interleaved, i.e. one iteration of each bench after another
-    /// This may lead to better results, it may also lead to worse results.
-    /// It very much depends on the benches and the environment you would like to simulate.
-    ///
-    pub fn set_interleave(&mut self, interleave: bool) {
-        self.interleave = interleave;
-    }
-    pub fn new(name: String) -> Self {
-        BenchGroup {
-            inputs: Vec::new(),
-            name,
-            benches: Vec::new(),
-            interleave: true,
-        }
-    }
+impl<I: BenchInputSize> BenchGroup<I> {
     /// The inputs are a vector of tuples, where the first element is the name of the input and the
     /// second element is the input itself.
-    pub fn new_with_inputs<S: Into<String>>(name: String, inputs: Vec<(S, I)>) -> Self {
+    pub fn new_with_inputs<S: Into<String>>(
+        name: String,
+        inputs: Vec<(S, I)>,
+        mut options: Options,
+    ) -> Self {
+        let mut inputs: Vec<(String, I)> = inputs
+            .into_iter()
+            .map(|(name, input)| (name.into(), input))
+            .collect();
+        let filter_targets_input = inputs
+            .iter()
+            .any(|(name, _)| matches(name, &options.filter, options.exact));
+        // If the filter is filtering an input, we filter and remove the filter
+        if filter_targets_input && options.filter.is_some() {
+            inputs.retain(|(name, _)| matches(name, &options.filter, options.exact));
+            options.filter = None;
+        }
         BenchGroup {
-            inputs: inputs
-                .into_iter()
-                .map(|(name, input)| (name.into(), input))
-                .collect(),
+            inputs,
             name,
             benches: Vec::new(),
-            interleave: true,
+            alloc: None,
+            cache_trasher: CacheTrasher::new(1024 * 1024 * 16),
+            options,
         }
     }
-    pub fn register<F: FnMut(&I) + 'static, S: Into<String>>(&mut self, name: S, fun: F) {
-        self.benches.push(Bench {
-            name: name.into(),
-            fun: Box::new(fun),
-            results: Vec::with_capacity(NUM_RUNS * self.inputs.len()),
-        });
+    /// Set the peak mem allocator to be used for the benchmarks.
+    /// This will report the peak memory consumption of the benchmarks.
+    pub fn set_alloc<A: GlobalAlloc + 'static>(&mut self, alloc: &'static PeakMemAlloc<A>) {
+        self.alloc = Some(alloc);
+    }
+    /// Enable perf profiling + report
+    ///
+    /// The numbers are reported with the following legend:
+    /// ```bash
+    /// L1dA: L1 data access
+    /// L1dM: L1 data misses
+    /// Br: branches
+    /// BrM: missed branches
+    /// ```
+    /// e.g.
+    /// ```bash
+    /// fibonacci    Memory: 0 B       Avg: 135ns      Median: 136ns     132ns          140ns    
+    ///              L1dA: 809.310     L1dM: 0.002     Br: 685.059       BrM: 0.010     
+    /// baseline     Memory: 0 B       Avg: 1ns        Median: 1ns       1ns            1ns      
+    ///              L1dA: 2.001       L1dM: 0.000     Br: 6.001         BrM: 0.000     
+    /// ```
+    pub fn enable_perf(&mut self) {
+        self.options.enable_perf = true;
     }
 
-    pub fn run(&mut self) {
-        self.warm_up();
-        if self.interleave {
-            self.run_interleaved();
-        } else {
-            self.run_sequential();
-        }
+    /// Set the options to the given value.
+    /// This will overwrite all current options.
+    ///
+    /// See the Options struct for more information.
+    pub fn set_options(&mut self, options: Options) {
+        self.options = options;
     }
 
-    fn run_sequential(&mut self) {
-        for (input_idx, input) in self.inputs.iter().enumerate() {
-            for bench in &mut self.benches {
-                for iteration in 0..NUM_RUNS {
-                    alloca::with_alloca(
-                        iteration, // we increase the byte offset by 1 for each iteration
-                        |_memory: &mut [core::mem::MaybeUninit<u8>]| {
-                            bench.exec_bench(input, input_idx);
-                        },
-                    );
-                }
-            }
-        }
+    /// Sets the interleave option to the given value.
+    pub fn set_interleave(&mut self, interleave: bool) {
+        self.options.interleave = interleave;
     }
 
-    fn run_interleaved(&mut self) {
-        // inner loop is 4 times, so we divide by 4
-        for (input_idx, input) in self.inputs.iter().enumerate() {
-            for iteration in 0..(NUM_RUNS / 4) {
-                // We interleaved the benches to address benchmarking randomness
-                //
-                // This has the drawback, that one bench will affect another one.
-                // TODO: We should have probably groups of benches, which are interleaved, but not
-                // between groups.
-                for bench in &mut self.benches {
-                    // We use alloca to address memory layout randomness issues
-                    // So the whole stack moves down by 1 byte for each iteration
-
-                    // We loop 4 times on a single bench, since one bench could e.g. flush all the
-                    // memory caches, which may or may not be there in a real worl environment.
-                    // We want to capture both cases, hot loops and interleaved, to see how a bench performs under both
-                    // conditions.
-                    for _inner_iter in 0..4 {
-                        alloca::with_alloca(
-                            iteration, // we increase the byte offset by 1 for each iteration
-                            |_memory: &mut [core::mem::MaybeUninit<u8>]| {
-                                bench.exec_bench(input, input_idx);
-                            },
-                        );
-                    }
-                }
-            }
-        }
+    /// Sets the filter, which is used to filter the benchmarks by name.
+    /// The filter is fetched from the command line arguments.
+    ///
+    /// It can also match an input name.
+    pub fn set_filter(&mut self, filter: Option<String>) {
+        self.options.filter = filter;
     }
 
-    pub fn warm_up(&mut self) {
-        for input in &self.inputs {
-            for bench in &mut self.benches {
-                let start = std::time::Instant::now();
-                (bench.fun)(&input.1);
-                let _elapsed = start.elapsed();
-            }
-        }
-    }
-
-    pub fn report(&mut self) {
-        if self.benches.is_empty() {
+    /// Register a benchmark with the given name and function.
+    pub fn register<F, S: Into<String>>(&mut self, name: S, fun: F)
+    where
+        F: for<'a> Fn(&'a I) + 'static,
+    {
+        let name = name.into();
+        if !matches(&name, &self.options.filter, self.options.exact) {
             return;
         }
+        self.benches
+            .push(Bench::new(name, self.options.enable_perf, Box::new(fun)));
+    }
+
+    /// Run the benchmarks and report the results.
+    pub fn run(&mut self) {
         if !self.name.is_empty() {
-            println!("{}", self.name.black().on_red().invert().italic());
+            println!("{}", self.name.black().on_red().invert().bold());
         }
 
-        // group by input (index is stored in the BenchResult)
-        // Terrible datastructure, but keeps ordering (maybe replace with BTreeMap)
-        let mut results_by_input: Vec<Vec<Vec<&BenchResult>>> = vec![Vec::new(); self.inputs.len()];
-        for (bench_idx, bench) in self.benches.iter().enumerate() {
-            for result in &bench.results {
-                let bench_results_of_one_input = &mut results_by_input[result.input_idx];
-                if bench_results_of_one_input.len() <= bench_idx {
-                    bench_results_of_one_input.resize(bench_idx + 1, Vec::new());
-                }
-                bench_results_of_one_input[bench_idx].push(result);
+        for idx in 0..self.inputs.len() {
+            let input = &self.inputs[idx];
+            Self::warm_up(&input.1, &mut self.benches);
+            if self.options.interleave {
+                Self::run_interleaved(&mut self.benches, &input, &self.alloc, &self.cache_trasher);
+            } else {
+                Self::run_sequential(&mut self.benches, &input, &self.alloc);
             }
+
+            self.report_input(input.0.to_string());
         }
+    }
 
-        let max_bench_name_len = self
-            .benches
-            .iter()
-            .map(|bench| bench.name.len())
-            .max()
-            .unwrap_or(0)
-            + 5;
-
-        for (input_idx, bench_results) in results_by_input.iter().enumerate() {
-            let input_name = self.inputs[input_idx].0.clone();
-            println!("{}", input_name.black().on_yellow().invert().italic());
-
-            for (bench_idx, results) in bench_results.iter().enumerate() {
-                let bench = &self.benches[bench_idx];
-                let stats = compute_stats(results).unwrap();
-                println!(
-                    "{:width$}: {}",
-                    bench.name,
-                    stats,
-                    width = max_bench_name_len,
+    fn run_sequential(benches: &mut [Bench<I>], input: &(String, I), alloc: &Option<Alloc>) {
+        for bench in benches {
+            for iteration in 0..NUM_RUNS {
+                alloca::with_alloca(
+                    iteration, // we increase the byte offset by 1 for each iteration
+                    |_memory: &mut [core::mem::MaybeUninit<u8>]| {
+                        bench.exec_bench(input, alloc);
+                    },
                 );
             }
         }
+    }
+
+    fn run_interleaved(
+        benches: &mut [Bench<I>],
+        input: &(String, I),
+        alloc: &Option<Alloc>,
+        cache_trasher: &CacheTrasher,
+    ) {
+        for iteration in 0..NUM_RUNS {
+            // We interleave the benches to address benchmarking randomness
+            //
+            // This has the drawback, that one bench will affect another one.
+            let mut indices: Vec<usize> = (0..benches.len()).collect();
+            shuffle(&mut indices, iteration as u64);
+
+            std::thread::yield_now();
+
+            cache_trasher.issue_read();
+
+            for idx in indices {
+                let bench = &mut benches[idx];
+                // We use alloca to address memory layout randomness issues
+                // So the whole stack moves down by 1 byte for each iteration
+
+                // We loop multiple times on a single bench, since one bench could e.g. flush all the
+                // memory caches, which may or may not be like this in a real world environment.
+                // We want to capture both cases, hot loops and interleaved, to see how a bench performs under both
+                // conditions.
+                alloca::with_alloca(
+                    iteration, // we increase the byte offset by 1 for each iteration
+                    |_memory: &mut [core::mem::MaybeUninit<u8>]| {
+                        bench.exec_bench(input, alloc);
+                    },
+                );
+            }
+        }
+    }
+
+    fn warm_up(input: &I, benches: &mut [Bench<I>]) {
+        // Measure and print the time it took
+        for bench in benches {
+            bench.sample_and_set_iter(input);
+        }
+    }
+    fn report_input(&mut self, input_name: String) {
+        if self.benches.is_empty() {
+            return;
+        }
+        report_input(
+            self.name.as_str(),
+            input_name,
+            self.input_size(),
+            &mut self.benches,
+            &self.alloc,
+        );
+        for bench in self.benches.iter_mut() {
+            Vec::clear(&mut bench.results);
+        }
+    }
+}
+
+/// Performs a dummy reads from memory to spoil given amount of CPU cache
+///
+/// Uses cache aligned data arrays to perform minimum amount of reads possible to spoil the cache
+struct CacheTrasher {
+    cache_lines: Vec<CacheLine>,
+}
+
+impl CacheTrasher {
+    fn new(bytes: usize) -> Self {
+        let n = bytes / std::mem::size_of::<CacheLine>();
+        let cache_lines = vec![CacheLine::default(); n];
+        Self { cache_lines }
+    }
+
+    fn issue_read(&self) {
+        for line in &self.cache_lines {
+            // Because CacheLine is aligned on 64 bytes it is enough to read single element from the array
+            // to spoil the whole cache line
+            unsafe { std::ptr::read_volatile(&line.0[0]) };
+        }
+    }
+}
+
+#[repr(C)]
+#[repr(align(64))]
+#[derive(Default, Clone, Copy)]
+struct CacheLine([u16; 32]);
+
+fn shuffle(indices: &mut [usize], seed: u64) {
+    let mut rng = SimpleRng::new(seed);
+
+    for i in (1..indices.len()).rev() {
+        let j = rng.rand() as usize % (i + 1);
+        indices.swap(i, j);
+    }
+}
+
+struct SimpleRng {
+    state: u64,
+}
+
+impl SimpleRng {
+    fn new(seed: u64) -> Self {
+        SimpleRng { state: seed }
+    }
+
+    fn rand(&mut self) -> u64 {
+        self.state = self.state.wrapping_mul(6364136223846793005).wrapping_add(1);
+        self.state
     }
 }

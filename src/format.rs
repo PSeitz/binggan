@@ -4,7 +4,7 @@ pub fn format_duration(duration: u64) -> String {
 
     let total_nanos = duration; // Get total nanoseconds
 
-    if total_nanos < 100 {
+    if total_nanos < 10_000 {
         format!("{}ns", total_nanos)
     } else if total_nanos <= NANOS_PER_SEC {
         let millis = duration as f64 / NANOS_PER_MILLI as f64;
@@ -15,6 +15,7 @@ pub fn format_duration(duration: u64) -> String {
     }
 }
 
+#[allow(dead_code)]
 pub fn format_with_underscores(number: u64) -> String {
     let num_str = number.to_string();
     let mut result = String::new();
@@ -49,7 +50,7 @@ pub fn bytes_to_string(bytes: u64) -> String {
     } else {
         let size = bytes as f64;
         let exp = match (size.ln() / unit_base) as usize {
-            e if e == 0 => 1,
+            0 => 1,
             e => e,
         };
 
