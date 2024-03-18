@@ -1,0 +1,26 @@
+[package]
+name = "binggan"
+version = "0.1.1"
+authors = ["Pascal Seitz <pascal.seitz@gmail.com>"]
+edition = "2021"
+
+description = "Benchmarking library for Rust"
+repository = "https://github.com/PSeitz/binggan"
+readme = "README.md"
+keywords = ["bingan", "perf", "profiler", "benchmark"]
+categories = ["development-tools::profiling"]
+license = "MIT"
+
+[dependencies]
+alloca = "0.4.0"
+cfg-if = "1.0"
+peakmem-alloc = "0.3.0"
+yansi = "1.0.1"
+
+[features]
+real_blackbox = []
+default = []
+
+[[bench]]
+name = "test_regular_bench"
+harness = false
