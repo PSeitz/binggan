@@ -17,6 +17,7 @@
 //! ```rust
 //! use binggan::{black_box, BenchGroup, Binggan, INSTRUMENTED_SYSTEM, PeakMemAlloc};
 //!
+//! // Set the peak mem allocator as your global allocator to later set it in the benchmarks.
 //! #[global_allocator]
 //! pub static GLOBAL: &PeakMemAlloc<std::alloc::System> = &INSTRUMENTED_SYSTEM;
 //!
