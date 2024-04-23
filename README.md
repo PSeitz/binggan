@@ -10,7 +10,7 @@ It allows arbitrary named inputs to be passed to the benchmarks.
 
 * 📊 Peak Memory Usage
 * 💎 Stack Offset Randomization
-* 💖 Perf Integration
+* 💖 Perf Integration (Linux)
 * 🔄 Delta Comparison
 * ⚡ Fast Execution
 * 🧩 Interleaving Test Runs Between Benches in a Group
