@@ -6,6 +6,22 @@ It is designed to be simple to use and to provide a good overview of the perform
 
 It allows arbitrary named inputs to be passed to the benchmarks.
 
+### Features:
+
+* Peak Memory Usage
+* Stack Offset Randomization
+* Perf Integration
+* Delta Comparison
+* Fast Execution
+* Interleaving Test Runs Between Benches in a Group
+* Named Benchmark Inputs
+* Fast Compile Time (3s for release build)
+* No Macros, No Magic (Just a regular API)
+* Easy Benchmark Generation
+* Runs on Stable Rust
+
+### Example:
+
 ```rust
 use binggan::{black_box, BenchGroup, Binggan, PeakMemAlloc, INSTRUMENTED_SYSTEM};
 
@@ -39,19 +55,6 @@ fn main() {
 ```
 
 
-### Features:
-
-* Peak Memory Usage
-* Stack Offset Randomization
-* Perf Integration
-* Delta Comparison
-* Fast Execution
-* Interleaving Test Runs Between Benches in a Group
-* Named Benchmark Inputs
-* Fast Compile Time (3s for release build)
-* No Macros, No Magic (Just a regular API)
-* Easy Benchmark Generation
-* Runs on Stable Rust
 
 # TODO
 
