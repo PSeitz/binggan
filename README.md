@@ -15,7 +15,6 @@ It allows arbitrary named inputs to be passed to the benchmarks.
 * ⚡ Fast Execution
 * 🧩 Interleaving Test Runs Between Benches in a Group
 * 🏷️ Named Benchmark Inputs
-* 🚀 BLAZINGLY Fast Compile Time (3s for release build)
 * 🧙 No Macros, No Magic (Just a regular API)
 * 🎨 NOW with colored output!
 * 🦀 Runs on Stable Rust
@@ -54,7 +53,7 @@ fn main() {
 }
 ```
 
-### Exmaple Output:
+### Example Output:
 ```bash
 cargo bench
 
@@ -71,9 +70,13 @@ FxHashMap                    Memory: 1.8 MB  (0.00%)    Avg: 3.7157ms  (+6.57%) 
 FxHashMap Reserved Max Id    Memory: 9.4 MB  (0.00%)    Avg: 5.8076ms  (+39.56%)    Median: 5.3666ms  (+31.39%)    3.0705ms    15.8945ms    
 
 ```
+### Peak Memory
+To activate peak memory reporting, you need to wrap your allocator with the PeakMemAlloc and call `set_alloc` in the group.
 
+While number of allocations are also interesting for performance analysis, 
+peak memory will determine the memory requirements of the code.
 
-# TODO
+### TODO
 
 - [] Throughput
 
@@ -81,8 +84,3 @@ FxHashMap Reserved Max Id    Memory: 9.4 MB  (0.00%)    Avg: 5.8076ms  (+39.56%)
 * Charts
 * Auto comparison of Histograms (e.g. if a benchmark has several bands in which it operates, it would be nice to compare them)
 
-### Memory Usage (peak memory usage)
-
-This measures the peak memory usage of the benchmarked code.
-While number of allocations are also interesting for performance analysis, 
-peak memory will determine the memory requirements of the code.
