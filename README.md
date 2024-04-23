@@ -8,17 +8,17 @@ It allows arbitrary named inputs to be passed to the benchmarks.
 
 ### Features:
 
-* Peak Memory Usage
-* Stack Offset Randomization
-* Perf Integration
-* Delta Comparison
-* Fast Execution
-* Interleaving Test Runs Between Benches in a Group
-* Named Benchmark Inputs
-* Fast Compile Time (3s for release build)
-* No Macros, No Magic (Just a regular API)
-* Easy Benchmark Generation
-* Runs on Stable Rust
+* 📊 Peak Memory Usage
+* 💎 Stack Offset Randomization
+* 💖 Perf Integration
+* 🔄 Delta Comparison
+* ⚡ Fast Execution
+* 🧩 Interleaving Test Runs Between Benches in a Group
+* 🏷️ Named Benchmark Inputs
+* 🚀 BLAZINGLY Fast Compile Time (3s for release build)
+* 🧙 No Macros, No Magic (Just a regular API)
+* 🎨 NOW with colored output!
+* 🦀 Runs on Stable Rust
 
 ### Example:
 
