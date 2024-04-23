@@ -35,8 +35,8 @@ impl BenchStats {
             })
             .unwrap_or_default();
 
-        let min_str = format_duration(self.min_ns);
-        let max_str = format_duration(self.max_ns);
+        let min_str = format!("Min: {}", format_duration(self.min_ns));
+        let max_str = format!("Max: {}", format_duration(self.max_ns));
         let memory_string = if include_memory {
             let mem_diff = other
                 .clone()
