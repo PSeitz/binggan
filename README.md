@@ -1,4 +1,4 @@
-![binggan logo](https://raw.githubusercontent.com/PSeitz/binggan/master/logo_s.png)
+![binggan logo](https://raw.githubusercontent.com/PSeitz/binggan/main/logo_s.png)
 
 Binggan is a benchmarking library for Rust.
 It is designed to be simple to use and to provide a good overview of the performance of your code and its memory consumption.
