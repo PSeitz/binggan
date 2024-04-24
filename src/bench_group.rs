@@ -41,6 +41,9 @@ impl<I: BenchInputSize> BenchGroup<I> {
         inputs: Vec<(S, I)>,
         mut options: Options,
     ) -> Self {
+        use yansi::Condition;
+        yansi::whenever(Condition::TTY_AND_COLOR);
+
         let mut inputs: Vec<(String, I)> = inputs
             .into_iter()
             .map(|(name, input)| (name.into(), input))
