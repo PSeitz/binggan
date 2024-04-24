@@ -14,11 +14,10 @@ exclude = ["*logo*"]
 
 [dependencies]
 alloca = "0.4.0"
-#argh = "0.1.12"
 miniserde = "0.1.38"
 peakmem-alloc = "0.3.0"
 perf-event = "0.4.8"
-prettytable-rs = "0.10.0"
+#prettytable-rs = "0.10.0"
 unicode-width = "0.1.11"
 yansi = { version = "1.0.1", features = ["detect-env", "detect-tty"] }
 rustop = "=1.1.4"

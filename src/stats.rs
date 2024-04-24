@@ -2,7 +2,6 @@ use crate::{
     bench::BenchResult,
     format::{bytes_to_string, format_duration},
 };
-//use csv_macro::CSV;
 use miniserde::{Deserialize, Serialize};
 use yansi::Paint;
 
