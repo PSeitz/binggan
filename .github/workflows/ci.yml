@@ -11,7 +11,7 @@ jobs:
           - stable
           - beta
           - nightly
-          - 1.45.0  # MSRV
+          - 1.70.0  # MSRV
 
     steps:
       - run: sudo apt-get update
