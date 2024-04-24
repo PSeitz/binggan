@@ -27,10 +27,6 @@ jobs:
 
       - run: cargo bench
 
-      - if: ${{ matrix.rust == 'nightly' }}
-        working-directory: ./macro
-        run: cargo bench
-
   lint:
     strategy:
       matrix:
@@ -50,11 +46,3 @@ jobs:
 
       - run: cargo fmt --all -- --check
       - run: cargo clippy --all -- -D warnings
-
-      - if: ${{ matrix.rust == 'nightly' }}
-        working-directory: ./macro
-        run: cargo fmt --all -- --check
-
-      - if: ${{ matrix.rust == 'nightly' }}
-        working-directory: ./macro
-        run: cargo clippy --all -- -D warnings
