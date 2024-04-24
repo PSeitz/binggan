@@ -42,14 +42,11 @@ pub(crate) fn report_input<I>(
     for bench in benches.iter_mut() {
         let bench_id = format!("{}_{}_{}", group_name, input_name, bench.name).replace('/', "-");
         let stats = compute_stats(&bench.results).unwrap();
-        let perf_counter: Option<CounterValues> = bench
-            .profiler
-            .as_mut()
-            .and_then(|profiler| {
-                profiler
-                    .finish(NUM_RUNS as u64 * bench.num_iter as u64)
-                    .ok()
-            });
+        let perf_counter: Option<CounterValues> = bench.profiler.as_mut().and_then(|profiler| {
+            profiler
+                .finish(NUM_RUNS as u64 * bench.num_iter as u64)
+                .ok()
+        });
 
         // Filepath in target directory
         let filepath = output_directory.join(&bench_id);
