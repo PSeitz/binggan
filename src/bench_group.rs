@@ -131,9 +131,9 @@ impl<I: BenchInputSize> BenchGroup<I> {
             let input = &self.inputs[idx];
             Self::warm_up(&input.1, &mut self.benches);
             if self.options.interleave {
-                Self::run_interleaved(&mut self.benches, &input, &self.alloc, &self.cache_trasher);
+                Self::run_interleaved(&mut self.benches, input, &self.alloc, &self.cache_trasher);
             } else {
-                Self::run_sequential(&mut self.benches, &input, &self.alloc);
+                Self::run_sequential(&mut self.benches, input, &self.alloc);
             }
 
             self.report_input(input.0.to_string());

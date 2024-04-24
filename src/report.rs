@@ -36,35 +36,33 @@ pub(crate) fn report_input<I>(
 
     // Create a new directory if it does not exist
     let output_directory = get_default_output_directory();
-    let _ = std::fs::create_dir_all(output_directory.to_path_buf());
+    let _ = std::fs::create_dir_all(&output_directory);
 
     let mut table_data: Vec<Vec<String>> = Vec::new();
     for bench in benches.iter_mut() {
-        let bench_id = format!("{}_{}_{}", group_name, input_name, bench.name).replace("/", "-");
+        let bench_id = format!("{}_{}_{}", group_name, input_name, bench.name).replace('/', "-");
         let stats = compute_stats(&bench.results).unwrap();
         let perf_counter: Option<CounterValues> = bench
             .profiler
             .as_mut()
-            .map(|profiler| {
+            .and_then(|profiler| {
                 profiler
                     .finish(NUM_RUNS as u64 * bench.num_iter as u64)
                     .ok()
-            })
-            .flatten();
+            });
 
         // Filepath in target directory
-        let filepath = output_directory.join(format!("{}", bench_id));
+        let filepath = output_directory.join(&bench_id);
         // Check if file exists and deserialize
         let mut old_stats: Option<BenchStats> = None;
         let mut old_counter: Option<CounterValues> = None;
         if filepath.exists() {
             let content = std::fs::read_to_string(&filepath).unwrap();
             let lines: Vec<_> = content.lines().collect();
-            old_stats = miniserde::json::from_str(&lines[0]).unwrap();
+            old_stats = miniserde::json::from_str(lines[0]).unwrap();
             old_counter = lines
                 .get(1)
-                .map(|line| miniserde::json::from_str(line).ok())
-                .flatten();
+                .and_then(|line| miniserde::json::from_str(line).ok());
         };
 
         //bench.name
@@ -80,7 +78,7 @@ pub(crate) fn report_input<I>(
         // Write to file
         let mut out = miniserde::json::to_string(&stats);
         if let Some(perf_counter) = perf_counter {
-            out.push_str("\n");
+            out.push('\n');
             let perf_out = miniserde::json::to_string(&perf_counter);
             out.push_str(&perf_out);
         }

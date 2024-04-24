@@ -61,7 +61,8 @@ impl<I> Bench<I> {
 
         let start = std::time::Instant::now();
         for _ in 0..100 {
-            black_box((self.fun)(input));
+            (self.fun)(input);
+            black_box(());
         }
         let elapsed_ns = start.elapsed().as_nanos();
         let per_iter_ns = (elapsed_ns / 100) * NUM_RUNS as u128;
