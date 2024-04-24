@@ -10,7 +10,7 @@ It is designed to be simple to use and to provide a good overview of the perform
 
 It allows arbitrary named inputs to be passed to the benchmarks.
 
-### Features:
+### Features
 
 * 📊 Peak Memory Usage
 * 💎 Stack Offset Randomization
@@ -23,7 +23,7 @@ It allows arbitrary named inputs to be passed to the benchmarks.
 * 🎨 NOW with colored output!
 * 🦀 Runs on Stable Rust
 
-### Example:
+### Example
 
 ```rust
 use binggan::{black_box, BenchGroup, Binggan, PeakMemAlloc, INSTRUMENTED_SYSTEM};
