@@ -20,7 +20,7 @@ peakmem-alloc = "0.3.0"
 perf-event = "0.4.8"
 prettytable-rs = "0.10.0"
 unicode-width = "0.1.11"
-yansi = "1.0.1"
+yansi = { version = "1.0.1", features = ["detect-env", "detect-tty"] }
 rustop = "=1.1.4"
 
 [features]
