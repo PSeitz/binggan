@@ -1,6 +1,6 @@
 use std::alloc::GlobalAlloc;
 
-use crate::{bench::Bench, report::report_input, BenchInputSize, Options};
+use crate::{bench::Bench, parse_args, report::report_input, BenchInputSize, Options};
 use peakmem_alloc::*;
 use yansi::Paint;
 
@@ -19,8 +19,12 @@ pub struct BenchGroup<I: BenchInputSize = ()> {
 
 impl BenchGroup<()> {
     /// Create a new BenchGroup with the given name and options.
-    pub fn new(name: String, options: Options) -> Self {
-        Self::new_with_inputs(name, vec![("".to_string(), ())], options)
+    pub fn new(name: String) -> Self {
+        Self::new_with_inputs(name, vec![("".to_string(), ())])
+    }
+    /// Create a new BenchGroup with the given name and options.
+    pub fn new_with_options(name: String, options: Options) -> Self {
+        Self::new_with_inputs_and_options(name, vec![("".to_string(), ())], options)
     }
 }
 
@@ -36,7 +40,12 @@ fn matches(input: &str, filter: &Option<String>, exact: bool) -> bool {
 impl<I: BenchInputSize> BenchGroup<I> {
     /// The inputs are a vector of tuples, where the first element is the name of the input and the
     /// second element is the input itself.
-    pub fn new_with_inputs<S: Into<String>>(
+    pub fn new_with_inputs<S: Into<String>>(name: String, inputs: Vec<(S, I)>) -> Self {
+        Self::new_with_inputs_and_options(name, inputs, parse_args())
+    }
+    /// The inputs are a vector of tuples, where the first element is the name of the input and the
+    /// second element is the input itself.
+    pub fn new_with_inputs_and_options<S: Into<String>>(
         name: String,
         inputs: Vec<(S, I)>,
         mut options: Options,

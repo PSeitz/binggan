@@ -26,6 +26,8 @@ jobs:
           override: true
 
       - run: cargo bench
+      # test filter parameter for cargo bench
+      - run: "[ $(cargo bench | wc -l) -gt $(cargo bench 15 | wc -l) ]"
 
   lint:
     strategy:

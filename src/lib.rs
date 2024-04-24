@@ -130,7 +130,7 @@ impl Binggan {
     }
     /// Create a new benchmark group.
     pub fn new_group(&mut self, name: &str) -> BenchGroup {
-        BenchGroup::new(name.to_string(), parse_args())
+        BenchGroup::new(name.to_string())
     }
     /// Create a new benchmark group with named inputs.
     /// # Example
@@ -144,8 +144,7 @@ impl Binggan {
         name: impl Into<String>,
         inputs: Vec<(S, I)>,
     ) -> BenchGroup<I> {
-        parse_args();
-        BenchGroup::new_with_inputs(name.into(), inputs, parse_args())
+        BenchGroup::new_with_inputs(name.into(), inputs)
     }
 }
 
