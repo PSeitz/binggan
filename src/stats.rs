@@ -13,39 +13,34 @@ pub struct BenchStats {
     median_ns: u64,
     avg_memory: usize,
 }
+
+/// Compute diff from two values of BenchStats
+fn compute_diff<F: Fn(&BenchStats) -> u64>(
+    stats: &BenchStats,
+    other: Option<BenchStats>,
+    f: F,
+) -> String {
+    other
+        .as_ref()
+        .map(|other| {
+            if f(other) == 0 || f(stats) == 0 {
+                return "".to_string();
+            }
+            let diff = compute_percentage_diff(f(stats) as f64, f(other) as f64);
+            format_percentage(diff)
+        })
+        .unwrap_or_default()
+}
+
 impl BenchStats {
     pub fn to_columns(&self, other: Option<BenchStats>, include_memory: bool) -> Vec<String> {
-        let avg_ns_diff = other
-            .as_ref()
-            .map(|other| {
-                format_percentage(compute_percentage_diff(
-                    self.average_ns as f64,
-                    other.average_ns as f64,
-                ))
-            })
-            .unwrap_or_default();
-        let median_ns_diff = other
-            .as_ref()
-            .map(|other| {
-                format_percentage(compute_percentage_diff(
-                    self.median_ns as f64,
-                    other.median_ns as f64,
-                ))
-            })
-            .unwrap_or_default();
+        let avg_ns_diff = compute_diff(self, other.clone(), |stats| stats.average_ns);
+        let median_ns_diff = compute_diff(self, other.clone(), |stats| stats.median_ns);
 
         let min_str = format!("Min: {}", format_duration(self.min_ns));
         let max_str = format!("Max: {}", format_duration(self.max_ns));
         let memory_string = if include_memory {
-            let mem_diff = other
-                .clone()
-                .map(|other| {
-                    format_percentage(compute_percentage_diff(
-                        self.avg_memory as f64,
-                        other.avg_memory as f64,
-                    ))
-                })
-                .unwrap_or_default();
+            let mem_diff = compute_diff(self, other.clone(), |stats| stats.avg_memory as u64);
             format!(
                 "Memory: {} {}",
                 bytes_to_string(self.avg_memory as u64).bright_cyan().bold(),
