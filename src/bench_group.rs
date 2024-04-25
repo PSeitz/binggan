@@ -7,24 +7,34 @@ use yansi::Paint;
 pub(crate) type Alloc = &'static dyn PeakMemAllocTrait;
 pub(crate) const NUM_RUNS: usize = 32;
 
+/// The main struct to create benchmarks.
+///
 /// BenchGroup is a collection of benchmarks that are run with the same inputs.
+/// It is self-contained and can be run independently.
 pub struct BenchGroup<I: BenchInputSize = ()> {
-    name: String,
-    inputs: Vec<(String, I)>,
+    name: Option<String>,
+    inputs: Vec<Input<I>>,
     benches: Vec<Bench<I>>,
     alloc: Option<Alloc>,
     cache_trasher: CacheTrasher,
     options: Options,
 }
+impl Default for BenchGroup<()> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub(crate) struct Input<I> {
+    pub(crate) name: String,
+    pub(crate) id: u8,
+    pub(crate) data: I,
+}
 
 impl BenchGroup<()> {
-    /// Create a new BenchGroup with the given name and options.
-    pub fn new(name: String) -> Self {
-        Self::new_with_inputs(name, vec![("".to_string(), ())])
-    }
-    /// Create a new BenchGroup with the given name and options.
-    pub fn new_with_options(name: String, options: Options) -> Self {
-        Self::new_with_inputs_and_options(name, vec![("".to_string(), ())], options)
+    /// Create a new BenchGroup with no inputs.
+    pub fn new() -> Self {
+        Self::new_with_inputs(vec![("", ())])
     }
 }
 
@@ -38,36 +48,45 @@ fn matches(input: &str, filter: &Option<String>, exact: bool) -> bool {
 }
 
 impl<I: BenchInputSize> BenchGroup<I> {
-    /// The inputs are a vector of tuples, where the first element is the name of the input and the
-    /// second element is the input itself.
-    pub fn new_with_inputs<S: Into<String>>(name: String, inputs: Vec<(S, I)>) -> Self {
-        Self::new_with_inputs_and_options(name, inputs, parse_args())
+    /// Sets name of the group and returns the group.
+    pub fn name<S: Into<String>>(mut self, name: S) -> Self {
+        self.name = Some(name.into());
+        self
     }
     /// The inputs are a vector of tuples, where the first element is the name of the input and the
     /// second element is the input itself.
-    pub fn new_with_inputs_and_options<S: Into<String>>(
-        name: String,
+    pub fn new_with_inputs<S: Into<String>>(inputs: Vec<(S, I)>) -> Self {
+        Self::new_with_inputs_and_options(inputs, parse_args())
+    }
+    /// The inputs are a vector of tuples, where the first element is the name of the input and the
+    /// second element is the input itself.
+    pub(crate) fn new_with_inputs_and_options<S: Into<String>>(
         inputs: Vec<(S, I)>,
         mut options: Options,
     ) -> Self {
         use yansi::Condition;
         yansi::whenever(Condition::TTY_AND_COLOR);
 
-        let mut inputs: Vec<(String, I)> = inputs
+        let mut inputs: Vec<Input<I>> = inputs
             .into_iter()
-            .map(|(name, input)| (name.into(), input))
+            .enumerate()
+            .map(|(ord, (name, input))| Input {
+                name: name.into(),
+                id: ord as u8,
+                data: input,
+            })
             .collect();
         let filter_targets_input = inputs
             .iter()
-            .any(|(name, _)| matches(name, &options.filter, options.exact));
+            .any(|input| matches(&input.name, &options.filter, options.exact));
         // If the filter is filtering an input, we filter and remove the filter
         if filter_targets_input && options.filter.is_some() {
-            inputs.retain(|(name, _)| matches(name, &options.filter, options.exact));
+            inputs.retain(|input| matches(&input.name, &options.filter, options.exact));
             options.filter = None;
         }
         BenchGroup {
             inputs,
-            name,
+            name: None,
             benches: Vec::new(),
             alloc: None,
             cache_trasher: CacheTrasher::new(1024 * 1024 * 16),
@@ -97,6 +116,13 @@ impl<I: BenchInputSize> BenchGroup<I> {
     /// ```
     pub fn enable_perf(&mut self) {
         self.options.enable_perf = true;
+    }
+
+    /// Set the name of the group.
+    /// The name is printed before the benchmarks are run.
+    /// It is also used to distinguish when writing the results to disk.
+    pub fn set_name(&mut self, name: Option<String>) {
+        self.name = name;
     }
 
     /// Set the options to the given value.
@@ -135,30 +161,43 @@ impl<I: BenchInputSize> BenchGroup<I> {
 
     /// Run the benchmarks and report the results.
     pub fn run(&mut self) {
-        if !self.name.is_empty() {
-            println!("{}", self.name.black().on_red().invert().bold());
+        if self.benches.is_empty() {
+            return;
+        }
+
+        if let Some(name) = &self.name {
+            println!("{}", name.black().on_red().invert().bold());
         }
 
         for idx in 0..self.inputs.len() {
             let input = &self.inputs[idx];
-            Self::warm_up(&input.1, &mut self.benches);
-            if self.options.interleave {
-                Self::run_interleaved(&mut self.benches, input, &self.alloc, &self.cache_trasher);
-            } else {
-                Self::run_sequential(&mut self.benches, input, &self.alloc);
+
+            let mut bench_bundle: Vec<InputWithBenchmark<I>> = Vec::new();
+            for bench in self.benches.iter_mut() {
+                bench_bundle.push(InputWithBenchmark { input, bench });
             }
 
-            self.report_input(input.0.to_string());
+            Self::warm_up(&mut bench_bundle);
+            if self.options.interleave {
+                Self::run_interleaved(&mut bench_bundle, &self.alloc, &self.cache_trasher);
+            } else {
+                Self::run_sequential(&mut bench_bundle, &self.alloc);
+            }
+
+            report_input(&self.name, input, &mut self.benches, self.alloc.is_some());
+            for bench in self.benches.iter_mut() {
+                Vec::clear(&mut bench.results);
+            }
         }
     }
 
-    fn run_sequential(benches: &mut [Bench<I>], input: &(String, I), alloc: &Option<Alloc>) {
-        for bench in benches {
+    fn run_sequential(benches: &mut [InputWithBenchmark<I>], alloc: &Option<Alloc>) {
+        for bench_bundle in benches {
             for iteration in 0..NUM_RUNS {
                 alloca::with_alloca(
                     iteration, // we increase the byte offset by 1 for each iteration
                     |_memory: &mut [core::mem::MaybeUninit<u8>]| {
-                        bench.exec_bench(input, alloc);
+                        bench_bundle.bench.exec_bench(bench_bundle.input, alloc);
                     },
                 );
             }
@@ -166,8 +205,7 @@ impl<I: BenchInputSize> BenchGroup<I> {
     }
 
     fn run_interleaved(
-        benches: &mut [Bench<I>],
-        input: &(String, I),
+        benches: &mut [InputWithBenchmark<I>],
         alloc: &Option<Alloc>,
         cache_trasher: &CacheTrasher,
     ) {
@@ -194,34 +232,27 @@ impl<I: BenchInputSize> BenchGroup<I> {
                 alloca::with_alloca(
                     iteration, // we increase the byte offset by 1 for each iteration
                     |_memory: &mut [core::mem::MaybeUninit<u8>]| {
-                        bench.exec_bench(input, alloc);
+                        bench.bench.exec_bench(bench.input, alloc);
                     },
                 );
             }
         }
     }
 
-    fn warm_up(input: &I, benches: &mut [Bench<I>]) {
+    fn warm_up(benches: &mut [InputWithBenchmark<I>]) {
         // Measure and print the time it took
-        for bench in benches {
-            bench.sample_and_set_iter(input);
+        for input_and_bench in benches {
+            input_and_bench
+                .bench
+                .sample_and_set_iter(input_and_bench.input);
         }
     }
-    fn report_input(&mut self, input_name: String) {
-        if self.benches.is_empty() {
-            return;
-        }
-        report_input(
-            self.name.as_str(),
-            input_name,
-            self.input_size(),
-            &mut self.benches,
-            &self.alloc,
-        );
-        for bench in self.benches.iter_mut() {
-            Vec::clear(&mut bench.results);
-        }
-    }
+}
+
+/// Bundle of input and benchmark for running benchmarks
+struct InputWithBenchmark<'a, I> {
+    input: &'a Input<I>,
+    bench: &'a mut Bench<I>,
 }
 
 /// Performs a dummy reads from memory to spoil given amount of CPU cache

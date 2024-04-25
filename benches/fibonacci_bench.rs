@@ -1,4 +1,4 @@
-use binggan::{black_box, BenchGroup, Binggan, PeakMemAlloc, INSTRUMENTED_SYSTEM};
+use binggan::{black_box, BenchGroup, PeakMemAlloc, INSTRUMENTED_SYSTEM};
 
 #[global_allocator]
 pub static GLOBAL: &PeakMemAlloc<std::alloc::System> = &INSTRUMENTED_SYSTEM;
@@ -21,9 +21,8 @@ fn bench_fibonacci_group<I>(mut runner: BenchGroup<I>) {
 }
 
 fn main() {
-    let mut runner = Binggan::new();
-    bench_fibonacci_group(runner.new_group("fibonacci_plain"));
+    bench_fibonacci_group(BenchGroup::new().name("fibonacci_plain"));
     bench_fibonacci_group(
-        runner.new_group_with_inputs("fibonacci_input", vec![("10", 10), ("15", 15)]),
+        BenchGroup::new_with_inputs(vec![("10", 10), ("15", 15)]).name("fibonacci_input"),
     );
 }

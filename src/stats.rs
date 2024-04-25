@@ -23,7 +23,7 @@ fn compute_diff<F: Fn(&BenchStats) -> u64>(
     other
         .as_ref()
         .map(|other| {
-            if f(other) == 0 || f(stats) == 0 {
+            if f(other) == 0 || f(stats) == 0 || f(other) == f(stats) {
                 return "".to_string();
             }
             let diff = compute_percentage_diff(f(stats) as f64, f(other) as f64);
@@ -120,6 +120,7 @@ mod tests {
         BenchResult {
             duration_ns,
             memory_consumption,
+            input_id: 0,
         }
     }
 

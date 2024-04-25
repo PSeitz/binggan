@@ -15,38 +15,55 @@
 //!
 //! # Example
 //! ```rust
-//! use binggan::{black_box, BenchGroup, Binggan, INSTRUMENTED_SYSTEM, PeakMemAlloc};
+//! use binggan::{black_box, BenchGroup, PeakMemAlloc, INSTRUMENTED_SYSTEM};
 //!
-//! // Set the peak mem allocator as your global allocator to later set it in the benchmarks.
 //! #[global_allocator]
 //! pub static GLOBAL: &PeakMemAlloc<std::alloc::System> = &INSTRUMENTED_SYSTEM;
 //!
-//! fn fibonacci(n: u64) -> u64 {
-//!     match n {
-//!          0 | 1 => 1,
-//!         n => fibonacci(n - 1) + fibonacci(n - 2),
+//! fn main() {
+//!     // Tuples of name and data for the inputs
+//!     let data = vec![
+//!         (
+//!             "max id 100; 100 el all the same",
+//!             std::iter::repeat(100).take(100).collect(),
+//!         ),
+//!         (   
+//!             "max id 100; 100 el all different",
+//!             (0..100).collect()
+//!         ),
+//!     ];
+//!     bench_group(BenchGroup::new_with_inputs(data));
+//! }
+//!
+//! // Run the benchmark for the group with input `Vec<usize>`
+//! fn bench_group(mut runner: BenchGroup<Vec<usize>>) {
+//!     runner.set_alloc(GLOBAL); // Set the peak mem allocator. This will enable peak memory reporting.
+//!     runner.enable_perf();
+//!     runner.register("vec", move |data| {
+//!         black_box(test_vec(data));
+//!     });
+//!     runner.register("hashmap", move |data| {
+//!         black_box(test_hashmap(data));
+//!     });
+//!    runner.run();
+//! }
+//!
+//! fn test_vec(data: &Vec<usize>) {
+//!     let mut vec = Vec::new();
+//!     for idx in data {
+//!         if vec.len() <= *idx {
+//!             vec.resize(idx + 1, 0);
+//!         }
+//!         vec[*idx] += 1;
+//!     }
+//! }
+//! fn test_hashmap(data: &Vec<usize>) {
+//!     let mut map = std::collections::HashMap::new();
+//!     for idx in data {
+//!         *map.entry(idx).or_insert(0) += 1;
 //!     }
 //! }
 //!
-//! fn bench_fibonacci_group<I>(mut runner: BenchGroup<I>) {
-//!     // Set the peak mem allocator. This will enable peak memory reporting.
-//!     runner.set_alloc(GLOBAL);
-//!     runner.register("fibonacci", move |_| {
-//!         fibonacci(black_box(10));
-//!     });
-//!     runner.register("fibonacci_alt", move |_| {
-//!        // unimplemented!()
-//!     });
-//!     runner.run();
-//! }
-//!
-//! fn main() {
-//!     let mut runner = Binggan::new();
-//!     bench_fibonacci_group(runner.new_group("fibonacci_plain"));
-//!     bench_fibonacci_group(
-//!        runner.new_group_with_inputs("fibonacci_input", vec![("10", 10), ("15", 15)]),
-//!     );
-//! }
 //! ```
 //!
 
@@ -67,6 +84,7 @@ pub use bench_group::BenchGroup;
 use rustop::opts;
 
 /// Reports the size in bytes a input.
+/// Unused currently.
 pub trait BenchInputSize {
     /// The size of the input, if it is known.
     /// It is used to calculate the throughput of the benchmark.
@@ -76,23 +94,19 @@ pub trait BenchInputSize {
 }
 impl<T: ?Sized> BenchInputSize for T {}
 
-/// The main struct to create benchmarks.
-///
-/// It actually does nothing currently, but it is the entry point to create benchmarks.
-#[derive(Default, Debug, Clone, Copy)]
-pub struct Binggan {}
-
 /// The options to configure the benchmarking.
+/// The can be set on `BenchGroup`.
 #[derive(Debug, Default)]
 pub struct Options {
-    /// The options to configure the benchmarking.
+    /// Interleave benchmarks
     pub interleave: bool,
-    /// Run perf profiler
+    /// Filter should match exact
     pub exact: bool,
-    /// The options to configure the benchmarking.
+    /// The filter for the benchmarks
+    /// This is read from the command line by default.
     pub filter: Option<String>,
-    /// Enable perf integration
-    enable_perf: bool,
+    /// Enable/disable perf integration
+    pub enable_perf: bool,
 }
 
 fn parse_args() -> Options {
@@ -121,30 +135,6 @@ fn parse_args() -> Options {
         std::process::exit(1);
     } else {
         unreachable!();
-    }
-}
-impl Binggan {
-    /// Create a new instance of Binggan.
-    pub fn new() -> Self {
-        Binggan {}
-    }
-    /// Create a new benchmark group.
-    pub fn new_group(&mut self, name: &str) -> BenchGroup {
-        BenchGroup::new(name.to_string())
-    }
-    /// Create a new benchmark group with named inputs.
-    /// # Example
-    /// ```rust
-    /// use binggan::{black_box, BenchGroup, Binggan, INSTRUMENTED_SYSTEM, PeakMemAlloc};
-    /// let mut runner = Binggan::new();
-    /// runner.new_group_with_inputs("krasser_index", vec![("zipf 1%", 10), ("zipf 10%", 15)]);
-    /// ```
-    pub fn new_group_with_inputs<I, S: Into<String>>(
-        &mut self,
-        name: impl Into<String>,
-        inputs: Vec<(S, I)>,
-    ) -> BenchGroup<I> {
-        BenchGroup::new_with_inputs(name.into(), inputs)
     }
 }
 
