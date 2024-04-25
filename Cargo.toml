@@ -1,6 +1,6 @@
 [package]
 name = "binggan"
-version = "0.2.2"
+version = "0.2.3"
 authors = ["Pascal Seitz <pascal.seitz@gmail.com>"]
 edition = "2021"
 homepage = "https://github.com/pseitz/binggan"
