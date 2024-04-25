@@ -121,8 +121,8 @@ impl<I: BenchInputSize> BenchGroup<I> {
     /// Set the name of the group.
     /// The name is printed before the benchmarks are run.
     /// It is also used to distinguish when writing the results to disk.
-    pub fn set_name(&mut self, name: Option<String>) {
-        self.name = name;
+    pub fn set_name(&mut self, name: String) {
+        self.name = Some(name);
     }
 
     /// Set the options to the given value.
