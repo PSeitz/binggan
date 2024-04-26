@@ -15,12 +15,12 @@ fn get_output_directory() -> PathBuf {
     static mut OUTPUT_DIRECTORY: Option<PathBuf> = None;
     unsafe {
         INIT.call_once(|| {
-            let output_directory = if let Some(value) = env::var_os("BINGAN_HOME") {
+            let output_directory = if let Some(value) = env::var_os("BINGGAN_HOME") {
                 PathBuf::from(value)
             } else if let Some(path) = env::var_os("CARGO_TARGET_DIR").map(PathBuf::from) {
-                path.join("bingan")
+                path.join("binggan")
             } else {
-                PathBuf::from("target/bingan")
+                PathBuf::from("target/binggan")
             };
             if !output_directory.exists() {
                 let _ = std::fs::create_dir_all(&output_directory);

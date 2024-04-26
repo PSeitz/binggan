@@ -7,10 +7,18 @@ homepage = "https://github.com/pseitz/binggan"
 repository = "https://github.com/pseitz/binggan"
 description = "Benchmarking library for stable Rust"
 readme = "README.md"
-keywords = ["bingan", "perf", "profiler", "benchmark", "memory"]
+keywords = ["perf", "profiler", "benchmark", "memory"]
 categories = ["development-tools::profiling"]
 license = "MIT"
 exclude = ["*logo*"]
+
+[lints.clippy]
+cargo        = { priority = -1, level = "deny" }
+complexity   = { priority = -1, level = "deny" }
+correctness  = { priority = -1, level = "deny" }
+perf         = { priority = -1, level = "deny" }
+style        = { priority = -1, level = "deny" }
+suspicious   = { priority = -1, level = "deny" }
 
 [dependencies]
 alloca = "0.4.0"
@@ -33,4 +41,5 @@ harness = false
 [[bench]]
 name = "bench"
 harness = false
+
 

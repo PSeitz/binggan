@@ -2,7 +2,7 @@
 [![Docs](https://docs.rs/binggan/badge.svg)](https://docs.rs/crate/binggan/)
 [![Crates.io](https://img.shields.io/crates/v/binggan.svg)](https://crates.io/crates/binggan)
 
-## Bingan
+## Binggan
 ![binggan logo](https://raw.githubusercontent.com/PSeitz/binggan/main/logo_s.png)
 
 Binggan (餅乾, bǐng gān, means cookie in Chinese) is a benchmarking library for Rust.
