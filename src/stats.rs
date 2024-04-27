@@ -55,9 +55,9 @@ impl BenchStats {
         let median_str = format!("Median: {} {}", format(self.median_ns), median_ns_diff,);
 
         let min_max = if input_size_in_bytes.is_some() {
-            format!("Range: {}..{}", format(self.max_ns), format(self.min_ns))
+            format!("[{} .. {}]", format(self.max_ns), format(self.min_ns))
         } else {
-            format!("Range: {}..{}", format(self.min_ns), format(self.max_ns))
+            format!("[{} .. {}]", format(self.min_ns), format(self.max_ns))
         };
         let memory_string = if report_memory {
             let mem_diff = compute_diff(self, other.clone(), |stats| stats.avg_memory as u64);

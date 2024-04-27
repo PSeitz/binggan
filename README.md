@@ -90,7 +90,6 @@ peak memory will determine the memory requirements of the code.
 
 ### TODO
 
-- [ ] Throughput
 - [ ] Customize Reporting (e.g. write your own reporter)
 
 #### Maybe Later Features:
