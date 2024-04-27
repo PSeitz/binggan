@@ -57,7 +57,7 @@ impl<'a, I: BenchInputSize> InputWithBenchmark<'a, I> {
     pub fn exec_bench(&mut self, alloc: &Option<Alloc>) {
         let res = self
             .bench
-            .exec_bench(&self.input, alloc, &mut self.profiler, self.num_iter);
+            .exec_bench(self.input, alloc, &mut self.profiler, self.num_iter);
         self.results.push(res);
     }
 }
@@ -131,7 +131,7 @@ impl<I> Bench<I> {
         } else {
             0
         };
-        let bench_result = BenchResult::new(elapsed.as_nanos() as u64 / num_iter as u64, mem);
-        bench_result
+        
+        BenchResult::new(elapsed.as_nanos() as u64 / num_iter as u64, mem)
     }
 }

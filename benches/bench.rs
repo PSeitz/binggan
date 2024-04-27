@@ -23,10 +23,12 @@ fn bench_group(mut runner: BenchGroup<Vec<usize>>) {
     runner.set_alloc(GLOBAL); // Set the peak mem allocator. This will enable peak memory reporting.
     runner.enable_perf();
     runner.register("vec", move |data| {
-        black_box(test_vec(data));
+        test_vec(data);
+        black_box(());
     });
     runner.register("hashmap", move |data| {
-        black_box(test_hashmap(data));
+        test_hashmap(data);
+        black_box(());
     });
     runner.run();
 }

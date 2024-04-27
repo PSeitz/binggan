@@ -24,12 +24,19 @@ pub struct BenchGroup<I: BenchInputSize = ()> {
     cache_trasher: CacheTrasher,
     options: Options,
     /// The closure to get the size of the input.
+    #[allow(clippy::type_complexity)]
     throughput: Option<Box<dyn Fn(&I) -> usize>>,
 }
 
 pub(crate) struct Input<I> {
     pub(crate) name: String,
     pub(crate) data: I,
+}
+
+impl Default for BenchGroup<()> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl BenchGroup<()> {

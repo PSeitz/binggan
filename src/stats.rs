@@ -47,7 +47,7 @@ impl BenchStats {
             if let Some(input_size_in_bytes) = input_size_in_bytes {
                 format_throughput(input_size_in_bytes, duration_ns as f64)
             } else {
-                format!("{}", format_duration(duration_ns))
+                format_duration(duration_ns).to_string()
             }
         };
 
