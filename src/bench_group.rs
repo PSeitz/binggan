@@ -1,11 +1,16 @@
 use std::alloc::GlobalAlloc;
 
-use crate::{bench::Bench, parse_args, report::report_input, BenchInputSize, Options};
+use crate::{
+    bench::{Bench, InputWithBenchmark},
+    parse_args,
+    report::report_group,
+    BenchInputSize, Options,
+};
 use peakmem_alloc::*;
 use yansi::Paint;
 
 pub(crate) type Alloc = &'static dyn PeakMemAllocTrait;
-pub(crate) const NUM_RUNS: usize = 32;
+pub(crate) const NUM_RUNS: usize = 256;
 
 /// The main struct to create benchmarks.
 ///
@@ -18,16 +23,12 @@ pub struct BenchGroup<I: BenchInputSize = ()> {
     alloc: Option<Alloc>,
     cache_trasher: CacheTrasher,
     options: Options,
-}
-impl Default for BenchGroup<()> {
-    fn default() -> Self {
-        Self::new()
-    }
+    /// The closure to get the size of the input.
+    throughput: Option<Box<dyn Fn(&I) -> usize>>,
 }
 
 pub(crate) struct Input<I> {
     pub(crate) name: String,
-    pub(crate) id: u8,
     pub(crate) data: I,
 }
 
@@ -69,10 +70,8 @@ impl<I: BenchInputSize> BenchGroup<I> {
 
         let mut inputs: Vec<Input<I>> = inputs
             .into_iter()
-            .enumerate()
-            .map(|(ord, (name, input))| Input {
+            .map(|(name, input)| Input {
                 name: name.into(),
-                id: ord as u8,
                 data: input,
             })
             .collect();
@@ -86,11 +85,12 @@ impl<I: BenchInputSize> BenchGroup<I> {
         }
         BenchGroup {
             inputs,
-            name: None,
             benches: Vec::new(),
-            alloc: None,
             cache_trasher: CacheTrasher::new(1024 * 1024 * 16),
             options,
+            alloc: None,
+            name: None,
+            throughput: None,
         }
     }
     /// Set the peak mem allocator to be used for the benchmarks.
@@ -116,6 +116,15 @@ impl<I: BenchInputSize> BenchGroup<I> {
     /// ```
     pub fn enable_perf(&mut self) {
         self.options.enable_perf = true;
+    }
+
+    /// Enables throughput reporting.
+    /// The passed closure should return the size of the input in bytes.
+    pub fn throughput<F>(&mut self, f: F)
+    where
+        F: Fn(&I) -> usize + 'static,
+    {
+        self.throughput = Some(Box::new(f));
     }
 
     /// Set the name of the group.
@@ -155,8 +164,7 @@ impl<I: BenchInputSize> BenchGroup<I> {
         if !matches(&name, &self.options.filter, self.options.exact) {
             return;
         }
-        self.benches
-            .push(Bench::new(name, self.options.enable_perf, Box::new(fun)));
+        self.benches.push(Bench::new(name, Box::new(fun)));
     }
 
     /// Run the benchmarks and report the results.
@@ -168,15 +176,29 @@ impl<I: BenchInputSize> BenchGroup<I> {
         if let Some(name) = &self.name {
             println!("{}", name.black().on_red().invert().bold());
         }
+        // Build the (group_name, benches) groups
+        let mut groups: Vec<(&str, Vec<InputWithBenchmark<I>>)> = Vec::new();
 
         for idx in 0..self.inputs.len() {
             let input = &self.inputs[idx];
+            let input_size_in_bytes = self.throughput.as_ref().map(|f| f(&input.data));
 
-            let mut bench_bundle: Vec<InputWithBenchmark<I>> = Vec::new();
-            for bench in self.benches.iter_mut() {
-                bench_bundle.push(InputWithBenchmark { input, bench });
+            let mut bench_bundle: Vec<InputWithBenchmark<I>> =
+                Vec::with_capacity(self.benches.len());
+            for bench in self.benches.iter() {
+                let bundle = InputWithBenchmark::new(
+                    input,
+                    input_size_in_bytes,
+                    bench,
+                    self.options.enable_perf,
+                );
+
+                bench_bundle.push(bundle);
             }
+            groups.push((&input.name, bench_bundle));
+        }
 
+        for (input_name, mut bench_bundle) in groups {
             Self::warm_up(&mut bench_bundle);
             if self.options.interleave {
                 Self::run_interleaved(&mut bench_bundle, &self.alloc, &self.cache_trasher);
@@ -184,10 +206,8 @@ impl<I: BenchInputSize> BenchGroup<I> {
                 Self::run_sequential(&mut bench_bundle, &self.alloc);
             }
 
-            report_input(&self.name, input, &mut self.benches, self.alloc.is_some());
-            for bench in self.benches.iter_mut() {
-                Vec::clear(&mut bench.results);
-            }
+            let title = &input_name;
+            report_group(&self.name, title, &mut bench_bundle, self.alloc.is_some());
         }
     }
 
@@ -197,7 +217,7 @@ impl<I: BenchInputSize> BenchGroup<I> {
                 alloca::with_alloca(
                     iteration, // we increase the byte offset by 1 for each iteration
                     |_memory: &mut [core::mem::MaybeUninit<u8>]| {
-                        bench_bundle.bench.exec_bench(bench_bundle.input, alloc);
+                        bench_bundle.exec_bench(alloc);
                     },
                 );
             }
@@ -232,7 +252,7 @@ impl<I: BenchInputSize> BenchGroup<I> {
                 alloca::with_alloca(
                     iteration, // we increase the byte offset by 1 for each iteration
                     |_memory: &mut [core::mem::MaybeUninit<u8>]| {
-                        bench.bench.exec_bench(bench.input, alloc);
+                        bench.exec_bench(alloc);
                     },
                 );
             }
@@ -242,17 +262,9 @@ impl<I: BenchInputSize> BenchGroup<I> {
     fn warm_up(benches: &mut [InputWithBenchmark<I>]) {
         // Measure and print the time it took
         for input_and_bench in benches {
-            input_and_bench
-                .bench
-                .sample_and_set_iter(input_and_bench.input);
+            input_and_bench.sample_and_set_iter(input_and_bench.input);
         }
     }
-}
-
-/// Bundle of input and benchmark for running benchmarks
-struct InputWithBenchmark<'a, I> {
-    input: &'a Input<I>,
-    bench: &'a mut Bench<I>,
 }
 
 /// Performs a dummy reads from memory to spoil given amount of CPU cache
@@ -260,6 +272,11 @@ struct InputWithBenchmark<'a, I> {
 /// Uses cache aligned data arrays to perform minimum amount of reads possible to spoil the cache
 struct CacheTrasher {
     cache_lines: Vec<CacheLine>,
+}
+impl Default for CacheTrasher {
+    fn default() -> Self {
+        Self::new(1024 * 1024 * 16)
+    }
 }
 
 impl CacheTrasher {

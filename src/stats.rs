@@ -33,13 +33,33 @@ fn compute_diff<F: Fn(&BenchStats) -> u64>(
 }
 
 impl BenchStats {
-    pub fn to_columns(&self, other: Option<BenchStats>, include_memory: bool) -> Vec<String> {
+    pub fn to_columns(
+        &self,
+        other: Option<BenchStats>,
+        input_size_in_bytes: Option<usize>,
+        report_memory: bool,
+    ) -> Vec<String> {
         let avg_ns_diff = compute_diff(self, other.clone(), |stats| stats.average_ns);
         let median_ns_diff = compute_diff(self, other.clone(), |stats| stats.median_ns);
 
-        let min_str = format!("Min: {}", format_duration(self.min_ns));
-        let max_str = format!("Max: {}", format_duration(self.max_ns));
-        let memory_string = if include_memory {
+        // if input_size_in_bytes is set report the thoguhtput, otherwise just use format_duration
+        let format = |duration_ns: u64| {
+            if let Some(input_size_in_bytes) = input_size_in_bytes {
+                format_throughput(input_size_in_bytes, duration_ns as f64)
+            } else {
+                format!("{}", format_duration(duration_ns))
+            }
+        };
+
+        let avg_str = format!("Avg: {} {}", format(self.average_ns), avg_ns_diff,);
+        let median_str = format!("Median: {} {}", format(self.median_ns), median_ns_diff,);
+
+        let min_max = if input_size_in_bytes.is_some() {
+            format!("Range: {}..{}", format(self.max_ns), format(self.min_ns))
+        } else {
+            format!("Range: {}..{}", format(self.min_ns), format(self.max_ns))
+        };
+        let memory_string = if report_memory {
             let mem_diff = compute_diff(self, other.clone(), |stats| stats.avg_memory as u64);
             format!(
                 "Memory: {} {}",
@@ -50,19 +70,46 @@ impl BenchStats {
             "".to_string()
         };
 
-        vec![
-            memory_string,
-            format!("Avg: {} {}", format_duration(self.average_ns), avg_ns_diff,),
-            format!(
-                "Median: {} {}",
-                format_duration(self.median_ns),
-                median_ns_diff,
-            ),
-            min_str,
-            max_str,
-        ]
+        vec![memory_string, avg_str, median_str, min_max]
     }
 }
+
+fn format_throughput(bytes: usize, mut nanoseconds: f64) -> String {
+    let unit = bytes_per_second(bytes, &mut nanoseconds);
+    format!("{:>6} {}", short(nanoseconds), unit)
+}
+fn bytes_per_second(bytes: usize, nanoseconds: &mut f64) -> &'static str {
+    let bytes_per_second = bytes as f64 * (1e9 / *nanoseconds);
+    let (denominator, unit) = if bytes_per_second < 1024.0 {
+        (1.0, "  B/s")
+    } else if bytes_per_second < 1024.0 * 1024.0 {
+        (1024.0, "KiB/s")
+    } else if bytes_per_second < 1024.0 * 1024.0 * 1024.0 {
+        (1024.0 * 1024.0, "MiB/s")
+    } else {
+        (1024.0 * 1024.0 * 1024.0, "GiB/s")
+    };
+
+    let bytes_per_second = bytes as f64 * (1e9 / *nanoseconds);
+    *nanoseconds = bytes_per_second / denominator;
+
+    unit
+}
+
+pub fn short(n: f64) -> String {
+    if n < 10.0 {
+        format!("{:.4}", n)
+    } else if n < 100.0 {
+        format!("{:.3}", n)
+    } else if n < 1000.0 {
+        format!("{:.2}", n)
+    } else if n < 10000.0 {
+        format!("{:.1}", n)
+    } else {
+        format!("{:.0}", n)
+    }
+}
+
 pub fn compute_percentage_diff(a: f64, b: f64) -> f64 {
     (a / b - 1.0) * 100.0
 }
@@ -120,7 +167,6 @@ mod tests {
         BenchResult {
             duration_ns,
             memory_consumption,
-            input_id: 0,
         }
     }
 

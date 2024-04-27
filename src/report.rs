@@ -3,8 +3,8 @@ use std::{env, path::PathBuf, sync::Once};
 use yansi::Paint;
 
 use crate::{
-    bench::Bench,
-    bench_group::{Input, NUM_RUNS},
+    bench::InputWithBenchmark,
+    bench_group::NUM_RUNS,
     profiler::{CounterValues, Profiler},
     stats::{compute_stats, BenchStats},
 };
@@ -31,51 +31,44 @@ fn get_output_directory() -> PathBuf {
     }
 }
 
-pub(crate) fn report_input<I>(
+pub(crate) fn report_group<I>(
     bench_group_name: &Option<String>,
-    input: &Input<I>,
-    benches: &mut [Bench<I>],
-    include_memory: bool,
+    title: &str,
+    benches: &mut [InputWithBenchmark<I>],
+    report_memory: bool,
 ) {
     if benches.is_empty() {
         return;
     }
 
-    if !input.name.is_empty() {
-        println!("{}", input.name.black().on_yellow().invert().italic());
+    if !title.is_empty() {
+        println!("{}", title.black().on_yellow().invert().italic());
     }
 
     let mut table_data: Vec<Vec<String>> = Vec::new();
     for bench in benches.iter_mut() {
-        add_result_and_write_to_disk(
-            bench_group_name,
-            input,
-            include_memory,
-            bench,
-            &mut table_data,
-        );
+        add_result_and_write_to_disk(bench_group_name, report_memory, bench, &mut table_data);
     }
     print_table(table_data);
 }
 
 fn add_result_and_write_to_disk<I>(
     group_name: &Option<String>,
-    input: &Input<I>,
-    include_memory: bool,
-    bench: &mut Bench<I>,
+    report_memory: bool,
+    bench: &mut InputWithBenchmark<I>,
     table_data: &mut Vec<Vec<String>>,
 ) {
     let bench_id = format!(
         "{}_{}_{}",
         group_name.as_ref().unwrap_or(&"".to_string()),
-        input.name,
-        bench.name
+        bench.input.name,
+        bench.bench.name
     )
     .replace('/', "-");
     let stats = compute_stats(&bench.results).unwrap();
     let perf_counter: Option<CounterValues> = bench.profiler.as_mut().and_then(|profiler| {
         profiler
-            .finish(NUM_RUNS as u64 * bench.iterations_per_input[input.id as usize] as u64)
+            .finish(NUM_RUNS as u64 * bench.num_iter as u64)
             .ok()
     });
 
@@ -94,8 +87,8 @@ fn add_result_and_write_to_disk<I>(
     };
 
     //bench.name
-    let mut stats_columns = stats.to_columns(old_stats, include_memory);
-    stats_columns.insert(0, bench.name.to_string());
+    let mut stats_columns = stats.to_columns(old_stats, bench.input_size_in_bytes, report_memory);
+    stats_columns.insert(0, bench.bench.name.to_string());
     table_data.push(stats_columns);
 
     if let Some(perf_counter) = perf_counter.as_ref() {
