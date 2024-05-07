@@ -153,9 +153,9 @@ impl<I: 'static> InputGroup<I> {
     }
 
     /// Register a benchmark with the given name and function.
-    pub fn register<F: Clone, S: Into<String>>(&mut self, name: S, fun: F)
+    pub fn register<F, S: Into<String>>(&mut self, name: S, fun: F)
     where
-        F: Fn(&I) + 'static,
+        F: Fn(&I) + 'static + Clone,
     {
         let name = name.into();
         if !matches(
