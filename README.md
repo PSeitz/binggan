@@ -26,12 +26,12 @@ It allows arbitrary named inputs to be passed to the benchmarks.
 ### Example
 
 ```rust
-use binggan::{black_box, BenchGroup, PeakMemAlloc, INSTRUMENTED_SYSTEM};
+use binggan::{black_box, InputGroup, PeakMemAlloc, INSTRUMENTED_SYSTEM};
 
 #[global_allocator]
 pub static GLOBAL: &PeakMemAlloc<std::alloc::System> = &INSTRUMENTED_SYSTEM;
 
-fn bench_group(mut runner: BenchGroup<Vec<usize>>) {
+fn bench_group(mut runner: InputGroup<Vec<usize>>) {
     // Set the peak mem allocator. This will enable peak memory reporting.
     runner.set_alloc(GLOBAL); 
 
@@ -61,7 +61,7 @@ fn main() {
         ),
         ("max id 100; 100 el all different", (0..100).collect()),
     ];
-    bench_group(BenchGroup::new_with_inputs(data));
+    bench_group(InputGroup::new_with_inputs(data));
 }
 ```
 

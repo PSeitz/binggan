@@ -3,14 +3,13 @@ use std::{env, path::PathBuf, sync::Once};
 use yansi::Paint;
 
 use crate::{
-    bench::InputWithBenchmark,
-    bench_group::NUM_RUNS,
-    profiler::{CounterValues, Profiler},
-    stats::{compute_stats, BenchStats},
+    bench::{Bench, BenchResult},
+    profiler::CounterValues,
+    stats::BenchStats,
 };
 
 /// Creates directory if it does not exist
-fn get_output_directory() -> PathBuf {
+pub fn get_output_directory() -> PathBuf {
     static INIT: Once = Once::new();
     static mut OUTPUT_DIRECTORY: Option<PathBuf> = None;
     unsafe {
@@ -31,49 +30,34 @@ fn get_output_directory() -> PathBuf {
     }
 }
 
-pub(crate) fn report_group<I>(
+pub(crate) fn report_group<'a>(
     bench_group_name: &Option<String>,
-    title: &str,
-    benches: &mut [InputWithBenchmark<I>],
+    benches: &mut [Box<dyn Bench<'a> + 'a>],
     report_memory: bool,
 ) {
     if benches.is_empty() {
         return;
     }
 
-    if !title.is_empty() {
-        println!("{}", title.black().on_yellow().invert().italic());
-    }
-
     let mut table_data: Vec<Vec<String>> = Vec::new();
     for bench in benches.iter_mut() {
-        add_result_and_write_to_disk(bench_group_name, report_memory, bench, &mut table_data);
+        let result = bench.get_results(bench_group_name);
+        add_result(&result, report_memory, &mut table_data);
+        write_results_to_disk(&result);
     }
     print_table(table_data);
 }
 
-fn add_result_and_write_to_disk<I>(
-    group_name: &Option<String>,
-    report_memory: bool,
-    bench: &mut InputWithBenchmark<I>,
-    table_data: &mut Vec<Vec<String>>,
-) {
-    let bench_id = format!(
-        "{}_{}_{}",
-        group_name.as_ref().unwrap_or(&"".to_string()),
-        bench.input.name,
-        bench.bench.name
-    )
-    .replace('/', "-");
-    let stats = compute_stats(&bench.results).unwrap();
-    let perf_counter: Option<CounterValues> = bench.profiler.as_mut().and_then(|profiler| {
-        profiler
-            .finish(NUM_RUNS as u64 * bench.num_iter as u64)
-            .ok()
-    });
+fn get_bench_file(result: &BenchResult) -> PathBuf {
+    get_output_directory().join(&result.bench_id)
+}
+
+fn add_result(result: &BenchResult, report_memory: bool, table_data: &mut Vec<Vec<String>>) {
+    let stats = &result.stats;
+    let perf_counter = &result.perf_counter;
 
     // Filepath in target directory
-    let filepath = get_output_directory().join(bench_id);
+    let filepath = get_bench_file(result);
     // Check if file exists and deserialize
     let mut old_stats: Option<BenchStats> = None;
     let mut old_counter: Option<CounterValues> = None;
@@ -87,8 +71,8 @@ fn add_result_and_write_to_disk<I>(
     };
 
     //bench.name
-    let mut stats_columns = stats.to_columns(old_stats, bench.input_size_in_bytes, report_memory);
-    stats_columns.insert(0, bench.bench.name.to_string());
+    let mut stats_columns = stats.to_columns(old_stats, result.input_size_in_bytes, report_memory);
+    stats_columns.insert(0, result.bench_name.to_string());
     table_data.push(stats_columns);
 
     if let Some(perf_counter) = perf_counter.as_ref() {
@@ -96,11 +80,12 @@ fn add_result_and_write_to_disk<I>(
         columns.insert(0, "".to_string());
         table_data.push(columns);
     }
-    // Write to file
-    write_results(&perf_counter, stats, &filepath);
 }
 
-fn write_results(perf_counter: &Option<CounterValues>, stats: BenchStats, filepath: &PathBuf) {
+pub fn write_results_to_disk(result: &BenchResult) {
+    let perf_counter = &result.perf_counter;
+    let stats = &result.stats;
+    let filepath = get_bench_file(result);
     let mut out = miniserde::json::to_string(&stats);
     if let Some(perf_counter) = perf_counter {
         out.push('\n');
@@ -109,6 +94,7 @@ fn write_results(perf_counter: &Option<CounterValues>, stats: BenchStats, filepa
     }
     std::fs::write(filepath, out).unwrap();
 }
+
 fn print_table(table_data: Vec<Vec<String>>) {
     if table_data.is_empty() {
         return;

@@ -78,7 +78,7 @@ impl Profiler for PerfProfiler {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct CounterValues {
     pub l1d_access_count: f64,
     pub l1d_miss_count: f64,
@@ -103,37 +103,40 @@ impl CounterValues {
         let l1d_access_count_diff = other
             .as_ref()
             .map(|other| {
-                format_percentage(compute_percentage_diff(
-                    self.l1d_access_count,
-                    other.l1d_access_count,
-                ))
+                format_percentage(
+                    compute_percentage_diff(self.l1d_access_count, other.l1d_access_count),
+                    true,
+                )
             })
             .unwrap_or_default();
         let l1d_miss_count_diff = other
             .as_ref()
             .map(|other| {
-                format_percentage(compute_percentage_diff(
-                    self.l1d_miss_count,
-                    other.l1d_miss_count,
-                ))
+                format_percentage(
+                    compute_percentage_diff(self.l1d_miss_count, other.l1d_miss_count),
+                    true,
+                )
             })
             .unwrap_or_default();
         let branches_count_diff = other
             .as_ref()
             .map(|other| {
-                format_percentage(compute_percentage_diff(
-                    self.branches_count,
-                    other.branches_count,
-                ))
+                format_percentage(
+                    compute_percentage_diff(self.branches_count, other.branches_count),
+                    true,
+                )
             })
             .unwrap_or_default();
         let missed_branches_count_diff = other
             .as_ref()
             .map(|other| {
-                format_percentage(compute_percentage_diff(
-                    self.missed_branches_count,
-                    other.missed_branches_count,
-                ))
+                format_percentage(
+                    compute_percentage_diff(
+                        self.missed_branches_count,
+                        other.missed_branches_count,
+                    ),
+                    true,
+                )
             })
             .unwrap_or_default();
 

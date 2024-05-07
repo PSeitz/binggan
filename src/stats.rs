@@ -1,11 +1,11 @@
 use crate::{
-    bench::BenchResult,
+    bench::RunResult,
     format::{bytes_to_string, format_duration},
 };
 use miniserde::{Deserialize, Serialize};
 use yansi::Paint;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct BenchStats {
     min_ns: u64,
     max_ns: u64,
@@ -17,6 +17,7 @@ pub struct BenchStats {
 /// Compute diff from two values of BenchStats
 fn compute_diff<F: Fn(&BenchStats) -> u64>(
     stats: &BenchStats,
+    input_size_in_bytes: Option<usize>,
     other: Option<BenchStats>,
     f: F,
 ) -> String {
@@ -26,8 +27,18 @@ fn compute_diff<F: Fn(&BenchStats) -> u64>(
             if f(other) == 0 || f(stats) == 0 || f(other) == f(stats) {
                 return "".to_string();
             }
-            let diff = compute_percentage_diff(f(stats) as f64, f(other) as f64);
-            format_percentage(diff)
+            // Diff on throughput
+            if let Some(input_size_in_bytes) = input_size_in_bytes {
+                let mut val1 = f(stats) as f64;
+                let mut val_other = f(other) as f64;
+                bytes_per_second(input_size_in_bytes, &mut val1);
+                bytes_per_second(input_size_in_bytes, &mut val_other);
+                let diff = compute_percentage_diff(val1, val_other);
+                format_percentage(diff, false)
+            } else {
+                let diff = compute_percentage_diff(f(stats) as f64, f(other) as f64);
+                format_percentage(diff, true)
+            }
         })
         .unwrap_or_default()
 }
@@ -39,13 +50,19 @@ impl BenchStats {
         input_size_in_bytes: Option<usize>,
         report_memory: bool,
     ) -> Vec<String> {
-        let avg_ns_diff = compute_diff(self, other.clone(), |stats| stats.average_ns);
-        let median_ns_diff = compute_diff(self, other.clone(), |stats| stats.median_ns);
+        let avg_ns_diff = compute_diff(self, input_size_in_bytes, other.clone(), |stats| {
+            stats.average_ns
+        });
+        let median_ns_diff = compute_diff(self, input_size_in_bytes, other.clone(), |stats| {
+            stats.median_ns
+        });
 
-        // if input_size_in_bytes is set report the thoguhtput, otherwise just use format_duration
+        // if input_size_in_bytes is set report the throughput, otherwise just use format_duration
         let format = |duration_ns: u64| {
             if let Some(input_size_in_bytes) = input_size_in_bytes {
-                format_throughput(input_size_in_bytes, duration_ns as f64)
+                let mut duration_ns: f64 = duration_ns as f64;
+                let unit = bytes_per_second(input_size_in_bytes, &mut duration_ns);
+                format!("{:>6} {}", short(duration_ns), unit)
             } else {
                 format_duration(duration_ns).to_string()
             }
@@ -60,7 +77,7 @@ impl BenchStats {
             format!("[{} .. {}]", format(self.min_ns), format(self.max_ns))
         };
         let memory_string = if report_memory {
-            let mem_diff = compute_diff(self, other.clone(), |stats| stats.avg_memory as u64);
+            let mem_diff = compute_diff(self, None, other.clone(), |stats| stats.avg_memory as u64);
             format!(
                 "Memory: {} {}",
                 bytes_to_string(self.avg_memory as u64).bright_cyan().bold(),
@@ -74,10 +91,12 @@ impl BenchStats {
     }
 }
 
-fn format_throughput(bytes: usize, mut nanoseconds: f64) -> String {
-    let unit = bytes_per_second(bytes, &mut nanoseconds);
-    format!("{:>6} {}", short(nanoseconds), unit)
-}
+//fn format_throughput(bytes: usize, mut nanoseconds: f64) -> String {
+//let unit = bytes_per_second(bytes, &mut nanoseconds);
+//format!("{:>6} {}", short(nanoseconds), unit)
+//}
+
+/// Returns the unit and alters the passed parameter to match the unit
 fn bytes_per_second(bytes: usize, nanoseconds: &mut f64) -> &'static str {
     let bytes_per_second = bytes as f64 * (1e9 / *nanoseconds);
     let (denominator, unit) = if bytes_per_second < 1024.0 {
@@ -113,19 +132,26 @@ pub fn short(n: f64) -> String {
 pub fn compute_percentage_diff(a: f64, b: f64) -> f64 {
     (a / b - 1.0) * 100.0
 }
-pub fn format_percentage(diff: f64) -> String {
-    if diff > 2.0 {
-        format!(" (+{:.2}%)", diff).red().to_string()
-    } else if diff < -2.0 {
-        format!(" ({:.2}%)", diff).green().to_string()
+pub fn format_percentage(diff: f64, smaller_is_better: bool) -> String {
+    if smaller_is_better {
+        if diff > 2.0 {
+            format!(" (+{:.2}%)", diff).red().to_string()
+        } else if diff < -2.0 {
+            format!(" ({:.2}%)", diff).green().to_string()
+        } else {
+            format!(" ({:.2}%)", diff).resetting().to_string()
+        }
     } else {
-        format!(" ({:.2}%)", diff).resetting().to_string()
+        if diff > 2.0 {
+            format!(" (+{:.2}%)", diff).green().to_string()
+        } else if diff < -2.0 {
+            format!(" ({:.2}%)", diff).red().to_string()
+        } else {
+            format!(" ({:.2}%)", diff).resetting().to_string()
+        }
     }
 }
-pub fn compute_stats(results: &[BenchResult]) -> Option<BenchStats> {
-    if results.is_empty() {
-        return None;
-    }
+pub fn compute_stats(results: &[RunResult]) -> BenchStats {
     // Avg memory consumption
     let total_memory: usize = results.iter().map(|res| res.memory_consumption).sum();
     let avg_memory = total_memory / results.len();
@@ -150,21 +176,21 @@ pub fn compute_stats(results: &[BenchResult]) -> Option<BenchStats> {
     };
 
     // Return the struct with all statistics
-    Some(BenchStats {
+    BenchStats {
         min_ns,
         max_ns,
         average_ns,
         median_ns,
         avg_memory,
-    })
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn create_res(duration_ns: u64, memory_consumption: usize) -> BenchResult {
-        BenchResult {
+    fn create_res(duration_ns: u64, memory_consumption: usize) -> RunResult {
+        RunResult {
             duration_ns,
             memory_consumption,
         }
@@ -173,7 +199,7 @@ mod tests {
     #[test]
     fn test_compute_stats_median_odd() {
         let results = vec![create_res(10, 0), create_res(20, 0), create_res(30, 0)];
-        let stats = compute_stats(&results).unwrap();
+        let stats = compute_stats(&results);
         assert_eq!(
             stats.median_ns, 20,
             "Median should be the middle element for odd count"
@@ -188,7 +214,7 @@ mod tests {
             create_res(30, 0),
             create_res(40, 0),
         ];
-        let stats = compute_stats(&results).unwrap();
+        let stats = compute_stats(&results);
         assert_eq!(
             stats.median_ns, 25,
             "Median should be the average of the two middle elements for even count"

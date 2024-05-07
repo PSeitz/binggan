@@ -42,4 +42,8 @@ harness = false
 name = "bench"
 harness = false
 
+[[bench]]
+name = "bench_input"
+harness = false
+
 

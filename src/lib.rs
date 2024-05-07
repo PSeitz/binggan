@@ -15,7 +15,7 @@
 //!
 //! # Example
 //! ```rust
-//! use binggan::{black_box, BenchGroup, PeakMemAlloc, INSTRUMENTED_SYSTEM};
+//! use binggan::{black_box, InputGroup, PeakMemAlloc, INSTRUMENTED_SYSTEM};
 //!
 //! #[global_allocator]
 //! pub static GLOBAL: &PeakMemAlloc<std::alloc::System> = &INSTRUMENTED_SYSTEM;
@@ -32,11 +32,11 @@
 //!             (0..100).collect()
 //!         ),
 //!     ];
-//!     bench_group(BenchGroup::new_with_inputs(data));
+//!     bench_group(InputGroup::new_with_inputs(data));
 //! }
 //!
 //! // Run the benchmark for the group with input `Vec<usize>`
-//! fn bench_group(mut runner: BenchGroup<Vec<usize>>) {
+//! fn bench_group(mut runner: InputGroup<Vec<usize>>) {
 //!     runner.set_alloc(GLOBAL); // Set the peak mem allocator. This will enable peak memory reporting.
 //!     runner.enable_perf();
 //!     runner.register("vec", move |data| {
@@ -75,27 +75,19 @@ extern crate test;
 pub use peakmem_alloc::*;
 
 pub(crate) mod bench;
-mod bench_group;
+mod bench_input_group;
+pub(crate) mod bench_runner;
 pub(crate) mod format;
 pub(crate) mod profiler;
 pub(crate) mod report;
 pub(crate) mod stats;
-pub use bench_group::BenchGroup;
+pub use bench_input_group::InputGroup;
+pub use bench_runner::BenchRunner;
+pub use bench_runner::NamedInput;
 use rustop::opts;
 
-/// Reports the size in bytes a input.
-/// Unused currently.
-pub trait BenchInputSize {
-    /// The size of the input, if it is known.
-    /// It is used to calculate the throughput of the benchmark.
-    fn input_size(&self) -> Option<usize> {
-        None
-    }
-}
-impl<T: ?Sized> BenchInputSize for T {}
-
 /// The options to configure the benchmarking.
-/// The can be set on `BenchGroup`.
+/// The can be set on `InputGroup`.
 #[derive(Debug, Default)]
 pub struct Options {
     /// Interleave benchmarks
@@ -107,6 +99,8 @@ pub struct Options {
     pub filter: Option<String>,
     /// Enable/disable perf integration
     pub enable_perf: bool,
+    /// Trash CPU cache between bench runs.
+    pub cache_trasher: bool,
 }
 
 fn parse_args() -> Options {
