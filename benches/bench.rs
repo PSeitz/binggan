@@ -33,11 +33,11 @@ fn run_bench() {
 
     for (input_name, data) in inputs.iter() {
         runner.set_input_size(data.len() * std::mem::size_of::<usize>());
-        runner.register_with_input("vec", &input_name, data, move |data| {
+        runner.register_with_input("vec", input_name, data, move |data| {
             test_vec(data);
             black_box(());
         });
-        runner.register_with_input("hashmap", &input_name, data, move |data| {
+        runner.register_with_input("hashmap", input_name, data, move |data| {
             test_hashmap(data);
             black_box(());
         });

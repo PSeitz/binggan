@@ -50,10 +50,10 @@ impl BenchStats {
         input_size_in_bytes: Option<usize>,
         report_memory: bool,
     ) -> Vec<String> {
-        let avg_ns_diff = compute_diff(self, input_size_in_bytes, other.clone(), |stats| {
+        let avg_ns_diff = compute_diff(self, input_size_in_bytes, other, |stats| {
             stats.average_ns
         });
-        let median_ns_diff = compute_diff(self, input_size_in_bytes, other.clone(), |stats| {
+        let median_ns_diff = compute_diff(self, input_size_in_bytes, other, |stats| {
             stats.median_ns
         });
 
@@ -77,7 +77,7 @@ impl BenchStats {
             format!("[{} .. {}]", format(self.min_ns), format(self.max_ns))
         };
         let memory_string = if report_memory {
-            let mem_diff = compute_diff(self, None, other.clone(), |stats| stats.avg_memory as u64);
+            let mem_diff = compute_diff(self, None, other, |stats| stats.avg_memory as u64);
             format!(
                 "Memory: {} {}",
                 bytes_to_string(self.avg_memory as u64).bright_cyan().bold(),
@@ -141,14 +141,12 @@ pub fn format_percentage(diff: f64, smaller_is_better: bool) -> String {
         } else {
             format!(" ({:.2}%)", diff).resetting().to_string()
         }
+    } else if diff > 2.0 {
+        format!(" (+{:.2}%)", diff).green().to_string()
+    } else if diff < -2.0 {
+        format!(" ({:.2}%)", diff).red().to_string()
     } else {
-        if diff > 2.0 {
-            format!(" (+{:.2}%)", diff).green().to_string()
-        } else if diff < -2.0 {
-            format!(" ({:.2}%)", diff).red().to_string()
-        } else {
-            format!(" ({:.2}%)", diff).resetting().to_string()
-        }
+        format!(" ({:.2}%)", diff).resetting().to_string()
     }
 }
 pub fn compute_stats(results: &[RunResult]) -> BenchStats {

@@ -49,6 +49,12 @@ const EMPTY_INPUT: NamedInput<()> = NamedInput {
     data: &(),
 };
 
+impl<'a> Default for BenchRunner<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> BenchRunner<'a> {
     /// The inputs are a vector of tuples, where the first element is the name of the input and the
     /// second element is the input itself.
@@ -226,7 +232,7 @@ impl<'a> BenchRunner<'a> {
                     Self::run_interleaved(
                         group,
                         &self.alloc,
-                        self.options.cache_trasher.then(|| &self.cache_trasher),
+                        self.options.cache_trasher.then_some(&self.cache_trasher),
                     );
                 } else {
                     Self::run_sequential(group, &self.alloc);
@@ -251,7 +257,8 @@ impl<'a> BenchRunner<'a> {
                 alloca::with_alloca(
                     iteration, // we increase the byte offset by 1 for each iteration
                     |_memory: &mut [core::mem::MaybeUninit<u8>]| {
-                        black_box(bench.exec_bench(alloc));
+                        bench.exec_bench(alloc);
+                        black_box(());
                     },
                 );
             }
@@ -288,7 +295,8 @@ impl<'a> BenchRunner<'a> {
                     alloca::with_alloca(
                         iteration, // we increase the byte offset by 1 for each iteration
                         |_memory: &mut [core::mem::MaybeUninit<u8>]| {
-                            black_box(bench.exec_bench(alloc));
+                            bench.exec_bench(alloc);
+                            black_box(());
                         },
                     );
                 }

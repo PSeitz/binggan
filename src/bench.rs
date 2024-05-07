@@ -137,7 +137,7 @@ impl<'a, I> NamedBench<'a, I> {
             // Preliminary test if function is very slow
             // This could receive some more thought
             let start = std::time::Instant::now();
-            (self.fun)(&input.data);
+            (self.fun)(input.data);
             let elapsed_ms = start.elapsed().as_millis() as u64;
             const MAX_MS: u64 = 5;
             if elapsed_ms > MAX_MS {
@@ -147,7 +147,7 @@ impl<'a, I> NamedBench<'a, I> {
 
         let start = std::time::Instant::now();
         for _ in 0..64 {
-            (self.fun)(&input.data);
+            (self.fun)(input.data);
             black_box(());
         }
         let elapsed_ns = start.elapsed().as_nanos();
@@ -174,7 +174,7 @@ impl<'a, I> NamedBench<'a, I> {
         }
         let start = std::time::Instant::now();
         for _ in 0..num_iter {
-            (self.fun)(&input.data);
+            (self.fun)(input.data);
         }
         let elapsed = start.elapsed();
         if let Some(profiler) = profiler {

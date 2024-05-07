@@ -199,6 +199,6 @@ impl<I: 'static> InputGroup<I> {
     }
 }
 
-unsafe fn transmute_lifetime<'a, I>(input: NamedInput<'a, I>) -> NamedInput<'static, I> {
+unsafe fn transmute_lifetime<I>(input: NamedInput<'_, I>) -> NamedInput<'static, I> {
     std::mem::transmute(input)
 }
