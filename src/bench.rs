@@ -1,4 +1,10 @@
-use crate::{bench_input_group::*, bench_runner::NamedInput, black_box, profiler::*, stats::*};
+use crate::{
+    bench_input_group::*,
+    bench_runner::{NamedInput, NUM_RUNS},
+    black_box,
+    profiler::*,
+    stats::*,
+};
 
 pub trait Bench<'a> {
     fn get_input_name(&self) -> &str;

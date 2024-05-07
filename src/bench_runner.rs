@@ -10,7 +10,7 @@ use peakmem_alloc::*;
 use yansi::Paint;
 
 pub(crate) type Alloc = &'static dyn PeakMemAllocTrait;
-pub(crate) const NUM_RUNS: usize = 64;
+pub(crate) const NUM_RUNS: usize = 32;
 
 /// The main struct to create benchmarks.
 ///

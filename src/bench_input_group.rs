@@ -4,7 +4,6 @@ use crate::{bench::NamedBench, bench_runner::BenchRunner, parse_args, NamedInput
 use peakmem_alloc::*;
 
 pub(crate) type Alloc = &'static dyn PeakMemAllocTrait;
-pub(crate) const NUM_RUNS: usize = 32;
 
 /// `InputGroup` is a collection of benchmarks that are run with the same inputs.
 ///
