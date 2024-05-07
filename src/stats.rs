@@ -45,17 +45,14 @@ fn compute_diff<F: Fn(&BenchStats) -> u64>(
 
 impl BenchStats {
     pub fn to_columns(
-        &self,
+        self,
         other: Option<BenchStats>,
         input_size_in_bytes: Option<usize>,
         report_memory: bool,
     ) -> Vec<String> {
-        let avg_ns_diff = compute_diff(self, input_size_in_bytes, other, |stats| {
-            stats.average_ns
-        });
-        let median_ns_diff = compute_diff(self, input_size_in_bytes, other, |stats| {
-            stats.median_ns
-        });
+        let avg_ns_diff = compute_diff(&self, input_size_in_bytes, other, |stats| stats.average_ns);
+        let median_ns_diff =
+            compute_diff(&self, input_size_in_bytes, other, |stats| stats.median_ns);
 
         // if input_size_in_bytes is set report the throughput, otherwise just use format_duration
         let format = |duration_ns: u64| {
@@ -77,7 +74,7 @@ impl BenchStats {
             format!("[{} .. {}]", format(self.min_ns), format(self.max_ns))
         };
         let memory_string = if report_memory {
-            let mem_diff = compute_diff(self, None, other, |stats| stats.avg_memory as u64);
+            let mem_diff = compute_diff(&self, None, other, |stats| stats.avg_memory as u64);
             format!(
                 "Memory: {} {}",
                 bytes_to_string(self.avg_memory as u64).bright_cyan().bold(),

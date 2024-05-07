@@ -99,7 +99,7 @@ impl CounterValues {
     }
 
     // Method to compare two `CounterValues` instances and return columns
-    pub fn to_columns(&self, other: Option<CounterValues>) -> Vec<String> {
+    pub fn to_columns(self, other: Option<CounterValues>) -> Vec<String> {
         let l1d_access_count_diff = other
             .as_ref()
             .map(|other| {

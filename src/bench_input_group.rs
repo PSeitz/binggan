@@ -17,7 +17,7 @@ pub struct InputGroup<I = ()> {
     runner: BenchRunner<'static>,
 }
 
-impl<'a> Default for InputGroup<()> {
+impl Default for InputGroup<()> {
     fn default() -> Self {
         Self::new()
     }
