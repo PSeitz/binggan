@@ -58,6 +58,7 @@ pub struct BenchResult {
     /// The name of the benchmark.
     pub bench_name: String,
     /// The name of the input.
+    #[allow(dead_code)]
     pub input_name: String,
     /// The aggregated statistics of the benchmark run.
     pub stats: BenchStats,
