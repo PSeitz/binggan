@@ -79,6 +79,7 @@ mod bench_input_group;
 pub(crate) mod bench_runner;
 pub(crate) mod format;
 pub(crate) mod profiler;
+
 pub(crate) mod report;
 pub(crate) mod stats;
 pub use bench_input_group::InputGroup;

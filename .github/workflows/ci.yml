@@ -25,7 +25,9 @@ jobs:
           toolchain: ${{ matrix.rust }}
           override: true
 
-      - run: cargo bench
+      - run: cargo build
+      - run: cargo build --features perf_event
+      - run: cargo bench --features perf_event
       # test filter parameter for cargo bench
       - run: "[ $(cargo bench | wc -l) -gt $(cargo bench 15 | wc -l) ]"
 
