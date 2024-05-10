@@ -87,6 +87,10 @@ pub use bench_runner::BenchRunner;
 pub use bench_runner::NamedInput;
 use rustop::opts;
 
+/// A function that is opaque to the optimizer, used to prevent the compiler from
+/// optimizing away computations in a benchmark.
+pub use std::hint::black_box;
+
 /// The options to configure the benchmarking.
 /// The can be set on `InputGroup`.
 #[derive(Debug, Default)]
@@ -130,28 +134,5 @@ fn parse_args() -> Options {
         std::process::exit(1);
     } else {
         unreachable!();
-    }
-}
-
-/// A function that is opaque to the optimizer, used to prevent the compiler from
-/// optimizing away computations in a benchmark.
-///
-/// This variant is backed by the (unstable) test::black_box function.
-#[cfg(feature = "real_blackbox")]
-pub fn black_box<T>(dummy: T) -> T {
-    test::black_box(dummy)
-}
-
-/// A function that is opaque to the optimizer, used to prevent the compiler from
-/// optimizing away computations in a benchmark.
-///
-/// This variant is stable-compatible, but it may cause some performance overhead
-/// or fail to prevent code from being eliminated.
-#[cfg(not(feature = "real_blackbox"))]
-pub fn black_box<T>(dummy: T) -> T {
-    unsafe {
-        let ret = std::ptr::read_volatile(&dummy);
-        std::mem::forget(dummy);
-        ret
     }
 }

@@ -148,7 +148,8 @@ impl<'a, I> NamedBench<'a, I> {
             let elapsed_ms = start.elapsed().as_millis() as u64;
             const MAX_MS: u64 = 5;
             if elapsed_ms > MAX_MS {
-                return (MAX_MS / elapsed_ms).max(1) as usize;
+                let num_iter = 100 / elapsed_ms;
+                return (num_iter as usize).max(1);
             }
         }
 
@@ -181,7 +182,7 @@ impl<'a, I> NamedBench<'a, I> {
         }
         let start = std::time::Instant::now();
         for _ in 0..num_iter {
-            (self.fun)(input.data);
+            black_box((self.fun)(input.data));
         }
         let elapsed = start.elapsed();
         if let Some(profiler) = profiler {

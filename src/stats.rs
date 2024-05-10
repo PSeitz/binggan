@@ -130,20 +130,25 @@ pub fn compute_percentage_diff(a: f64, b: f64) -> f64 {
     (a / b - 1.0) * 100.0
 }
 pub fn format_percentage(diff: f64, smaller_is_better: bool) -> String {
+    let diff_str = if diff >= 0.0 {
+        format!("(+{:.2}%)", diff)
+    } else {
+        format!("({:.2}%)", diff)
+    };
     if smaller_is_better {
         if diff > 2.0 {
-            format!(" (+{:.2}%)", diff).red().to_string()
+            diff_str.red().to_string()
         } else if diff < -2.0 {
-            format!(" ({:.2}%)", diff).green().to_string()
+            diff_str.green().to_string()
         } else {
-            format!(" ({:.2}%)", diff).resetting().to_string()
+            diff_str.resetting().to_string()
         }
     } else if diff > 2.0 {
-        format!(" (+{:.2}%)", diff).green().to_string()
+        diff_str.green().to_string()
     } else if diff < -2.0 {
-        format!(" ({:.2}%)", diff).red().to_string()
+        diff_str.red().to_string()
     } else {
-        format!(" ({:.2}%)", diff).resetting().to_string()
+        diff_str.resetting().to_string()
     }
 }
 pub fn compute_stats(results: &[RunResult]) -> BenchStats {

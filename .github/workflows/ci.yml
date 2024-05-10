@@ -50,3 +50,5 @@ jobs:
 
       - run: cargo fmt --all -- --check
       - run: cargo clippy --all -- -D warnings
+      - run: cargo clippy --features perf_event --all -- -D warnings
+
