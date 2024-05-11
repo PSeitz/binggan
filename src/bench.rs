@@ -182,6 +182,7 @@ impl<'a, I> NamedBench<'a, I> {
         }
         let start = std::time::Instant::now();
         for _ in 0..num_iter {
+            #[allow(clippy::unit_arg)]
             black_box((self.fun)(input.data));
         }
         let elapsed = start.elapsed();
