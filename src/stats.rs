@@ -29,11 +29,9 @@ fn compute_diff<F: Fn(&BenchStats) -> u64>(
             }
             // Diff on throughput
             if let Some(input_size_in_bytes) = input_size_in_bytes {
-                let mut val1 = f(stats) as f64;
-                let mut val_other = f(other) as f64;
-                bytes_per_second(input_size_in_bytes, &mut val1);
-                bytes_per_second(input_size_in_bytes, &mut val_other);
-                let diff = compute_percentage_diff(val1, val_other);
+                let val = bytes_per_second(input_size_in_bytes, f(stats) as f64);
+                let val_other = bytes_per_second(input_size_in_bytes, f(other) as f64);
+                let diff = compute_percentage_diff(val, val_other);
                 format_percentage(diff, false)
             } else {
                 let diff = compute_percentage_diff(f(stats) as f64, f(other) as f64);
@@ -41,6 +39,10 @@ fn compute_diff<F: Fn(&BenchStats) -> u64>(
             }
         })
         .unwrap_or_default()
+}
+
+fn bytes_per_second(input_size_in_bytes: usize, ns: f64) -> f64 {
+    (input_size_in_bytes as f64) / (ns / 1e9)
 }
 
 impl BenchStats {
@@ -58,7 +60,7 @@ impl BenchStats {
         let format = |duration_ns: u64| {
             if let Some(input_size_in_bytes) = input_size_in_bytes {
                 let mut duration_ns: f64 = duration_ns as f64;
-                let unit = bytes_per_second(input_size_in_bytes, &mut duration_ns);
+                let unit = unit_per_second(input_size_in_bytes, &mut duration_ns);
                 format!("{:>6} {}", short(duration_ns), unit)
             } else {
                 format_duration(duration_ns).to_string()
@@ -94,7 +96,7 @@ impl BenchStats {
 //}
 
 /// Returns the unit and alters the passed parameter to match the unit
-fn bytes_per_second(bytes: usize, nanoseconds: &mut f64) -> &'static str {
+fn unit_per_second(bytes: usize, nanoseconds: &mut f64) -> &'static str {
     let bytes_per_second = bytes as f64 * (1e9 / *nanoseconds);
     let (denominator, unit) = if bytes_per_second < 1024.0 {
         (1.0, "  B/s")
@@ -219,5 +221,35 @@ mod tests {
             stats.median_ns, 25,
             "Median should be the average of the two middle elements for even count"
         );
+    }
+
+    // Mock function to compute percentage difference
+    fn compute_percentage_diff(new_value: f64, old_value: f64) -> f64 {
+        ((new_value - old_value) / old_value) * 100.0
+    }
+
+    #[test]
+    fn test_compute_diff_average_ns_with_input_size() {
+        let stats = BenchStats {
+            min_ns: 100,
+            max_ns: 200,
+            average_ns: 150,
+            median_ns: 150,
+            avg_memory: 1024,
+        };
+
+        let other_stats = BenchStats {
+            min_ns: 100,
+            max_ns: 200,
+            average_ns: 100, // different average_ns to see the difference in the output
+            median_ns: 100,
+            avg_memory: 1024,
+        };
+
+        // Example usage: Using average_ns field for comparison.
+        let diff = compute_diff(&stats, Some(1000), Some(other_stats), |x| x.average_ns);
+
+        // Check the output
+        assert_eq!(diff, "(+50.00%)".green().to_string());
     }
 }
