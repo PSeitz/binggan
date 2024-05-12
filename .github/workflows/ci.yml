@@ -15,7 +15,6 @@ jobs:
 
     steps:
       - run: sudo apt-get update
-      - run: sudo apt install -y valgrind
 
       - uses: actions/checkout@v2
 
@@ -52,3 +51,13 @@ jobs:
       - run: cargo clippy --all -- -D warnings
       - run: cargo clippy --features perf_event --all -- -D warnings
 
+  semver:
+    name: semver
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Check semver
+        uses: obi1kenobi/cargo-semver-checks-action@v2
+        with:
+          rust-toolchain: ${{ env.rust_stable }}
+          release-type: minor

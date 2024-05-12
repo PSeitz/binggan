@@ -1,9 +1,11 @@
+use std::collections::HashMap;
+
 use binggan::{black_box, InputGroup, PeakMemAlloc, INSTRUMENTED_SYSTEM};
 
 #[global_allocator]
 pub static GLOBAL: &PeakMemAlloc<std::alloc::System> = &INSTRUMENTED_SYSTEM;
 
-fn test_vec(data: &Vec<usize>) {
+fn test_vec(data: &Vec<usize>) -> Vec<i32> {
     let mut vec = Vec::new();
     for idx in data {
         if vec.len() <= *idx {
@@ -11,25 +13,26 @@ fn test_vec(data: &Vec<usize>) {
         }
         vec[*idx] += 1;
     }
+    vec
 }
-fn test_hashmap(data: &Vec<usize>) {
+fn test_hashmap(data: &Vec<usize>) -> HashMap<&usize, i32> {
     let mut map = std::collections::HashMap::new();
     for idx in data {
         *map.entry(idx).or_insert(0) += 1;
     }
+    map
 }
 
 fn bench_group(mut runner: InputGroup<Vec<usize>>) {
     runner.set_alloc(GLOBAL); // Set the peak mem allocator. This will enable peak memory reporting.
     runner.enable_perf();
+    runner.set_cache_trasher(true);
     runner.throughput(|input| input.len() * std::mem::size_of::<usize>());
     runner.register("vec", |data| {
-        test_vec(data);
-        black_box(());
+        black_box(test_vec(data));
     });
     runner.register("hashmap", move |data| {
-        test_hashmap(data);
-        black_box(());
+        black_box(test_hashmap(data));
     });
     runner.run();
 }

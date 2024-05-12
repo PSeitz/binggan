@@ -223,33 +223,28 @@ mod tests {
         );
     }
 
-    // Mock function to compute percentage difference
-    fn compute_percentage_diff(new_value: f64, old_value: f64) -> f64 {
-        ((new_value - old_value) / old_value) * 100.0
-    }
-
     #[test]
     fn test_compute_diff_average_ns_with_input_size() {
         let stats = BenchStats {
-            min_ns: 100,
-            max_ns: 200,
+            min_ns: 0,
+            max_ns: 0,
             average_ns: 150,
-            median_ns: 150,
-            avg_memory: 1024,
+            median_ns: 0,
+            avg_memory: 24,
         };
 
         let other_stats = BenchStats {
-            min_ns: 100,
-            max_ns: 200,
+            min_ns: 0,
+            max_ns: 0,
             average_ns: 100, // different average_ns to see the difference in the output
-            median_ns: 100,
-            avg_memory: 1024,
+            median_ns: 0,
+            avg_memory: 0,
         };
 
         // Example usage: Using average_ns field for comparison.
         let diff = compute_diff(&stats, Some(1000), Some(other_stats), |x| x.average_ns);
 
         // Check the output
-        assert_eq!(diff, "(+50.00%)".green().to_string());
+        assert_eq!(diff, "(-33.33%)".red().to_string());
     }
 }

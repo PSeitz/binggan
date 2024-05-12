@@ -6,9 +6,12 @@ use crate::{
     stats::*,
 };
 
+/// The trait which typically wraps a InputWithBenchmark and allows to hide the generics.
 pub trait Bench<'a> {
     fn get_input_name(&self) -> &str;
-    fn sample_and_set_iter(&mut self);
+    fn set_num_iter(&mut self, num_iter: usize);
+    /// Sample the number of iterations the benchmark should do
+    fn sample_num_iter(&self) -> usize;
     fn exec_bench(&mut self, alloc: &Option<Alloc>);
     fn get_results(&mut self, group_name: &Option<String>) -> BenchResult;
     fn clear_results(&mut self);
@@ -80,10 +83,14 @@ impl<'a, I> Bench<'a> for InputWithBenchmark<'a, I> {
         &self.input.name
     }
     #[inline]
-    fn sample_and_set_iter(&mut self) {
-        self.num_iter = self.bench.sample_and_get_iter(&self.input);
+    fn sample_num_iter(&self) -> usize {
+        self.bench.sample_and_get_iter(&self.input)
+    }
+    fn set_num_iter(&mut self, num_iter: usize) {
+        self.num_iter = num_iter;
         self.results.reserve(NUM_RUNS * self.num_iter);
     }
+
     #[inline]
     fn exec_bench(&mut self, alloc: &Option<Alloc>) {
         let res = self
@@ -138,31 +145,29 @@ impl RunResult {
 
 impl<'a, I> NamedBench<'a, I> {
     #[inline]
-    /// Each input has its own number of iterations.
+    /// Each group has its own number of iterations. This is not the final num_iter
     pub fn sample_and_get_iter(&self, input: &NamedInput<'a, I>) -> usize {
+        // We want to run the benchmark for 100ms
+        const TARGET_MS_PER_BENCH: u64 = 100;
         {
             // Preliminary test if function is very slow
-            // This could receive some more thought
             let start = std::time::Instant::now();
-            (self.fun)(input.data);
+            black_box((self.fun)(input.data));
             let elapsed_ms = start.elapsed().as_millis() as u64;
-            const MAX_MS: u64 = 5;
-            if elapsed_ms > MAX_MS {
-                let num_iter = 100 / elapsed_ms;
-                return (num_iter as usize).max(1);
+            if elapsed_ms > TARGET_MS_PER_BENCH {
+                return 1;
             }
         }
 
         let start = std::time::Instant::now();
         for _ in 0..64 {
-            (self.fun)(input.data);
-            black_box(());
+            black_box((self.fun)(input.data));
         }
         let elapsed_ns = start.elapsed().as_nanos();
         let per_iter_ns = (elapsed_ns / 100) * NUM_RUNS as u128;
 
-        // We want to run the benchmark for 100ms
-        let num_iter = 100_000_000 / per_iter_ns;
+        let num_iter = TARGET_MS_PER_BENCH as u128 * 1_000_000 / per_iter_ns;
+        println!("{}_{} num_iter: {}", self.name, input.name, num_iter);
         // We want to run the benchmark for at least 1 iterations
         (num_iter as usize).max(1)
     }

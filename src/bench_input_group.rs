@@ -138,6 +138,11 @@ impl<I: 'static> InputGroup<I> {
         self.runner.set_options(options);
     }
 
+    /// Trash CPU cache between bench runs. Defaults to false.
+    pub fn set_cache_trasher(&mut self, enable: bool) {
+        self.runner.set_cache_trasher(enable);
+    }
+
     /// Sets the interleave option to the given value.
     pub fn set_interleave(&mut self, interleave: bool) {
         self.runner.set_interleave(interleave);

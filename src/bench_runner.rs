@@ -1,4 +1,4 @@
-use std::{alloc::GlobalAlloc, borrow::Cow};
+use std::{alloc::GlobalAlloc, borrow::Cow, cmp::Ordering};
 
 use crate::{
     bench::{Bench, InputWithBenchmark, NamedBench},
@@ -216,13 +216,12 @@ impl<'a> BenchRunner<'a> {
             println!("{}", name.black().on_red().invert().bold());
         }
 
-        Self::warm_up(&mut self.benches);
-
         // TODO: group by should be configurable
         group_by_mut(
             &mut self.benches,
             |b| b.get_input_name(),
             |group| {
+                Self::warm_up_group(group);
                 let input_name = group[0].get_input_name();
                 if !input_name.is_empty() {
                     println!("{}", input_name.black().on_yellow().invert().italic());
@@ -308,12 +307,59 @@ impl<'a> BenchRunner<'a> {
         }
     }
 
-    fn warm_up(benches: &mut [Box<dyn Bench<'a> + 'a>]) {
-        // Measure and print the time it took
+    fn warm_up_group(benches: &mut [Box<dyn Bench<'a> + 'a>]) {
+        // In order to make the benchmarks in a group comparable, it is imperative to call them
+        // the same numer of times
+        let (min_num_iter, max_num_iter) =
+            minmax(benches.iter().map(|b| b.sample_num_iter())).unwrap();
+        // If the difference between min and max_num_iter is more than 10x, we just set
+        // max_num_iter to 10x of min. This is done to avoid having too lon running benchmarks
+        let max_num_iter = max_num_iter.min(min_num_iter * 10);
+        // We round up, so that we may get the same number of iterations between runs
+        let max_num_iter = round_up(max_num_iter as u64) as usize;
+        println!("Warming up group with {} iterations", max_num_iter);
+
         for input_and_bench in benches {
-            input_and_bench.sample_and_set_iter();
+            input_and_bench.set_num_iter(max_num_iter);
         }
     }
+}
+
+// Trying to get a stable number of iterations between runs
+fn round_up(num: u64) -> u64 {
+    if num < 10 {
+        return 10;
+    }
+
+    let mut divisor: u64 = 10;
+    while num >= divisor * 10 {
+        divisor *= 10;
+    }
+
+    ((num + divisor - 1) / divisor) * divisor
+}
+
+pub fn minmax<I, T>(mut vals: I) -> Option<(T, T)>
+where
+    I: Iterator<Item = T>,
+    T: Copy + PartialOrd,
+{
+    let first_el = vals.find(|val| {
+        // We use this to make sure we skip all NaN values when
+        // working with a float type.
+        val.partial_cmp(val) == Some(Ordering::Equal)
+    })?;
+    let mut min_so_far: T = first_el;
+    let mut max_so_far: T = first_el;
+    for val in vals {
+        if val.partial_cmp(&min_so_far) == Some(Ordering::Less) {
+            min_so_far = val;
+        }
+        if val.partial_cmp(&max_so_far) == Some(Ordering::Greater) {
+            max_so_far = val;
+        }
+    }
+    Some((min_so_far, max_so_far))
 }
 
 /// Note: The data will be sorted.
@@ -418,5 +464,17 @@ mod tests {
             all.push(bench_indices.clone());
         }
         assert_eq!(all, vec![vec![1, 0], vec![0, 1], vec![1, 0], vec![0, 1]]);
+    }
+
+    #[test]
+    fn test_round_up() {
+        assert_eq!(round_up(125), 200);
+        assert_eq!(round_up(12), 20);
+        assert_eq!(round_up(1256), 2000);
+        assert_eq!(round_up(78945), 80000);
+        assert_eq!(round_up(1000), 1000);
+        assert_eq!(round_up(1001), 2000);
+        assert_eq!(round_up(999), 1000);
+        assert_eq!(round_up(9), 10); // Check for single digit numbers
     }
 }
