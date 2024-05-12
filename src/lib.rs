@@ -106,6 +106,8 @@ pub struct Options {
     pub enable_perf: bool,
     /// Trash CPU cache between bench runs.
     pub cache_trasher: bool,
+    /// Verbose output of binggan
+    pub verbose: bool,
 }
 
 fn parse_args() -> Options {

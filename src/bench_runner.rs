@@ -221,21 +221,35 @@ impl<'a> BenchRunner<'a> {
             &mut self.benches,
             |b| b.get_input_name(),
             |group| {
-                Self::warm_up_group(group);
                 let input_name = group[0].get_input_name();
                 if !input_name.is_empty() {
                     println!("{}", input_name.black().on_yellow().invert().italic());
                 }
 
-                if self.options.interleave {
-                    Self::run_interleaved(
-                        group,
-                        &self.alloc,
-                        self.options.cache_trasher.then_some(&self.cache_trasher),
+                const MAX_GROUP_SIZE: usize = 5;
+                if self.options.verbose && group.len() > MAX_GROUP_SIZE {
+                    println!(
+                        "Group is quite big, splitting into chunks of {} elements",
+                        MAX_GROUP_SIZE
                     );
-                } else {
-                    Self::run_sequential(group, &self.alloc);
                 }
+
+                // If the group is quite big, we don't want to create too big chunks, which causes
+                // slow tests, therefore a chunk is at most 5 elements large.
+                for group in group.chunks_mut(MAX_GROUP_SIZE) {
+                    Self::warm_up_group_and_set_iter(group, self.options.verbose);
+
+                    if self.options.interleave {
+                        Self::run_interleaved(
+                            group,
+                            &self.alloc,
+                            self.options.cache_trasher.then_some(&self.cache_trasher),
+                        );
+                    } else {
+                        Self::run_sequential(group, &self.alloc);
+                    }
+                }
+                // We report at the end, so the alignment is correct (could be calculated up front)
                 report_group(&self.name, group, self.alloc.is_some());
             },
         );
@@ -307,17 +321,26 @@ impl<'a> BenchRunner<'a> {
         }
     }
 
-    fn warm_up_group(benches: &mut [Box<dyn Bench<'a> + 'a>]) {
+    fn warm_up_group_and_set_iter(benches: &mut [Box<dyn Bench<'a> + 'a>], verbose: bool) {
         // In order to make the benchmarks in a group comparable, it is imperative to call them
         // the same numer of times
         let (min_num_iter, max_num_iter) =
             minmax(benches.iter().map(|b| b.sample_num_iter())).unwrap();
+
+        if verbose {
+            println!(
+                "Estimated iters in group between {} to {}",
+                min_num_iter, max_num_iter
+            );
+        }
         // If the difference between min and max_num_iter is more than 10x, we just set
         // max_num_iter to 10x of min. This is done to avoid having too lon running benchmarks
         let max_num_iter = max_num_iter.min(min_num_iter * 10);
         // We round up, so that we may get the same number of iterations between runs
         let max_num_iter = round_up(max_num_iter as u64) as usize;
-        //println!("Warming up group with {} iterations", max_num_iter);
+        if verbose {
+            println!("Set common iterations of {} for group", max_num_iter);
+        }
 
         for input_and_bench in benches {
             input_and_bench.set_num_iter(max_num_iter);
@@ -327,6 +350,12 @@ impl<'a> BenchRunner<'a> {
 
 // Trying to get a stable number of iterations between runs
 fn round_up(num: u64) -> u64 {
+    if num == 1 {
+        return 1;
+    }
+    if num == 2 {
+        return 2;
+    }
     if num < 10 {
         return 10;
     }
