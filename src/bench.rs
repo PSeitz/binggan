@@ -152,6 +152,7 @@ impl<'a, I> NamedBench<'a, I> {
         {
             // Preliminary test if function is very slow
             let start = std::time::Instant::now();
+            #[allow(clippy::unit_arg)]
             black_box((self.fun)(input.data));
             let elapsed_ms = start.elapsed().as_millis() as u64;
             if elapsed_ms > TARGET_MS_PER_BENCH {
@@ -161,6 +162,7 @@ impl<'a, I> NamedBench<'a, I> {
 
         let start = std::time::Instant::now();
         for _ in 0..64 {
+            #[allow(clippy::unit_arg)]
             black_box((self.fun)(input.data));
         }
         let elapsed_ns = start.elapsed().as_nanos();
