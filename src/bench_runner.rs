@@ -317,7 +317,7 @@ impl<'a> BenchRunner<'a> {
         let max_num_iter = max_num_iter.min(min_num_iter * 10);
         // We round up, so that we may get the same number of iterations between runs
         let max_num_iter = round_up(max_num_iter as u64) as usize;
-        println!("Warming up group with {} iterations", max_num_iter);
+        //println!("Warming up group with {} iterations", max_num_iter);
 
         for input_and_bench in benches {
             input_and_bench.set_num_iter(max_num_iter);

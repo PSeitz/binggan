@@ -169,7 +169,6 @@ impl<'a, I> NamedBench<'a, I> {
         let per_iter_ns = (elapsed_ns / 100) * NUM_RUNS as u128;
 
         let num_iter = TARGET_MS_PER_BENCH as u128 * 1_000_000 / per_iter_ns;
-        println!("{}_{} num_iter: {}", self.name, input.name, num_iter);
         // We want to run the benchmark for at least 1 iterations
         (num_iter as usize).max(1)
     }
