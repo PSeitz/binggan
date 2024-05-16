@@ -26,6 +26,10 @@ pub struct BenchRunner<'a> {
     /// The size of the input.
     /// Enables throughput reporting.
     input_size_in_bytes: Option<usize>,
+    /// Manully set the number of iterations each benchmark is called.
+    ///
+    /// This disables the automatic detection of the number of iterations.
+    num_iter: Option<usize>,
 }
 
 /// Input
@@ -33,15 +37,6 @@ pub struct BenchRunner<'a> {
 pub struct NamedInput<'a, I> {
     pub(crate) name: Cow<'a, str>,
     pub(crate) data: &'a I,
-}
-
-fn matches(input: &str, filter: &Option<String>, exact: bool) -> bool {
-    let Some(filter) = filter else { return true };
-    if exact {
-        input == filter
-    } else {
-        input.contains(filter)
-    }
 }
 
 const EMPTY_INPUT: NamedInput<()> = NamedInput {
@@ -74,6 +69,7 @@ impl<'a> BenchRunner<'a> {
             alloc: None,
             name: None,
             input_size_in_bytes: None,
+            num_iter: None,
         }
     }
     /// Set the peak mem allocator to be used for the benchmarks.
@@ -105,6 +101,13 @@ impl<'a> BenchRunner<'a> {
     /// registered afterwards.
     pub fn set_input_size(&mut self, input_size: usize) {
         self.input_size_in_bytes = Some(input_size);
+    }
+
+    /// Manully set the number of iterations each benchmark is called.
+    ///
+    /// This disables the automatic detection of the number of iterations.
+    pub fn set_num_iter(&mut self, num_iter: usize) {
+        self.num_iter = Some(num_iter);
     }
 
     /// Set the name of the group.
@@ -152,15 +155,13 @@ impl<'a> BenchRunner<'a> {
         F: Fn(&'a I) + 'static,
     {
         let name = bench_name.into();
-        if !matches(&name, &self.options.filter, self.options.exact) {
-            return;
-        }
+        let input_name = input_name.into();
 
         let bench = NamedBench::new(name, Box::new(fun));
         self.register_named_with_input(
             bench,
             NamedInput {
-                name: Cow::Owned(input_name.into()),
+                name: Cow::Owned(input_name),
                 data: input,
             },
         );
@@ -171,6 +172,12 @@ impl<'a> BenchRunner<'a> {
         bench: NamedBench<'a, I>,
         input: NamedInput<'a, I>,
     ) {
+        if let Some(filter) = &self.options.filter {
+            if !bench.name.contains(filter) && !input.name.contains(filter) {
+                return;
+            }
+        }
+
         let bundle = InputWithBenchmark::new(
             input,
             self.input_size_in_bytes,
@@ -186,19 +193,8 @@ impl<'a> BenchRunner<'a> {
         F: Fn(&'a ()) + 'static,
     {
         let name = name.into();
-        if !matches(&name, &self.options.filter, self.options.exact) {
-            return;
-        }
-
         let bench = NamedBench::new(name, Box::new(fun));
-        let bundle = InputWithBenchmark::new(
-            EMPTY_INPUT,
-            self.input_size_in_bytes,
-            bench,
-            self.options.enable_perf,
-        );
-
-        self.benches.push(Box::new(bundle));
+        self.register_named_with_input(bench, EMPTY_INPUT);
     }
 
     /// Trash CPU cache between bench runs. Defaults to false.
@@ -237,7 +233,7 @@ impl<'a> BenchRunner<'a> {
                 // If the group is quite big, we don't want to create too big chunks, which causes
                 // slow tests, therefore a chunk is at most 5 elements large.
                 for group in group.chunks_mut(MAX_GROUP_SIZE) {
-                    Self::warm_up_group_and_set_iter(group, self.options.verbose);
+                    Self::warm_up_group_and_set_iter(group, self.num_iter, self.options.verbose);
 
                     if self.options.interleave {
                         Self::run_interleaved(
@@ -289,7 +285,7 @@ impl<'a> BenchRunner<'a> {
             //
             // This has the drawback, that one bench will affect another one.
             shuffle(&mut bench_indices, iteration as u64);
-            std::thread::yield_now();
+            //std::thread::yield_now();
 
             for bench_idx in bench_indices.iter() {
                 if let Some(cache_trasher) = cache_trasher {
@@ -321,7 +317,21 @@ impl<'a> BenchRunner<'a> {
         }
     }
 
-    fn warm_up_group_and_set_iter(benches: &mut [Box<dyn Bench<'a> + 'a>], verbose: bool) {
+    fn warm_up_group_and_set_iter(
+        benches: &mut [Box<dyn Bench<'a> + 'a>],
+        num_iter: Option<usize>,
+        verbose: bool,
+    ) {
+        if let Some(num_iter) = num_iter {
+            if verbose {
+                println!("Manually set num iterations to {}", num_iter);
+            }
+
+            for input_and_bench in benches {
+                input_and_bench.set_num_iter(num_iter);
+            }
+            return;
+        }
         // In order to make the benchmarks in a group comparable, it is imperative to call them
         // the same numer of times
         let (min_num_iter, max_num_iter) =

@@ -29,15 +29,6 @@ impl InputGroup<()> {
     }
 }
 
-fn matches(input: &str, filter: &Option<String>, exact: bool) -> bool {
-    let Some(filter) = filter else { return true };
-    if exact {
-        input == filter
-    } else {
-        input.contains(filter)
-    }
-}
-
 /// Input
 pub struct OwnedNamedInput<I> {
     pub(crate) name: String,
@@ -60,12 +51,12 @@ impl<I: 'static> InputGroup<I> {
     /// second element is the input itself.
     pub(crate) fn new_with_inputs_and_options<S: Into<String>>(
         inputs: Vec<(S, I)>,
-        mut options: Options,
+        options: Options,
     ) -> Self {
         use yansi::Condition;
         yansi::whenever(Condition::TTY_AND_COLOR);
 
-        let mut inputs: Vec<OwnedNamedInput<I>> = inputs
+        let inputs: Vec<OwnedNamedInput<I>> = inputs
             .into_iter()
             .map(|(name, input)| OwnedNamedInput {
                 name: name.into(),
@@ -73,19 +64,10 @@ impl<I: 'static> InputGroup<I> {
                 input_size_in_bytes: None,
             })
             .collect();
-        let filter_targets_input = inputs
-            .iter()
-            .any(|input| matches(&input.name, &options.filter, options.exact));
-        // If the filter is filtering an input, we filter and remove the filter
-        if filter_targets_input && options.filter.is_some() {
-            inputs.retain(|input| matches(&input.name, &options.filter, options.exact));
-            options.filter = None;
-        }
+        let mut runner = BenchRunner::new();
+        runner.set_options(options);
 
-        InputGroup {
-            inputs,
-            runner: BenchRunner::new(),
-        }
+        InputGroup { inputs, runner }
     }
     /// Set the peak mem allocator to be used for the benchmarks.
     /// This will report the peak memory consumption of the benchmarks.
@@ -138,6 +120,13 @@ impl<I: 'static> InputGroup<I> {
         self.runner.set_options(options);
     }
 
+    /// Manully set the number of iterations each benchmark is called.
+    ///
+    /// This disables the automatic detection of the number of iterations.
+    pub fn set_num_iter(&mut self, num_iter: usize) {
+        self.runner.set_num_iter(num_iter);
+    }
+
     /// Trash CPU cache between bench runs. Defaults to false.
     pub fn set_cache_trasher(&mut self, enable: bool) {
         self.runner.set_cache_trasher(enable);
@@ -162,13 +151,6 @@ impl<I: 'static> InputGroup<I> {
         F: Fn(&I) + 'static + Clone,
     {
         let name = name.into();
-        if !matches(
-            &name,
-            &self.runner.options.filter,
-            self.runner.options.exact,
-        ) {
-            return;
-        }
 
         for input in &self.inputs {
             let named_bench: NamedBench<'static, I> =

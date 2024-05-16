@@ -21,10 +21,39 @@ pub trait Profiler {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct CounterValues {
+    /// Level 1 Data Cache Accesses
     pub l1d_access_count: f64,
+    /// Level 1 Data Cache Misses
     pub l1d_miss_count: f64,
+    /// TLB Data Cache Accesses
+    pub tlbd_access_count: f64,
+    /// TLB Data Cache Misses
+    pub tlbd_miss_count: f64,
     pub branches_count: f64,
     pub missed_branches_count: f64,
+}
+
+/// Print Counter value
+fn print_counter_value<F: Fn(&CounterValues) -> f64>(
+    name: &str,
+    stats: &CounterValues,
+    other: Option<CounterValues>,
+    f: F,
+) -> String {
+    let diff_str = other
+        .as_ref()
+        .map(|other| {
+            if f(other) == 0.0 || f(stats) == 0.0 || f(other) == f(stats) {
+                return "".to_string();
+            }
+
+            let val = f(stats);
+            let other = f(other);
+            format_percentage(compute_percentage_diff(val, other), true)
+        })
+        .unwrap_or_default();
+
+    format!("{}: {:.3} {}", name, f(stats), diff_str,)
 }
 
 impl CounterValues {
@@ -41,61 +70,28 @@ impl CounterValues {
 
     // Method to compare two `CounterValues` instances and return columns
     pub fn to_columns(self, other: Option<CounterValues>) -> Vec<String> {
-        let l1d_access_count_diff = other
-            .as_ref()
-            .map(|other| {
-                format_percentage(
-                    compute_percentage_diff(self.l1d_access_count, other.l1d_access_count),
-                    true,
-                )
-            })
-            .unwrap_or_default();
-        let l1d_miss_count_diff = other
-            .as_ref()
-            .map(|other| {
-                format_percentage(
-                    compute_percentage_diff(self.l1d_miss_count, other.l1d_miss_count),
-                    true,
-                )
-            })
-            .unwrap_or_default();
-        let branches_count_diff = other
-            .as_ref()
-            .map(|other| {
-                format_percentage(
-                    compute_percentage_diff(self.branches_count, other.branches_count),
-                    true,
-                )
-            })
-            .unwrap_or_default();
-        let missed_branches_count_diff = other
-            .as_ref()
-            .map(|other| {
-                format_percentage(
-                    compute_percentage_diff(
-                        self.missed_branches_count,
-                        other.missed_branches_count,
-                    ),
-                    true,
-                )
-            })
-            .unwrap_or_default();
-
-        let l1da = format!(
-            "L1dA: {:.3} {}",
-            self.l1d_access_count, l1d_access_count_diff,
-        );
-        let l1dm = format!("L1dM: {:.3} {}", self.l1d_miss_count, l1d_miss_count_diff);
-        let branches = format!("Br: {:.3} {}", self.branches_count, branches_count_diff);
-        let branches_missed = format!(
-            "BrM: {:.3} {}",
-            self.missed_branches_count, missed_branches_count_diff
-        );
         vec![
-            l1da.red().to_string(),
-            l1dm.green().to_string(),
-            branches.blue().to_string(),
-            branches_missed.red().to_string(),
+            print_counter_value("L1dA", &self, other, |stats| stats.l1d_access_count)
+                .red()
+                .to_string(),
+            print_counter_value("L1dM", &self, other, |stats| stats.l1d_miss_count)
+                .green()
+                .to_string(),
+            print_counter_value("TLBdA", &self, other, |stats| stats.tlbd_access_count)
+                .red()
+                .to_string(),
+            print_counter_value("TLBdM", &self, other, |stats| stats.tlbd_miss_count)
+                .red()
+                .to_string(),
+            print_counter_value("L1dA", &self, other, |stats| stats.l1d_access_count)
+                .red()
+                .to_string(),
+            print_counter_value("Br", &self, other, |stats| stats.branches_count)
+                .blue()
+                .to_string(),
+            print_counter_value("MBr", &self, other, |stats| stats.missed_branches_count)
+                .red()
+                .to_string(),
         ]
     }
 }
