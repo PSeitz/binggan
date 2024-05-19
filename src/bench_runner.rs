@@ -124,6 +124,12 @@ impl BenchRunner {
     /// Manully set the number of iterations each benchmark is called.
     ///
     /// This disables the automatic detection of the number of iterations.
+    ///
+    /// # Note
+    /// Use this to get more stable and comparable benchmark results, as the number of
+    /// iterations has a big impact on measurement and the iteration detection may
+    /// not always get the same num iterations between runs. There are ways implemented
+    /// to mitigate that but they are limited.
     pub fn set_num_iter(&mut self, num_iter: usize) {
         self.num_iter = Some(num_iter);
     }
@@ -156,11 +162,11 @@ impl BenchRunner {
     }
 
     /// Run a single function
-    pub fn bench_function<F>(&mut self, name: String, f: F) -> &mut Self
+    pub fn bench_function<F, S: Into<String>>(&mut self, name: S, f: F) -> &mut Self
     where
         F: Fn(&()) + 'static,
     {
-        let named_bench = NamedBench::new(name, Box::new(f));
+        let named_bench = NamedBench::new(name.into(), Box::new(f));
         let bundle = InputWithBenchmark::new(
             EMPTY_INPUT,
             self.input_size_in_bytes,
@@ -213,18 +219,11 @@ impl BenchRunner {
         // We report at the end, so the alignment is correct (could be calculated up front)
         report_group(name, group, self.alloc.is_some());
 
-        //self.clear_results();
+        // TODO: clearing should be optional, to check the results yourself, e.g. in CI
         for bench in group {
             bench.clear_results();
         }
     }
-
-    // /// Clear the stored results of the benchmarks.
-    //pub fn clear_results(&mut self) {
-    //for bench in &mut self.benches {
-    //bench.clear_results();
-    //}
-    //}
 
     fn run_sequential<'a>(benches: &mut [Box<dyn Bench<'a> + 'a>], alloc: &Option<Alloc>) {
         for bench in benches {
@@ -301,7 +300,7 @@ impl BenchRunner {
         // In order to make the benchmarks in a group comparable, it is imperative to call them
         // the same numer of times
         let (min_num_iter, max_num_iter) =
-            minmax(benches.iter().map(|b| b.sample_num_iter())).unwrap();
+            minmax(benches.iter_mut().map(|b| b.sample_num_iter())).unwrap();
 
         if verbose {
             println!(

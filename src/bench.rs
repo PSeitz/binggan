@@ -11,13 +11,13 @@ pub trait Bench<'a> {
     fn get_input_name(&self) -> &str;
     fn set_num_iter(&mut self, num_iter: usize);
     /// Sample the number of iterations the benchmark should do
-    fn sample_num_iter(&self) -> usize;
+    fn sample_num_iter(&mut self) -> usize;
     fn exec_bench(&mut self, alloc: &Option<Alloc>);
     fn get_results(&mut self, group_name: Option<&str>) -> BenchResult;
     fn clear_results(&mut self);
 }
 
-type CallBench<'a, I> = Box<dyn Fn(&'a I)>;
+type CallBench<'a, I> = Box<dyn FnMut(&'a I)>;
 
 pub(crate) struct NamedBench<'a, I> {
     pub name: String,
@@ -83,7 +83,7 @@ impl<'a, I> Bench<'a> for InputWithBenchmark<'a, I> {
         &self.input.name
     }
     #[inline]
-    fn sample_num_iter(&self) -> usize {
+    fn sample_num_iter(&mut self) -> usize {
         self.bench.sample_and_get_iter(&self.input)
     }
     fn set_num_iter(&mut self, num_iter: usize) {
@@ -146,7 +146,7 @@ impl RunResult {
 impl<'a, I> NamedBench<'a, I> {
     #[inline]
     /// Each group has its own number of iterations. This is not the final num_iter
-    pub fn sample_and_get_iter(&self, input: &NamedInput<'a, I>) -> usize {
+    pub fn sample_and_get_iter(&mut self, input: &NamedInput<'a, I>) -> usize {
         // We want to run the benchmark for 100ms
         const TARGET_MS_PER_BENCH: u64 = 100;
         {
@@ -174,7 +174,7 @@ impl<'a, I> NamedBench<'a, I> {
     }
     #[inline]
     pub fn exec_bench(
-        &self,
+        &mut self,
         input: &NamedInput<'a, I>,
         alloc: &Option<Alloc>,
         profiler: &mut Option<PerfProfiler>,

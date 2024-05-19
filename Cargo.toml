@@ -37,7 +37,7 @@ perf_event = ["perf-event"]
 default = []
 
 [[bench]]
-name = "fibonacci_bench"
+name = "bench"
 harness = false
 
 [[bench]]
