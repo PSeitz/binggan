@@ -13,7 +13,7 @@ pub trait Bench<'a> {
     /// Sample the number of iterations the benchmark should do
     fn sample_num_iter(&self) -> usize;
     fn exec_bench(&mut self, alloc: &Option<Alloc>);
-    fn get_results(&mut self, group_name: &Option<String>) -> BenchResult;
+    fn get_results(&mut self, group_name: Option<&str>) -> BenchResult;
     fn clear_results(&mut self);
 }
 
@@ -99,10 +99,10 @@ impl<'a, I> Bench<'a> for InputWithBenchmark<'a, I> {
         self.results.push(res);
     }
 
-    fn get_results(&mut self, group_name: &Option<String>) -> BenchResult {
+    fn get_results(&mut self, group_name: Option<&str>) -> BenchResult {
         let bench_id = format!(
             "{}_{}_{}",
-            group_name.as_ref().unwrap_or(&"".to_string()),
+            group_name.as_ref().unwrap_or(&""),
             self.input.name,
             self.bench.name
         )

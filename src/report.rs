@@ -31,7 +31,7 @@ pub fn get_output_directory() -> PathBuf {
 }
 
 pub(crate) fn report_group<'a>(
-    bench_group_name: &Option<String>,
+    bench_group_name: Option<&str>,
     benches: &mut [Box<dyn Bench<'a> + 'a>],
     report_memory: bool,
 ) {

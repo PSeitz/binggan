@@ -1,7 +1,12 @@
 use std::{alloc::GlobalAlloc, borrow::Cow, collections::HashMap};
 
-use crate::{bench::NamedBench, bench_runner::BenchRunner, parse_args, NamedInput, Options};
+use crate::{
+    bench::NamedBench,
+    bench_runner::{group_by_mut, BenchRunner},
+    parse_args, BenchGroup, NamedInput, Options,
+};
 use peakmem_alloc::*;
+use yansi::Paint;
 
 pub(crate) type Alloc = &'static dyn PeakMemAllocTrait;
 
@@ -13,7 +18,8 @@ pub(crate) type Alloc = &'static dyn PeakMemAllocTrait;
 /// to the `InputGroup`. If this is not possible, use [BenchRunner](crate::BenchRunner) instead.
 pub struct InputGroup<I = ()> {
     inputs: Vec<OwnedNamedInput<I>>,
-    runner: BenchRunner<'static>,
+    bench_group: BenchGroup<'static>,
+    pub(crate) name: Option<String>,
 }
 
 impl Default for InputGroup<()> {
@@ -39,7 +45,7 @@ pub struct OwnedNamedInput<I> {
 impl<I: 'static> InputGroup<I> {
     /// Sets name of the group and returns the group.
     pub fn name<S: Into<String>>(mut self, name: S) -> Self {
-        self.runner.set_name(name.into());
+        self.name = Some(name.into());
         self
     }
     /// The inputs are a vector of tuples, where the first element is the name of the input and the
@@ -67,12 +73,16 @@ impl<I: 'static> InputGroup<I> {
         let mut runner = BenchRunner::new();
         runner.set_options(options);
 
-        InputGroup { inputs, runner }
+        InputGroup {
+            inputs,
+            name: None,
+            bench_group: BenchGroup::new(runner),
+        }
     }
     /// Set the peak mem allocator to be used for the benchmarks.
     /// This will report the peak memory consumption of the benchmarks.
     pub fn set_alloc<A: GlobalAlloc + 'static>(&mut self, alloc: &'static PeakMemAlloc<A>) {
-        self.runner.set_alloc(alloc);
+        self.bench_group.runner.set_alloc(alloc);
     }
     /// Enable perf profiling + report
     ///
@@ -91,7 +101,7 @@ impl<I: 'static> InputGroup<I> {
     ///              L1dA: 2.001       L1dM: 0.000     Br: 6.001         BrM: 0.000     
     /// ```
     pub fn enable_perf(&mut self) {
-        self.runner.options.enable_perf = true;
+        self.bench_group.runner.options.enable_perf = true;
     }
 
     /// Enables throughput reporting.
@@ -108,8 +118,8 @@ impl<I: 'static> InputGroup<I> {
     /// Set the name of the group.
     /// The name is printed before the benchmarks are run.
     /// It is also used to distinguish when writing the results to disk.
-    pub fn set_name(&mut self, name: String) {
-        self.runner.set_name(name);
+    pub fn set_name<S: Into<String>>(&mut self, name: S) {
+        self.name = Some(name.into());
     }
 
     /// Set the options to the given value.
@@ -117,24 +127,24 @@ impl<I: 'static> InputGroup<I> {
     ///
     /// See the Options struct for more information.
     pub fn set_options(&mut self, options: Options) {
-        self.runner.set_options(options);
+        self.bench_group.runner.set_options(options);
     }
 
     /// Manully set the number of iterations each benchmark is called.
     ///
     /// This disables the automatic detection of the number of iterations.
     pub fn set_num_iter(&mut self, num_iter: usize) {
-        self.runner.set_num_iter(num_iter);
+        self.bench_group.runner.set_num_iter(num_iter);
     }
 
     /// Trash CPU cache between bench runs. Defaults to false.
     pub fn set_cache_trasher(&mut self, enable: bool) {
-        self.runner.set_cache_trasher(enable);
+        self.bench_group.runner.set_cache_trasher(enable);
     }
 
     /// Sets the interleave option to the given value.
     pub fn set_interleave(&mut self, interleave: bool) {
-        self.runner.set_interleave(interleave);
+        self.bench_group.runner.set_interleave(interleave);
     }
 
     /// Sets the filter, which is used to filter the benchmarks by name.
@@ -142,7 +152,7 @@ impl<I: 'static> InputGroup<I> {
     ///
     /// It can also match an input name.
     pub fn set_filter(&mut self, filter: Option<String>) {
-        self.runner.set_filter(filter);
+        self.bench_group.runner.set_filter(filter);
     }
 
     /// Register a benchmark with the given name and function.
@@ -163,25 +173,38 @@ impl<I: 'static> InputGroup<I> {
             // (probably).
             let named_input: NamedInput<'static, I> = unsafe { transmute_lifetime(named_input) };
             if let Some(input_size) = input.input_size_in_bytes {
-                self.runner.set_input_size(input_size);
+                self.bench_group.runner.set_input_size(input_size);
             }
-            self.runner
+            self.bench_group
                 .register_named_with_input(named_bench, named_input);
         }
     }
 
     /// Run the benchmarks and report the results.
     pub fn run(&mut self) {
+        if let Some(name) = &self.name {
+            println!("{}", name.black().on_red().invert().bold());
+        }
         let input_name_to_ordinal: HashMap<String, usize> = self
             .inputs
             .iter()
             .enumerate()
             .map(|(i, input)| (input.name.clone(), i))
             .collect();
-        self.runner
+        self.bench_group
             .benches
             .sort_by_key(|bench| std::cmp::Reverse(input_name_to_ordinal[bench.get_input_name()]));
-        self.runner.run();
+        group_by_mut(
+            self.bench_group.benches.as_mut_slice(),
+            |b| b.get_input_name(),
+            |group| {
+                let input_name = group[0].get_input_name().to_owned();
+                //if !input_name.is_empty() {
+                //println!("{}", input_name.black().on_yellow().invert().italic());
+                //}
+                self.bench_group.runner.run_group(Some(&input_name), group);
+            },
+        );
     }
 }
 

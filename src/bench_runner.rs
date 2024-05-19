@@ -4,7 +4,7 @@ use crate::{
     bench::{Bench, InputWithBenchmark, NamedBench},
     black_box, parse_args,
     report::report_group,
-    Options,
+    BenchGroup, Options,
 };
 use peakmem_alloc::*;
 use yansi::Paint;
@@ -16,10 +16,9 @@ pub(crate) const NUM_RUNS: usize = 32;
 ///
 /// BenchRunner is a collection of benchmarks.
 /// It is self-contained and can be run independently.
-pub struct BenchRunner<'a> {
-    /// Name of the benchmark group.
-    name: Option<String>,
-    pub(crate) benches: Vec<Box<dyn Bench<'a> + 'a>>,
+#[derive(Clone)]
+pub struct BenchRunner {
+    //pub(crate) benches: Vec<Box<dyn Bench<'a> + 'a>>,
     alloc: Option<Alloc>,
     cache_trasher: CacheTrasher,
     pub(crate) options: Options,
@@ -39,23 +38,32 @@ pub struct NamedInput<'a, I> {
     pub(crate) data: &'a I,
 }
 
-const EMPTY_INPUT: NamedInput<()> = NamedInput {
+pub const EMPTY_INPUT: NamedInput<()> = NamedInput {
     name: Cow::Borrowed(""),
     data: &(),
 };
 
-impl<'a> Default for BenchRunner<'a> {
+impl Default for BenchRunner {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<'a> BenchRunner<'a> {
+impl BenchRunner {
     /// The inputs are a vector of tuples, where the first element is the name of the input and the
     /// second element is the input itself.
     pub fn new() -> Self {
         Self::new_with_options(parse_args())
     }
+
+    /// The inputs are a vector of tuples, where the first element is the name of the input and the
+    /// second element is the input itself.
+    pub fn with_name<S: AsRef<str>>(name: S) -> Self {
+        println!("{}", name.as_ref().black().on_red().invert().bold());
+
+        Self::new_with_options(parse_args())
+    }
+
     /// The inputs are a vector of tuples, where the first element is the name of the input and the
     /// second element is the input itself.
     pub(crate) fn new_with_options(options: Options) -> Self {
@@ -63,15 +71,25 @@ impl<'a> BenchRunner<'a> {
         yansi::whenever(Condition::TTY_AND_COLOR);
 
         BenchRunner {
-            benches: Vec::new(),
             cache_trasher: CacheTrasher::new(1024 * 1024 * 16),
             options,
             alloc: None,
-            name: None,
             input_size_in_bytes: None,
             num_iter: None,
         }
     }
+
+    /// Creates a new group
+    /// The group is a collection of benchmarks that are run together.
+    pub fn new_group<'a>(&self) -> BenchGroup<'a> {
+        BenchGroup::new(self.clone())
+    }
+    /// Creates a new group
+    /// The group is a collection of benchmarks that are run together.
+    pub fn new_group_with_name<'a, S: Into<String>>(&self, name: S) -> BenchGroup<'a> {
+        BenchGroup::with_name(self.clone(), name)
+    }
+
     /// Set the peak mem allocator to be used for the benchmarks.
     /// This will report the peak memory consumption of the benchmarks.
     pub fn set_alloc<A: GlobalAlloc + 'static>(&mut self, alloc: &'static PeakMemAlloc<A>) {
@@ -110,13 +128,6 @@ impl<'a> BenchRunner<'a> {
         self.num_iter = Some(num_iter);
     }
 
-    /// Set the name of the group.
-    /// The name is printed before the benchmarks are run.
-    /// It is also used to distinguish when writing the results to disk.
-    pub fn set_name<S: Into<String>>(&mut self, name: S) {
-        self.name = Some(name.into());
-    }
-
     /// Set the options to the given value.
     /// This will overwrite all current options.
     ///
@@ -144,57 +155,21 @@ impl<'a> BenchRunner<'a> {
         self.options.filter = filter;
     }
 
-    /// Register a benchmark with the given name and function.
-    pub fn register_with_input<I, F, S: Into<String>>(
-        &mut self,
-        bench_name: S,
-        input_name: S,
-        input: &'a I,
-        fun: F,
-    ) where
-        F: Fn(&'a I) + 'static,
+    /// Run a single function
+    pub fn bench_function<F>(&mut self, name: String, f: F) -> &mut Self
+    where
+        F: Fn(&()) + 'static,
     {
-        let name = bench_name.into();
-        let input_name = input_name.into();
-
-        let bench = NamedBench::new(name, Box::new(fun));
-        self.register_named_with_input(
-            bench,
-            NamedInput {
-                name: Cow::Owned(input_name),
-                data: input,
-            },
-        );
-    }
-    /// Register a benchmark with the given name and function.
-    pub(crate) fn register_named_with_input<I>(
-        &mut self,
-        bench: NamedBench<'a, I>,
-        input: NamedInput<'a, I>,
-    ) {
-        if let Some(filter) = &self.options.filter {
-            if !bench.name.contains(filter) && !input.name.contains(filter) {
-                return;
-            }
-        }
-
+        let named_bench = NamedBench::new(name, Box::new(f));
         let bundle = InputWithBenchmark::new(
-            input,
+            EMPTY_INPUT,
             self.input_size_in_bytes,
-            bench,
+            named_bench,
             self.options.enable_perf,
         );
 
-        self.benches.push(Box::new(bundle));
-    }
-    /// Register a benchmark with the given name and function.
-    pub fn register<I, F, S: Into<String>>(&mut self, name: S, fun: F)
-    where
-        F: Fn(&'a ()) + 'static,
-    {
-        let name = name.into();
-        let bench = NamedBench::new(name, Box::new(fun));
-        self.register_named_with_input(bench, EMPTY_INPUT);
+        self.run_group(None, &mut [Box::new(bundle)]);
+        self
     }
 
     /// Trash CPU cache between bench runs. Defaults to false.
@@ -203,64 +178,55 @@ impl<'a> BenchRunner<'a> {
     }
 
     /// Run the benchmarks and report the results.
-    pub fn run(&mut self) {
-        if self.benches.is_empty() {
+    pub fn run_group<'a>(&self, name: Option<&str>, group: &mut [Box<dyn Bench<'a> + 'a>]) {
+        if group.is_empty() {
             return;
         }
 
-        if let Some(name) = &self.name {
-            println!("{}", name.black().on_red().invert().bold());
+        if let Some(name) = &name {
+            println!("{}", name.black().on_yellow().invert().bold());
         }
 
-        // TODO: group by should be configurable
-        group_by_mut(
-            &mut self.benches,
-            |b| b.get_input_name(),
-            |group| {
-                let input_name = group[0].get_input_name();
-                if !input_name.is_empty() {
-                    println!("{}", input_name.black().on_yellow().invert().italic());
-                }
+        const MAX_GROUP_SIZE: usize = 5;
+        if self.options.verbose && group.len() > MAX_GROUP_SIZE {
+            println!(
+                "Group is quite big, splitting into chunks of {} elements",
+                MAX_GROUP_SIZE
+            );
+        }
 
-                const MAX_GROUP_SIZE: usize = 5;
-                if self.options.verbose && group.len() > MAX_GROUP_SIZE {
-                    println!(
-                        "Group is quite big, splitting into chunks of {} elements",
-                        MAX_GROUP_SIZE
-                    );
-                }
+        // If the group is quite big, we don't want to create too big chunks, which causes
+        // slow tests, therefore a chunk is at most 5 elements large.
+        for group in group.chunks_mut(MAX_GROUP_SIZE) {
+            Self::warm_up_group_and_set_iter(group, self.num_iter, self.options.verbose);
 
-                // If the group is quite big, we don't want to create too big chunks, which causes
-                // slow tests, therefore a chunk is at most 5 elements large.
-                for group in group.chunks_mut(MAX_GROUP_SIZE) {
-                    Self::warm_up_group_and_set_iter(group, self.num_iter, self.options.verbose);
+            if self.options.interleave {
+                Self::run_interleaved(
+                    group,
+                    &self.alloc,
+                    self.options.cache_trasher.then_some(&self.cache_trasher),
+                );
+            } else {
+                Self::run_sequential(group, &self.alloc);
+            }
+        }
+        // We report at the end, so the alignment is correct (could be calculated up front)
+        report_group(name, group, self.alloc.is_some());
 
-                    if self.options.interleave {
-                        Self::run_interleaved(
-                            group,
-                            &self.alloc,
-                            self.options.cache_trasher.then_some(&self.cache_trasher),
-                        );
-                    } else {
-                        Self::run_sequential(group, &self.alloc);
-                    }
-                }
-                // We report at the end, so the alignment is correct (could be calculated up front)
-                report_group(&self.name, group, self.alloc.is_some());
-            },
-        );
-
-        self.clear_results();
-    }
-
-    /// Clear the stored results of the benchmarks.
-    pub fn clear_results(&mut self) {
-        for bench in &mut self.benches {
+        //self.clear_results();
+        for bench in group {
             bench.clear_results();
         }
     }
 
-    fn run_sequential(benches: &mut [Box<dyn Bench<'a> + 'a>], alloc: &Option<Alloc>) {
+    // /// Clear the stored results of the benchmarks.
+    //pub fn clear_results(&mut self) {
+    //for bench in &mut self.benches {
+    //bench.clear_results();
+    //}
+    //}
+
+    fn run_sequential<'a>(benches: &mut [Box<dyn Bench<'a> + 'a>], alloc: &Option<Alloc>) {
         for bench in benches {
             for iteration in 0..NUM_RUNS {
                 alloca::with_alloca(
@@ -274,7 +240,7 @@ impl<'a> BenchRunner<'a> {
         }
     }
 
-    fn run_interleaved(
+    fn run_interleaved<'a>(
         benches: &mut [Box<dyn Bench<'a> + 'a>],
         alloc: &Option<Alloc>,
         cache_trasher: Option<&CacheTrasher>,
@@ -317,8 +283,8 @@ impl<'a> BenchRunner<'a> {
         }
     }
 
-    fn warm_up_group_and_set_iter(
-        benches: &mut [Box<dyn Bench<'a> + 'a>],
+    fn warm_up_group_and_set_iter<'b>(
+        benches: &mut [Box<dyn Bench<'b> + 'b>],
         num_iter: Option<usize>,
         verbose: bool,
     ) {
@@ -428,6 +394,7 @@ pub fn group_by_mut<T, K: Ord + ?Sized, F>(
 /// Performs a dummy reads from memory to spoil given amount of CPU cache
 ///
 /// Uses cache aligned data arrays to perform minimum amount of reads possible to spoil the cache
+#[derive(Clone)]
 struct CacheTrasher {
     cache_lines: Vec<CacheLine>,
 }

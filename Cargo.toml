@@ -41,7 +41,7 @@ name = "fibonacci_bench"
 harness = false
 
 [[bench]]
-name = "bench"
+name = "bench_group"
 harness = false
 
 [[bench]]

@@ -53,7 +53,22 @@ fn print_counter_value<F: Fn(&CounterValues) -> f64>(
         })
         .unwrap_or_default();
 
-    format!("{}: {:.3} {}", name, f(stats), diff_str,)
+    format!("{}: {:.3} {}", name, format_number(f(stats)), diff_str,)
+}
+
+fn format_number(n: f64) -> String {
+    let max_digits = 5;
+    let integer_part = n.trunc() as i64;
+    let integer_length = if integer_part != 0 {
+        integer_part.abs().to_string().len() as i32
+    } else if n == 0.0 {
+        1 // Special handling for 0 to consider the digit before the decimal point
+    } else {
+        0 // For numbers less than 1 but not zero
+    };
+
+    let precision = (max_digits - integer_length).max(0) as usize;
+    format!("{:.*}", precision, n)
 }
 
 impl CounterValues {

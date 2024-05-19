@@ -75,6 +75,7 @@ extern crate test;
 pub use peakmem_alloc::*;
 
 pub(crate) mod bench;
+mod bench_group;
 mod bench_input_group;
 pub(crate) mod bench_runner;
 pub(crate) mod format;
@@ -82,6 +83,7 @@ pub(crate) mod profiler;
 
 pub(crate) mod report;
 pub(crate) mod stats;
+pub use bench_group::BenchGroup;
 pub use bench_input_group::InputGroup;
 pub use bench_runner::BenchRunner;
 pub use bench_runner::NamedInput;
@@ -93,7 +95,7 @@ pub use std::hint::black_box;
 
 /// The options to configure the benchmarking.
 /// The can be set on `InputGroup`.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Options {
     /// Interleave benchmarks
     pub interleave: bool,
