@@ -31,17 +31,23 @@ pub fn get_output_directory() -> PathBuf {
 }
 
 pub(crate) fn report_group<'a>(
-    bench_group_name: Option<&str>,
+    test_name: Option<&str>,
+    group_name: Option<&str>,
     benches: &mut [Box<dyn Bench<'a> + 'a>],
     report_memory: bool,
 ) {
+    let test_name = format!(
+        "{}_{}",
+        test_name.unwrap_or_default(),
+        group_name.unwrap_or_default()
+    );
     if benches.is_empty() {
         return;
     }
 
     let mut table_data: Vec<Vec<String>> = Vec::new();
     for bench in benches.iter_mut() {
-        let result = bench.get_results(bench_group_name);
+        let result = bench.get_results(&test_name);
         add_result(&result, report_memory, &mut table_data);
         write_results_to_disk(&result);
     }

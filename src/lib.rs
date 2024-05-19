@@ -13,7 +13,14 @@
 //!
 //! It allows arbitrary named inputs to be passed to the benchmarks.
 //!
-//! # Example
+//! # Benchmarking
+//! There are 2 main entry points [BenchRunner] and [InputGroup].
+//! If you want to run benchmarks with the same inputs, use [InputGroup].
+//! Otherwise if you need more flexibility you can use [BenchGroup] via [BenchRunner::new_group_with_name](crate::BenchRunner::new_group_with_name).
+//!
+//! See <https://github.com/PSeitz/binggan/tree/main/benches> for examples.
+//!
+//! # Example for InputGroup
 //! ```rust
 //! use binggan::{black_box, InputGroup, PeakMemAlloc, INSTRUMENTED_SYSTEM};
 //!
@@ -38,12 +45,12 @@
 //! // Run the benchmark for the group with input `Vec<usize>`
 //! fn bench_group(mut runner: InputGroup<Vec<usize>>) {
 //!     runner.set_alloc(GLOBAL); // Set the peak mem allocator. This will enable peak memory reporting.
-//!     runner.enable_perf();
+//!     runner.enable_perf(); // Enable perf integration. This only works on linux.
 //!     runner.register("vec", move |data| {
-//!         black_box(test_vec(data));
+//!         test_vec(data);
 //!     });
 //!     runner.register("hashmap", move |data| {
-//!         black_box(test_hashmap(data));
+//!         test_hashmap(data);
 //!     });
 //!    runner.run();
 //! }
@@ -56,14 +63,76 @@
 //!         }
 //!         vec[*idx] += 1;
 //!     }
+//!     black_box(vec);
 //! }
 //! fn test_hashmap(data: &Vec<usize>) {
 //!     let mut map = std::collections::HashMap::new();
 //!     for idx in data {
 //!         *map.entry(idx).or_insert(0) += 1;
 //!     }
+//!     black_box(map);
 //! }
 //!
+//! ```
+//!
+//! # Example for BenchGroup
+//!
+//! ```
+//! use std::collections::HashMap;
+//!
+//! use binggan::{black_box, BenchRunner, PeakMemAlloc, INSTRUMENTED_SYSTEM};
+//!
+//! #[global_allocator]
+//! pub static GLOBAL: &PeakMemAlloc<std::alloc::System> = &INSTRUMENTED_SYSTEM;
+//!
+//! fn test_vec(data: &Vec<usize>) -> Vec<i32> {
+//!     let mut vec = Vec::new();
+//!     for idx in data {
+//!         if vec.len() <= *idx {
+//!             vec.resize(idx + 1, 0);
+//!         }
+//!         vec[*idx] += 1;
+//!     }
+//!     vec
+//! }
+//! fn test_hashmap(data: &Vec<usize>) -> HashMap<&usize, i32> {
+//!     let mut map = std::collections::HashMap::new();
+//!     for idx in data {
+//!         *map.entry(idx).or_insert(0) += 1;
+//!     }
+//!     map
+//! }
+//!
+//! fn run_bench() {
+//!     let inputs: Vec<(&str, Vec<usize>)> = vec![
+//!         (
+//!             "max id 100; 100 el all the same",
+//!             std::iter::repeat(100).take(100).collect(),
+//!         ),
+//!         ("max id 100; 100 el all different", (0..100).collect()),
+//!     ];
+//!     let mut runner: BenchRunner = BenchRunner::new();
+//!     runner.set_alloc(GLOBAL); // Set the peak mem allocator. This will enable peak memory reporting.
+//!
+//!     runner.config().enable_perf();
+//!     runner.config().set_cache_trasher(true);
+//!
+//!     let mut group = runner.new_group();
+//!     for (input_name, data) in inputs.iter() {
+//!         group.set_input_size(data.len() * std::mem::size_of::<usize>());
+//!         group.register_with_input("vec", input_name, data, move |data| {
+//!             black_box(test_vec(data));
+//!         });
+//!         group.register_with_input("hashmap", input_name, data, move |data| {
+//!             black_box(test_hashmap(data));
+//!         });
+//!     }
+//!     group.run();
+//! }
+//!
+//! fn main() {
+//!     run_bench();
+//! }
 //! ```
 //!
 
@@ -78,6 +147,7 @@ pub(crate) mod bench;
 mod bench_group;
 mod bench_input_group;
 pub(crate) mod bench_runner;
+mod config;
 pub(crate) mod format;
 pub(crate) mod profiler;
 
@@ -87,56 +157,10 @@ pub use bench_group::BenchGroup;
 pub use bench_input_group::InputGroup;
 pub use bench_runner::BenchRunner;
 pub use bench_runner::NamedInput;
-use rustop::opts;
+pub use config::Config;
+
+pub(crate) use config::parse_args;
 
 /// A function that is opaque to the optimizer, used to prevent the compiler from
 /// optimizing away computations in a benchmark.
 pub use std::hint::black_box;
-
-/// The options to configure the benchmarking.
-/// The can be set on `InputGroup`.
-#[derive(Debug, Default, Clone)]
-pub struct Options {
-    /// Interleave benchmarks
-    pub interleave: bool,
-    /// Filter should match exact
-    pub exact: bool,
-    /// The filter for the benchmarks
-    /// This is read from the command line by default.
-    pub filter: Option<String>,
-    /// Enable/disable perf integration
-    pub enable_perf: bool,
-    /// Trash CPU cache between bench runs.
-    pub cache_trasher: bool,
-    /// Verbose output of binggan
-    pub verbose: bool,
-}
-
-fn parse_args() -> Options {
-    let res = opts! {
-        synopsis "";
-        opt bench:bool, desc:"bench flag passed by rustc";
-        opt interleave:bool=true, desc:"The benchmarks run interleaved by default, i.e. one iteration of each bench after another
-                         This may lead to better results, it may also lead to worse results.
-                         It very much depends on the benches and the environment you would like to simulate. ";
-        opt exact:bool, desc:"Filter benchmarks by exact name rather than by pattern.";
-        param filter:Option<String>, desc:"run only bench containing name."; // an optional positional parameter
-    }
-    .parse();
-    if let Ok((args, _rest)) = res {
-        Options {
-            interleave: args.interleave,
-            exact: args.exact,
-            filter: args.filter,
-            ..Default::default()
-        }
-    } else if let Err(rustop::Error::Help(help)) = res {
-        println!("{}", help);
-        std::process::exit(0);
-    } else if let Err(e) = res {
-        println!("{}", e);
-        std::process::exit(1);
-    } else {
-        unreachable!();
-    }
-}

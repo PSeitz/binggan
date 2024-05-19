@@ -9,11 +9,12 @@ use crate::{
 /// The trait which typically wraps a InputWithBenchmark and allows to hide the generics.
 pub trait Bench<'a> {
     fn get_input_name(&self) -> &str;
+    fn get_input_size_in_bytes(&self) -> Option<usize>;
     fn set_num_iter(&mut self, num_iter: usize);
     /// Sample the number of iterations the benchmark should do
     fn sample_num_iter(&mut self) -> usize;
     fn exec_bench(&mut self, alloc: &Option<Alloc>);
-    fn get_results(&mut self, group_name: Option<&str>) -> BenchResult;
+    fn get_results(&mut self, test_name: &str) -> BenchResult;
     fn clear_results(&mut self);
 }
 
@@ -83,6 +84,10 @@ impl<'a, I> Bench<'a> for InputWithBenchmark<'a, I> {
         &self.input.name
     }
     #[inline]
+    fn get_input_size_in_bytes(&self) -> Option<usize> {
+        self.input_size_in_bytes
+    }
+    #[inline]
     fn sample_num_iter(&mut self) -> usize {
         self.bench.sample_and_get_iter(&self.input)
     }
@@ -99,15 +104,10 @@ impl<'a, I> Bench<'a> for InputWithBenchmark<'a, I> {
         self.results.push(res);
     }
 
-    fn get_results(&mut self, group_name: Option<&str>) -> BenchResult {
-        let bench_id = format!(
-            "{}_{}_{}",
-            group_name.as_ref().unwrap_or(&""),
-            self.input.name,
-            self.bench.name
-        )
-        .replace('/', "-");
-        let stats = compute_stats(&self.results);
+    fn get_results(&mut self, test_name: &str) -> BenchResult {
+        let bench_id =
+            format!("{}_{}_{}", test_name, self.input.name, self.bench.name).replace('/', "-");
+        let stats = compute_stats(&self.results, self.num_iter);
         let perf_counter: Option<CounterValues> = self
             .profiler
             .as_mut()

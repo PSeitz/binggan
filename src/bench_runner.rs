@@ -4,7 +4,7 @@ use crate::{
     bench::{Bench, InputWithBenchmark, NamedBench},
     black_box, parse_args,
     report::report_group,
-    BenchGroup, Options,
+    BenchGroup, Config,
 };
 use peakmem_alloc::*;
 use yansi::Paint;
@@ -12,23 +12,19 @@ use yansi::Paint;
 pub(crate) type Alloc = &'static dyn PeakMemAllocTrait;
 pub(crate) const NUM_RUNS: usize = 32;
 
-/// The main struct to create benchmarks.
+/// The main struct to run benchmarks.
 ///
-/// BenchRunner is a collection of benchmarks.
-/// It is self-contained and can be run independently.
 #[derive(Clone)]
 pub struct BenchRunner {
-    //pub(crate) benches: Vec<Box<dyn Bench<'a> + 'a>>,
     alloc: Option<Alloc>,
     cache_trasher: CacheTrasher,
-    pub(crate) options: Options,
+    pub(crate) options: Config,
     /// The size of the input.
     /// Enables throughput reporting.
     input_size_in_bytes: Option<usize>,
-    /// Manully set the number of iterations each benchmark is called.
-    ///
-    /// This disables the automatic detection of the number of iterations.
-    num_iter: Option<usize>,
+
+    /// Name of the test
+    name: Option<String>,
 }
 
 /// Input
@@ -57,12 +53,13 @@ impl BenchRunner {
 
     /// Creates a new BenchRunner and prints the bench name.
     pub fn with_name<S: AsRef<str>>(name: S) -> Self {
-        println!("{}", name.as_ref().black().on_red().invert().bold());
-        Self::new()
+        let mut new = Self::new();
+        new.set_name(name.as_ref());
+        new
     }
 
     /// Creates a new `BenchRunner` with custom options set.
-    pub(crate) fn new_with_options(options: Options) -> Self {
+    pub(crate) fn new_with_options(options: Config) -> Self {
         use yansi::Condition;
         yansi::whenever(Condition::TTY_AND_COLOR);
 
@@ -71,7 +68,7 @@ impl BenchRunner {
             options,
             alloc: None,
             input_size_in_bytes: None,
-            num_iter: None,
+            name: None,
         }
     }
 
@@ -86,79 +83,23 @@ impl BenchRunner {
         BenchGroup::with_name(self.clone(), name)
     }
 
+    /// Set the name of the current test.
+    /// It is also used to distinguish when writing the results to disk.
+    pub fn set_name<S: AsRef<str>>(&mut self, name: S) {
+        println!("{}", name.as_ref().black().on_red().invert().bold());
+        self.name = Some(name.as_ref().to_string());
+    }
+
     /// Set the peak mem allocator to be used for the benchmarks.
     /// This will report the peak memory consumption of the benchmarks.
     pub fn set_alloc<A: GlobalAlloc + 'static>(&mut self, alloc: &'static PeakMemAlloc<A>) {
         self.alloc = Some(alloc);
     }
 
-    /// Enable perf profiling + report
-    ///
-    /// The numbers are reported with the following legend:
-    /// ```bash
-    /// L1dA: L1 data access
-    /// L1dM: L1 data misses
-    /// Br: branches
-    /// BrM: missed branches
-    /// ```
-    /// e.g.
-    /// ```bash
-    /// fibonacci    Memory: 0 B       Avg: 135ns      Median: 136ns     132ns          140ns    
-    ///              L1dA: 809.310     L1dM: 0.002     Br: 685.059       BrM: 0.010     
-    /// baseline     Memory: 0 B       Avg: 1ns        Median: 1ns       1ns            1ns      
-    ///              L1dA: 2.001       L1dM: 0.000     Br: 6.001         BrM: 0.000     
-    /// ```
-    ///
-    /// # Note:
-    /// This is only available on Linux. On other OSs this uses `dummy_profiler`, which does nothing.
-    pub fn enable_perf(&mut self) {
-        self.options.enable_perf = true;
-    }
-
     /// Enables throughput reporting. The throughput will be valid for all inputs that are
     /// registered afterwards.
     pub fn set_input_size(&mut self, input_size: usize) {
         self.input_size_in_bytes = Some(input_size);
-    }
-
-    /// Manully set the number of iterations each benchmark is called.
-    ///
-    /// This disables the automatic detection of the number of iterations.
-    ///
-    /// # Note
-    /// Use this to get more stable and comparable benchmark results, as the number of
-    /// iterations has a big impact on measurement and the iteration detection may
-    /// not always get the same num iterations between runs. There are ways implemented
-    /// to mitigate that but they are limited.
-    pub fn set_num_iter(&mut self, num_iter: usize) {
-        self.num_iter = Some(num_iter);
-    }
-
-    /// Set the options to the given value.
-    /// This will overwrite all current options.
-    ///
-    /// See the Options struct for more information.
-    pub fn set_options(&mut self, options: Options) {
-        self.options = options;
-    }
-
-    /// Sets the interleave option to the given value.
-    ///
-    /// Interleave will run the benchmarks in an interleaved fashion.
-    /// Otherwise the benchmarks will be run sequentially.
-    /// Interleaving will help to better compare the benchmarks.
-    pub fn set_interleave(&mut self, interleave: bool) {
-        self.options.interleave = interleave;
-    }
-
-    /// Sets the filter, which is used to filter the benchmarks by name.
-    /// The filter is fetched from the command line arguments.
-    ///
-    /// It can also match an input name.
-    ///
-    /// By default this is parsed from the command line arguments.
-    pub fn set_filter(&mut self, filter: Option<String>) {
-        self.options.filter = filter;
     }
 
     /// Run a single function
@@ -178,18 +119,20 @@ impl BenchRunner {
         self
     }
 
-    /// Trash CPU cache between bench runs. Defaults to false.
-    pub fn set_cache_trasher(&mut self, enable: bool) {
-        self.options.cache_trasher = enable;
+    /// Configure the benchmark.
+    ///
+    /// See the [Config] struct for more information.
+    pub fn config(&mut self) -> &mut Config {
+        &mut self.options
     }
 
     /// Run the benchmarks and report the results.
-    pub fn run_group<'a>(&self, name: Option<&str>, group: &mut [Box<dyn Bench<'a> + 'a>]) {
+    pub fn run_group<'a>(&self, group_name: Option<&str>, group: &mut [Box<dyn Bench<'a> + 'a>]) {
         if group.is_empty() {
             return;
         }
 
-        if let Some(name) = &name {
+        if let Some(name) = &group_name {
             println!("{}", name.black().on_yellow().invert().bold());
         }
 
@@ -204,7 +147,7 @@ impl BenchRunner {
         // If the group is quite big, we don't want to create too big chunks, which causes
         // slow tests, therefore a chunk is at most 5 elements large.
         for group in group.chunks_mut(MAX_GROUP_SIZE) {
-            Self::warm_up_group_and_set_iter(group, self.num_iter, self.options.verbose);
+            Self::warm_up_group_and_set_iter(group, self.options.num_iter, self.options.verbose);
 
             if self.options.interleave {
                 Self::run_interleaved(
@@ -217,7 +160,12 @@ impl BenchRunner {
             }
         }
         // We report at the end, so the alignment is correct (could be calculated up front)
-        report_group(name, group, self.alloc.is_some());
+        report_group(
+            self.name.as_deref(),
+            group_name,
+            group,
+            self.alloc.is_some(),
+        );
 
         // TODO: clearing should be optional, to check the results yourself, e.g. in CI
         for bench in group {

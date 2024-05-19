@@ -33,9 +33,10 @@ fn run_bench() {
     ];
     let mut runner: BenchRunner = BenchRunner::new();
     runner.set_alloc(GLOBAL); // Set the peak mem allocator. This will enable peak memory reporting.
-    runner.enable_perf();
 
-    runner.set_cache_trasher(true);
+    runner.config().enable_perf();
+    runner.config().set_cache_trasher(true);
+
     let mut group = runner.new_group();
     for (input_name, data) in inputs.iter() {
         group.set_input_size(data.len() * std::mem::size_of::<usize>());

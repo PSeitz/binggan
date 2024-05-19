@@ -113,14 +113,6 @@ impl<'a> BenchGroup<'a> {
         self.name = Some(name.into());
     }
 
-    /// Sets the filter, which is used to filter the benchmarks by name.
-    /// The filter is fetched from the command line arguments.
-    ///
-    /// It can also match an input name.
-    pub fn set_filter(&mut self, filter: Option<String>) {
-        self.runner.set_filter(filter);
-    }
-
     /// Run the benchmarks and report the results.
     pub fn run(&mut self) {
         self.runner

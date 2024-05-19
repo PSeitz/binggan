@@ -153,7 +153,7 @@ pub fn format_percentage(diff: f64, smaller_is_better: bool) -> String {
         diff_str.resetting().to_string()
     }
 }
-pub fn compute_stats(results: &[RunResult]) -> BenchStats {
+pub fn compute_stats(results: &[RunResult], _num_iter: usize) -> BenchStats {
     // Avg memory consumption
     let total_memory: usize = results.iter().map(|res| res.memory_consumption).sum();
     let avg_memory = total_memory / results.len();
@@ -201,7 +201,7 @@ mod tests {
     #[test]
     fn test_compute_stats_median_odd() {
         let results = vec![create_res(10, 0), create_res(20, 0), create_res(30, 0)];
-        let stats = compute_stats(&results);
+        let stats = compute_stats(&results, 32);
         assert_eq!(
             stats.median_ns, 20,
             "Median should be the middle element for odd count"
@@ -216,7 +216,7 @@ mod tests {
             create_res(30, 0),
             create_res(40, 0),
         ];
-        let stats = compute_stats(&results);
+        let stats = compute_stats(&results, 32);
         assert_eq!(
             stats.median_ns, 25,
             "Median should be the average of the two middle elements for even count"
