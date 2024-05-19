@@ -7,6 +7,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
         rust:
           - stable
           - beta
@@ -25,8 +28,7 @@ jobs:
           override: true
 
       - run: cargo build
-      - run: cargo build --features perf_event
-      - run: cargo bench --features perf_event
+      - run: cargo bench 
       # test filter parameter for cargo bench
       - run: "[ $(cargo bench | wc -l) -gt $(cargo bench 15 | wc -l) ]"
 
@@ -49,7 +51,7 @@ jobs:
 
       - run: cargo fmt --all -- --check
       - run: cargo clippy --all -- -D warnings
-      - run: cargo clippy --features perf_event --all -- -D warnings
+      - run: cargo clippy --all -- -D warnings
 
   semver:
     name: semver
