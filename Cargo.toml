@@ -24,16 +24,17 @@ suspicious   = { priority = -1, level = "deny" }
 alloca = "0.4.0"
 miniserde = "0.1.38"
 peakmem-alloc = "0.3.0"
-perf-event = { version = "0.4.8", optional = true }
 #prettytable-rs = "0.10.0"
 unicode-width = "0.1.11"
 yansi = { version = "1.0.1", features = ["detect-env", "detect-tty"] }
 rustop = "=1.1.4"
 
+[target.'cfg(target_os = "linux")'.dependencies]
+perf-event = { version = "0.1" }
+
 [features]
 real_blackbox = []
 # Enable perf profiler integration
-perf_event = ["perf-event"]
 default = []
 
 [[bench]]

@@ -70,8 +70,7 @@ impl<I: 'static> InputGroup<I> {
                 input_size_in_bytes: None,
             })
             .collect();
-        let mut runner = BenchRunner::new();
-        runner.set_options(options);
+        let runner = BenchRunner::new_with_options(options);
 
         InputGroup {
             inputs,
@@ -100,8 +99,11 @@ impl<I: 'static> InputGroup<I> {
     /// baseline     Memory: 0 B       Avg: 1ns        Median: 1ns       1ns            1ns      
     ///              L1dA: 2.001       L1dM: 0.000     Br: 6.001         BrM: 0.000     
     /// ```
+    ///
+    /// # Note:
+    /// This is only available on Linux. On other OSs this uses `dummy_profiler`, which does nothing.
     pub fn enable_perf(&mut self) {
-        self.bench_group.runner.options.enable_perf = true;
+        self.bench_group.runner.enable_perf();
     }
 
     /// Enables throughput reporting.
@@ -133,6 +135,12 @@ impl<I: 'static> InputGroup<I> {
     /// Manully set the number of iterations each benchmark is called.
     ///
     /// This disables the automatic detection of the number of iterations.
+    ///
+    /// # Note
+    /// Use this to get more stable and comparable benchmark results, as the number of
+    /// iterations has a big impact on measurement and the iteration detection may
+    /// not always get the same num iterations between runs. There are ways implemented
+    /// to mitigate that but they are limited.
     pub fn set_num_iter(&mut self, num_iter: usize) {
         self.bench_group.runner.set_num_iter(num_iter);
     }
@@ -148,7 +156,7 @@ impl<I: 'static> InputGroup<I> {
     }
 
     /// Sets the filter, which is used to filter the benchmarks by name.
-    /// The filter is fetched from the command line arguments.
+    /// The filter is fetched from the command line arguments by default.
     ///
     /// It can also match an input name.
     pub fn set_filter(&mut self, filter: Option<String>) {
@@ -199,9 +207,6 @@ impl<I: 'static> InputGroup<I> {
             |b| b.get_input_name(),
             |group| {
                 let input_name = group[0].get_input_name().to_owned();
-                //if !input_name.is_empty() {
-                //println!("{}", input_name.black().on_yellow().invert().italic());
-                //}
                 self.bench_group.runner.run_group(Some(&input_name), group);
             },
         );

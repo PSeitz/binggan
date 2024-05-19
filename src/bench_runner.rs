@@ -50,22 +50,18 @@ impl Default for BenchRunner {
 }
 
 impl BenchRunner {
-    /// The inputs are a vector of tuples, where the first element is the name of the input and the
-    /// second element is the input itself.
+    /// Creates a new BenchRunner.
     pub fn new() -> Self {
         Self::new_with_options(parse_args())
     }
 
-    /// The inputs are a vector of tuples, where the first element is the name of the input and the
-    /// second element is the input itself.
+    /// Creates a new BenchRunner and prints the bench name.
     pub fn with_name<S: AsRef<str>>(name: S) -> Self {
         println!("{}", name.as_ref().black().on_red().invert().bold());
-
-        Self::new_with_options(parse_args())
+        Self::new()
     }
 
-    /// The inputs are a vector of tuples, where the first element is the name of the input and the
-    /// second element is the input itself.
+    /// Creates a new `BenchRunner` with custom options set.
     pub(crate) fn new_with_options(options: Options) -> Self {
         use yansi::Condition;
         yansi::whenever(Condition::TTY_AND_COLOR);
@@ -79,12 +75,12 @@ impl BenchRunner {
         }
     }
 
-    /// Creates a new group
+    /// Creates a new `BenchGroup`
     /// The group is a collection of benchmarks that are run together.
     pub fn new_group<'a>(&self) -> BenchGroup<'a> {
         BenchGroup::new(self.clone())
     }
-    /// Creates a new group
+    /// Creates a new named `BenchGroup`
     /// The group is a collection of benchmarks that are run together.
     pub fn new_group_with_name<'a, S: Into<String>>(&self, name: S) -> BenchGroup<'a> {
         BenchGroup::with_name(self.clone(), name)
@@ -95,6 +91,7 @@ impl BenchRunner {
     pub fn set_alloc<A: GlobalAlloc + 'static>(&mut self, alloc: &'static PeakMemAlloc<A>) {
         self.alloc = Some(alloc);
     }
+
     /// Enable perf profiling + report
     ///
     /// The numbers are reported with the following legend:
@@ -111,6 +108,9 @@ impl BenchRunner {
     /// baseline     Memory: 0 B       Avg: 1ns        Median: 1ns       1ns            1ns      
     ///              L1dA: 2.001       L1dM: 0.000     Br: 6.001         BrM: 0.000     
     /// ```
+    ///
+    /// # Note:
+    /// This is only available on Linux. On other OSs this uses `dummy_profiler`, which does nothing.
     pub fn enable_perf(&mut self) {
         self.options.enable_perf = true;
     }

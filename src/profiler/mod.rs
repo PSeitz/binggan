@@ -1,14 +1,14 @@
 use crate::stats::*;
 use miniserde::*;
 
-#[cfg(not(feature = "perf_event"))]
+#[cfg(not(target_os = "linux"))]
 pub(crate) mod dummy_profiler;
-#[cfg(feature = "perf_event")]
+#[cfg(target_os = "linux")]
 pub(crate) mod perf_profiler;
 
-#[cfg(not(feature = "perf_event"))]
+#[cfg(not(target_os = "linux"))]
 pub(crate) use dummy_profiler::*;
-#[cfg(feature = "perf_event")]
+#[cfg(target_os = "linux")]
 pub(crate) use perf_profiler::*;
 
 use yansi::Paint;
