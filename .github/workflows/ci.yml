@@ -51,7 +51,6 @@ jobs:
 
       - run: cargo fmt --all -- --check
       - run: cargo clippy --all -- -D warnings
-      - run: cargo clippy --all -- -D warnings
 
   semver:
     name: semver
