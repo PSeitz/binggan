@@ -50,35 +50,33 @@ impl<'a> BenchGroup<'a> {
         self.input_size_in_bytes = Some(input_size);
     }
 
-    /// Register a benchmark with the given name and function.
+    /// Register a benchmark with the given name, function and input.
     pub fn register_with_input<I, F, S: Into<String>>(
         &mut self,
         bench_name: S,
-        input_name: S,
         input: &'a I,
         fun: F,
     ) where
         F: Fn(&'a I) + 'static,
     {
         let name = bench_name.into();
-        let input_name = input_name.into();
 
         let bench = NamedBench::new(name, Box::new(fun));
         self.register_named_with_input(
             bench,
             NamedInput {
-                name: Cow::Owned(input_name),
+                name: Cow::Borrowed(""),
                 data: input,
             },
         );
     }
 
     /// Register a benchmark with the given name and function.
-    pub fn register<I, F, S: Into<String>>(&mut self, name: S, fun: F)
+    pub fn register<I, F, S: Into<String>>(&mut self, bench_name: S, fun: F)
     where
         F: Fn(&'a ()) + 'static,
     {
-        let name = name.into();
+        let name = bench_name.into();
         let bench = NamedBench::new(name, Box::new(fun));
 
         self.register_named_with_input(bench, EMPTY_INPUT);
@@ -109,8 +107,8 @@ impl<'a> BenchGroup<'a> {
     /// Set the name of the group.
     /// The name is printed before the benchmarks are run.
     /// It is also used to distinguish when writing the results to disk.
-    pub fn set_name<S: Into<String>>(&mut self, name: S) {
-        self.name = Some(name.into());
+    pub fn set_name<S: AsRef<str>>(&mut self, name: S) {
+        self.name = Some(name.as_ref().into());
     }
 
     /// Run the benchmarks and report the results.

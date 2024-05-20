@@ -37,17 +37,18 @@ fn run_bench() {
     runner.config().enable_perf();
     runner.config().set_cache_trasher(true);
 
-    let mut group = runner.new_group();
     for (input_name, data) in inputs.iter() {
+        let mut group = runner.new_group();
+        group.set_name(input_name);
         group.set_input_size(data.len() * std::mem::size_of::<usize>());
-        group.register_with_input("vec", input_name, data, move |data| {
+        group.register_with_input("vec", data, move |data| {
             black_box(test_vec(data));
         });
-        group.register_with_input("hashmap", input_name, data, move |data| {
+        group.register_with_input("hashmap", data, move |data| {
             black_box(test_hashmap(data));
         });
+        group.run();
     }
-    group.run();
 }
 
 fn main() {
