@@ -19,7 +19,7 @@ pub trait Profiler {
     fn finish(&mut self, num_iter: u64) -> std::io::Result<CounterValues>;
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, Copy)]
 pub struct CounterValues {
     /// Level 1 Data Cache Accesses
     pub l1d_access_count: f64,
