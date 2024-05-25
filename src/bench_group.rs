@@ -6,7 +6,7 @@ use crate::{
     NamedInput,
 };
 
-/// `BenchGroup` is a group of benchmarks run together.
+/// `BenchGroup` is a group of benchmarks wich are executed together.
 ///
 pub struct BenchGroup<'a> {
     name: Option<String>,
@@ -44,7 +44,7 @@ impl<'a> BenchGroup<'a> {
         self
     }
 
-    /// Enables throughput reporting. The throughput will be valid for all inputs that are
+    /// Enables throughput reporting. The `input_size` will be used for all benchmarks that are
     /// registered afterwards.
     pub fn set_input_size(&mut self, input_size: usize) {
         self.input_size_in_bytes = Some(input_size);

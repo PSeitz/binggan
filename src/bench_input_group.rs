@@ -15,8 +15,9 @@ pub(crate) type Alloc = &'static dyn PeakMemAllocTrait;
 ///
 /// The ownership of the inputs is transferred
 /// to the `InputGroup`. If this is not possible, use [BenchRunner](crate::BenchRunner) instead.
-pub struct InputGroup<I = ()> {
+pub struct InputGroup<I: 'static = ()> {
     inputs: Vec<OwnedNamedInput<I>>,
+    //benches: Vec<CallBench<'static, I>>,
     bench_group: BenchGroup<'static>,
 }
 
@@ -74,6 +75,7 @@ impl<I: 'static> InputGroup<I> {
         InputGroup {
             inputs,
             bench_group: BenchGroup::new(runner),
+            //benches: Vec::new(),
         }
     }
     /// Set the peak mem allocator to be used for the benchmarks.
@@ -134,9 +136,6 @@ impl<I: 'static> InputGroup<I> {
 
     /// Run the benchmarks and report the results.
     pub fn run(&mut self) {
-        //if let Some(name) = &self.name {
-        //println!("{}", name.black().on_red().invert().bold());
-        //}
         let input_name_to_ordinal: HashMap<String, usize> = self
             .inputs
             .iter()
@@ -151,9 +150,6 @@ impl<I: 'static> InputGroup<I> {
             |b| b.get_input_name(),
             |group| {
                 let input_name = group[0].get_input_name().to_owned();
-                //if let Some(input_size) = group[0].get_input_size_in_bytes() {
-                //self.bench_group.set_input_size(input_size);
-                //}
                 self.bench_group.runner.run_group(Some(&input_name), group);
             },
         );

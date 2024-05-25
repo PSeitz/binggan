@@ -10,7 +10,10 @@ use peakmem_alloc::*;
 use yansi::Paint;
 
 pub(crate) type Alloc = &'static dyn PeakMemAllocTrait;
-pub(crate) const NUM_RUNS: usize = 32;
+
+/// Each bench is run N times in a inner loop.
+/// The outer loop is fixed. In the outer loop the order of the benchmarks in a group is shuffled.
+pub const NUM_RUNS: usize = 32;
 
 /// The main struct to run benchmarks.
 ///
@@ -198,7 +201,6 @@ impl BenchRunner {
             //
             // This has the drawback, that one bench will affect another one.
             shuffle(&mut bench_indices, iteration as u64);
-            //std::thread::yield_now();
 
             for bench_idx in bench_indices.iter() {
                 if let Some(cache_trasher) = cache_trasher {

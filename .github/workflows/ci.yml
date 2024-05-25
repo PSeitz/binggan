@@ -13,6 +13,7 @@ jobs:
         os:
           - ubuntu-latest
           - macos-latest
+          - windows-latest
         rust:
           - stable
           - beta
@@ -29,6 +30,7 @@ jobs:
           override: true
 
       - run: cargo build
+      - run: cargo test
       - run: cargo bench 
       # test filter parameter for cargo bench
       - run: "[ $(cargo bench | wc -l) -gt $(cargo bench 15 | wc -l) ]"

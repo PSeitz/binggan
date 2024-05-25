@@ -9,7 +9,7 @@
 )]
 
 //! Binggan (餅乾, bǐng gān, means cookie in Chinese) is a benchmarking library for Rust.
-//! It is designed to be simple to use and to provide a good overview of the performance of your code and its memory consumption.
+//! It is designed to provide fast and stable results, report peak memory consumption and integrate with perf.
 //!
 //! It allows arbitrary named inputs to be passed to the benchmarks.
 //!
@@ -45,7 +45,7 @@
 //! // Run the benchmark for the group with input `Vec<usize>`
 //! fn bench_group(mut runner: InputGroup<Vec<usize>>) {
 //!     runner.set_alloc(GLOBAL); // Set the peak mem allocator. This will enable peak memory reporting.
-//!     runner.enable_perf(); // Enable perf integration. This only works on linux.
+//!     runner.config().enable_perf(); // Enable perf integration. This only works on linux.
 //!     runner.register("vec", move |data| {
 //!         test_vec(data);
 //!     });
@@ -120,10 +120,10 @@
 //!     let mut group = runner.new_group();
 //!     for (input_name, data) in inputs.iter() {
 //!         group.set_input_size(data.len() * std::mem::size_of::<usize>());
-//!         group.register_with_input("vec", input_name, data, move |data| {
+//!         group.register_with_input("vec", data, move |data| {
 //!             black_box(test_vec(data));
 //!         });
-//!         group.register_with_input("hashmap", input_name, data, move |data| {
+//!         group.register_with_input("hashmap", data, move |data| {
 //!             black_box(test_hashmap(data));
 //!         });
 //!     }
