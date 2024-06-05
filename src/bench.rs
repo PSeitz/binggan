@@ -9,7 +9,6 @@ use crate::{
 /// The trait which typically wraps a InputWithBenchmark and allows to hide the generics.
 pub trait Bench<'a> {
     fn get_input_name(&self) -> &str;
-    fn get_input_size_in_bytes(&self) -> Option<usize>;
     fn set_num_iter(&mut self, num_iter: usize);
     /// Sample the number of iterations the benchmark should do
     fn sample_num_iter(&mut self) -> usize;
@@ -82,10 +81,6 @@ impl<'a, I> Bench<'a> for InputWithBenchmark<'a, I> {
     #[inline]
     fn get_input_name(&self) -> &str {
         &self.input.name
-    }
-    #[inline]
-    fn get_input_size_in_bytes(&self) -> Option<usize> {
-        self.input_size_in_bytes
     }
     #[inline]
     fn sample_num_iter(&mut self) -> usize {

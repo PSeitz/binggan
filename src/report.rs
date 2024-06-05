@@ -31,16 +31,10 @@ pub fn get_output_directory() -> PathBuf {
 }
 
 pub(crate) fn report_group<'a>(
-    test_name: Option<&str>,
-    group_name: Option<&str>,
+    test_name: &str,
     benches: &mut [Box<dyn Bench<'a> + 'a>],
     report_memory: bool,
 ) {
-    let test_name = format!(
-        "{}_{}",
-        test_name.unwrap_or_default(),
-        group_name.unwrap_or_default()
-    );
     if benches.is_empty() {
         return;
     }

@@ -1,9 +1,7 @@
-use std::{alloc::GlobalAlloc, borrow::Cow, collections::HashMap};
+use std::{alloc::GlobalAlloc, borrow::Cow, mem};
 
 use crate::{
-    bench::NamedBench,
-    bench_runner::{group_by_mut, BenchRunner},
-    parse_args, BenchGroup, Config, NamedInput,
+    bench::NamedBench, bench_runner::BenchRunner, parse_args, BenchGroup, Config, NamedInput,
 };
 use peakmem_alloc::*;
 
@@ -17,8 +15,8 @@ pub(crate) type Alloc = &'static dyn PeakMemAllocTrait;
 /// to the `InputGroup`. If this is not possible, use [BenchRunner](crate::BenchRunner) instead.
 pub struct InputGroup<I: 'static = ()> {
     inputs: Vec<OwnedNamedInput<I>>,
-    //benches: Vec<CallBench<'static, I>>,
-    bench_group: BenchGroup<'static>,
+    benches_per_input: Vec<Vec<NamedBench<'static, I>>>,
+    runner: BenchRunner,
 }
 
 impl Default for InputGroup<()> {
@@ -44,8 +42,7 @@ pub struct OwnedNamedInput<I> {
 impl<I: 'static> InputGroup<I> {
     /// Sets name of the group and returns the group.
     pub fn name<S: AsRef<str>>(mut self, name: S) -> Self {
-        self.bench_group.runner.set_name(name);
-        //self.name = Some(name.into());
+        self.runner.set_name(name);
         self
     }
     /// The inputs are a vector of tuples, where the first element is the name of the input and the
@@ -71,17 +68,22 @@ impl<I: 'static> InputGroup<I> {
             })
             .collect();
         let runner = BenchRunner::new_with_options(options);
+        let mut benches_per_input = Vec::new();
+        // Can't use resize because of clone
+        for _input in &inputs {
+            benches_per_input.push(Vec::new());
+        }
 
         InputGroup {
             inputs,
-            bench_group: BenchGroup::new(runner),
-            //benches: Vec::new(),
+            runner,
+            benches_per_input,
         }
     }
     /// Set the peak mem allocator to be used for the benchmarks.
     /// This will report the peak memory consumption of the benchmarks.
     pub fn set_alloc<A: GlobalAlloc + 'static>(&mut self, alloc: &'static PeakMemAlloc<A>) {
-        self.bench_group.runner.set_alloc(alloc);
+        self.runner.set_alloc(alloc);
     }
 
     /// Enables throughput reporting.
@@ -99,14 +101,14 @@ impl<I: 'static> InputGroup<I> {
     /// The name is printed before the benchmarks are run.
     /// It is also used to distinguish when writing the results to disk.
     pub fn set_name<S: AsRef<str>>(&mut self, name: S) {
-        self.bench_group.runner.set_name(name);
+        self.runner.set_name(name);
     }
 
     /// Configure the benchmarking options.
     ///
     /// See the [Config] struct for more information.
     pub fn config(&mut self) -> &mut Config {
-        &mut self.bench_group.runner.options
+        &mut self.runner.options
     }
 
     /// Register a benchmark with the given name and function.
@@ -116,46 +118,39 @@ impl<I: 'static> InputGroup<I> {
     {
         let name = name.into();
 
-        for input in &self.inputs {
+        for (ord, _) in self.inputs.iter().enumerate() {
             let named_bench: NamedBench<'static, I> =
                 NamedBench::new(name.to_string(), Box::new(fun.clone()));
-            let named_input: NamedInput<'_, I> = NamedInput {
-                name: Cow::Borrowed(&input.name),
-                data: &input.data,
-            };
-            // The input lives in the InputGroup, so we can transmute the lifetime to 'static
-            // (probably).
-            let named_input: NamedInput<'static, I> = unsafe { transmute_lifetime(named_input) };
-            if let Some(input_size) = input.input_size_in_bytes {
-                self.bench_group.set_input_size(input_size);
-            }
-            self.bench_group
-                .register_named_with_input(named_bench, named_input);
+
+            self.benches_per_input[ord].push(named_bench);
         }
     }
 
     /// Run the benchmarks and report the results.
     pub fn run(&mut self) {
-        let input_name_to_ordinal: HashMap<String, usize> = self
-            .inputs
-            .iter()
-            .enumerate()
-            .map(|(i, input)| (input.name.clone(), i))
-            .collect();
-        self.bench_group
-            .benches
-            .sort_by_key(|bench| std::cmp::Reverse(input_name_to_ordinal[bench.get_input_name()]));
-        group_by_mut(
-            self.bench_group.benches.as_mut_slice(),
-            |b| b.get_input_name(),
-            |group| {
-                let input_name = group[0].get_input_name().to_owned();
-                self.bench_group.runner.run_group(Some(&input_name), group);
-            },
-        );
+        for (ord, benches) in self.benches_per_input.iter_mut().enumerate() {
+            let input = &self.inputs[ord];
+            let mut group = BenchGroup::new(self.runner.clone());
+            group.set_name(&input.name);
+            benches.reverse();
+            while let Some(bench) = benches.pop() {
+                let named_input: NamedInput<'_, I> = NamedInput {
+                    name: Cow::Borrowed(&input.name),
+                    data: &input.data,
+                };
+                // The input lives in the InputGroup, so we can transmute the lifetime to 'static
+                // (probably).
+                let named_input: NamedInput<'static, I> =
+                    unsafe { transmute_lifetime(named_input) };
+
+                group.set_input_size(input.input_size_in_bytes.unwrap());
+                group.register_named_with_input(bench, named_input);
+            }
+            group.run();
+        }
     }
 }
 
 unsafe fn transmute_lifetime<I>(input: NamedInput<'_, I>) -> NamedInput<'static, I> {
-    std::mem::transmute(input)
+    mem::transmute(input)
 }

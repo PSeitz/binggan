@@ -144,15 +144,16 @@ extern crate test;
 pub use peakmem_alloc::*;
 
 pub(crate) mod bench;
-mod bench_group;
-mod bench_input_group;
 pub(crate) mod bench_runner;
-mod config;
 pub(crate) mod format;
 pub(crate) mod profiler;
-
 pub(crate) mod report;
 pub(crate) mod stats;
+
+mod bench_group;
+mod bench_input_group;
+mod config;
+
 pub use bench_group::BenchGroup;
 pub use bench_input_group::InputGroup;
 pub use bench_runner::BenchRunner;

@@ -128,7 +128,7 @@ pub(crate) fn parse_args() -> Config {
         std::process::exit(0);
     } else if let Err(e) = res {
         println!("{}", e);
-        std::process::exit(1);
+        Config::default()
     } else {
         unreachable!();
     }

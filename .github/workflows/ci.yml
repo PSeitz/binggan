@@ -32,8 +32,9 @@ jobs:
       - run: cargo build
       - run: cargo test
       - run: cargo bench 
-      # test filter parameter for cargo bench
-      - run: "[ $(cargo bench | wc -l) -gt $(cargo bench 15 | wc -l) ]"
+      - name: Test filter parameter for cargo bench (Unix)
+        if: runner.os != 'Windows'
+        run: "[ $(cargo bench | wc -l) -gt $(cargo bench 15 | wc -l) ]"
 
   lint:
     strategy:

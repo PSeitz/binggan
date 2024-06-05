@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use crate::{
-    bench::{Bench, InputWithBenchmark, NamedBench},
+    bench::{Bench, BenchResult, InputWithBenchmark, NamedBench},
     bench_runner::{BenchRunner, EMPTY_INPUT},
     NamedInput,
 };
@@ -112,8 +112,8 @@ impl<'a> BenchGroup<'a> {
     }
 
     /// Run the benchmarks and report the results.
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> Vec<BenchResult> {
         self.runner
-            .run_group(self.name.as_deref(), &mut self.benches);
+            .run_group(self.name.as_deref(), &mut self.benches)
     }
 }

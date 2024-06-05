@@ -1,7 +1,7 @@
 use std::{alloc::GlobalAlloc, borrow::Cow, cmp::Ordering};
 
 use crate::{
-    bench::{Bench, InputWithBenchmark, NamedBench},
+    bench::{Bench, BenchResult, InputWithBenchmark, NamedBench},
     black_box, parse_args,
     report::report_group,
     BenchGroup, Config,
@@ -130,9 +130,13 @@ impl BenchRunner {
     }
 
     /// Run the benchmarks and report the results.
-    pub fn run_group<'a>(&self, group_name: Option<&str>, group: &mut [Box<dyn Bench<'a> + 'a>]) {
+    pub fn run_group<'a>(
+        &self,
+        group_name: Option<&str>,
+        group: &mut [Box<dyn Bench<'a> + 'a>],
+    ) -> Vec<BenchResult> {
         if group.is_empty() {
-            return;
+            return Vec::new();
         }
 
         if let Some(name) = &group_name {
@@ -162,18 +166,23 @@ impl BenchRunner {
                 Self::run_sequential(group, &self.alloc);
             }
         }
-        // We report at the end, so the alignment is correct (could be calculated up front)
-        report_group(
-            self.name.as_deref(),
-            group_name,
-            group,
-            self.alloc.is_some(),
+        // We rort at the end, so the alignment is correct (could be calculated up front)
+        let test_name = format!(
+            "{}_{}",
+            self.name.as_deref().unwrap_or_default(),
+            group_name.unwrap_or_default()
         );
 
+        report_group(&test_name, group, self.alloc.is_some());
+
         // TODO: clearing should be optional, to check the results yourself, e.g. in CI
-        for bench in group {
-            bench.clear_results();
-        }
+        //for bench in group {
+        //bench.clear_results();
+        //}
+        group
+            .iter_mut()
+            .map(|b| b.get_results(&test_name))
+            .collect()
     }
 
     fn run_sequential<'a>(benches: &mut [Box<dyn Bench<'a> + 'a>], alloc: &Option<Alloc>) {
@@ -314,30 +323,6 @@ where
         }
     }
     Some((min_so_far, max_so_far))
-}
-
-/// Note: The data will be sorted.
-///
-/// Returns slices of the input data grouped by passed closure.
-pub fn group_by_mut<T, K: Ord + ?Sized, F>(
-    mut data: &mut [T],
-    compare_by: impl Fn(&T) -> &K,
-    mut callback: F,
-) where
-    F: FnMut(&mut [T]),
-{
-    while !data.is_empty() {
-        let last_element = data.last().unwrap();
-        let count = data
-            .iter()
-            .rev()
-            .take_while(|&x| compare_by(x) == compare_by(last_element))
-            .count();
-
-        let (rest, group) = data.split_at_mut(data.len() - count);
-        data = rest;
-        callback(group);
-    }
 }
 
 /// Performs a dummy reads from memory to spoil given amount of CPU cache
