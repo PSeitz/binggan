@@ -143,7 +143,9 @@ impl<I: 'static> InputGroup<I> {
                 let named_input: NamedInput<'static, I> =
                     unsafe { transmute_lifetime(named_input) };
 
-                group.set_input_size(input.input_size_in_bytes.unwrap());
+                if let Some(input_size) = input.input_size_in_bytes {
+                    group.set_input_size(input_size);
+                }
                 group.register_named_with_input(bench, named_input);
             }
             group.run();
