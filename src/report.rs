@@ -41,7 +41,7 @@ pub(crate) fn report_group<'a>(
 
     let mut table_data: Vec<Vec<String>> = Vec::new();
     for bench in benches.iter_mut() {
-        let result = bench.get_results(&test_name);
+        let result = bench.get_results(test_name);
         add_result(&result, report_memory, &mut table_data);
         write_results_to_disk(&result);
     }
