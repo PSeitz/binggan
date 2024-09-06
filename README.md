@@ -50,7 +50,7 @@ fn bench_group(mut runner: InputGroup<Vec<usize>>) {
     runner.throughput(|input| input.len() * std::mem::size_of::<usize>());
     runner.register("vec", |data| {
         black_box(test_vec(data));
-    });
+    })
     runner.register("hashmap", move |data| {
         black_box(test_hashmap(data));
     });
@@ -88,6 +88,7 @@ FxHashMap                    Memory: 1.8 MB      Avg: 3.7157ms  (+6.57%)     Med
 FxHashMap Reserved Max Id    Memory: 9.4 MB      Avg: 5.8076ms  (+39.56%)    Median: 5.3666ms  (+31.39%)    3.0705ms    15.8945ms    
 
 ```
+
 ### Peak Memory
 To activate peak memory reporting, you need to wrap your allocator with the PeakMemAlloc and call `set_alloc` in the group.
 
@@ -97,6 +98,8 @@ peak memory will determine the memory requirements of the code.
 ### TODO
 
 - [ ] Customize Reporting (e.g. write your own reporter)
+- [ ] Report your own data
+- [ ] Set your own label for `OutputValue`
 
 #### Maybe Later Features:
 * Charts

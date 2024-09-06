@@ -105,10 +105,13 @@ impl BenchRunner {
         self.input_size_in_bytes = Some(input_size);
     }
 
-    /// Run a single function
+    /// Run a single function. This will directly execute and report the function and therefore does
+    /// not support interleaved execution.
+    ///
+    /// The return value of the function will be reported as the `OutputValue` if it is `Some`.
     pub fn bench_function<F, S: Into<String>>(&mut self, name: S, f: F) -> &mut Self
     where
-        F: Fn(&()) + 'static,
+        F: Fn(&()) -> Option<u64> + 'static,
     {
         let named_bench = NamedBench::new(name.into(), Box::new(f));
         let bundle = InputWithBenchmark::new(
@@ -166,7 +169,7 @@ impl BenchRunner {
                 Self::run_sequential(group, &self.alloc);
             }
         }
-        // We rort at the end, so the alignment is correct (could be calculated up front)
+        // We sort at the end, so the alignment is correct (could be calculated up front)
         let test_name = format!(
             "{}_{}",
             self.name.as_deref().unwrap_or_default(),
@@ -340,7 +343,7 @@ impl Default for CacheTrasher {
 
 impl CacheTrasher {
     fn new(bytes: usize) -> Self {
-        let n = bytes / std::mem::size_of::<CacheLine>();
+        let n = bytes / size_of::<CacheLine>();
         let cache_lines = vec![CacheLine::default(); n];
         Self { cache_lines }
     }

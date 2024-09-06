@@ -50,6 +50,7 @@ impl BenchStats {
         self,
         other: Option<BenchStats>,
         input_size_in_bytes: Option<usize>,
+        output_value: Option<u64>,
         report_memory: bool,
     ) -> Vec<String> {
         let avg_ns_diff = compute_diff(&self, input_size_in_bytes, other, |stats| stats.average_ns);
@@ -85,8 +86,17 @@ impl BenchStats {
         } else {
             "".to_string()
         };
-
-        vec![memory_string, avg_str, median_str, min_max]
+        if let Some(output_value) = output_value {
+            vec![
+                memory_string,
+                avg_str,
+                median_str,
+                min_max,
+                format!("OutputValue: {}", output_value.to_string()),
+            ]
+        } else {
+            vec![memory_string, avg_str, median_str, min_max]
+        }
     }
 }
 

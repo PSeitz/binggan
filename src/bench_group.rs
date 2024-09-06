@@ -51,13 +51,15 @@ impl<'a> BenchGroup<'a> {
     }
 
     /// Register a benchmark with the given name, function and input.
+    ///
+    /// The return value of the function will be reported as the `OutputValue` if it is `Some`.
     pub fn register_with_input<I, F, S: Into<String>>(
         &mut self,
         bench_name: S,
         input: &'a I,
         fun: F,
     ) where
-        F: Fn(&'a I) + 'static,
+        F: Fn(&'a I) -> Option<u64> + 'static,
     {
         let name = bench_name.into();
 
@@ -72,9 +74,11 @@ impl<'a> BenchGroup<'a> {
     }
 
     /// Register a benchmark with the given name and function.
+    ///
+    /// The return value of the function will be reported as the `OutputValue` if it is `Some`.
     pub fn register<I, F, S: Into<String>>(&mut self, bench_name: S, fun: F)
     where
-        F: Fn(&'a ()) + 'static,
+        F: Fn(&'a ()) -> Option<u64> + 'static,
     {
         let name = bench_name.into();
         let bench = NamedBench::new(name, Box::new(fun));

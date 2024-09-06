@@ -11,8 +11,8 @@ pub(crate) type Alloc = &'static dyn PeakMemAllocTrait;
 ///
 /// It is self-contained and can be run independently.
 ///
-/// The ownership of the inputs is transferred
-/// to the `InputGroup`. If this is not possible, use [BenchRunner](crate::BenchRunner) instead.
+/// The ownership of the inputs is transferred to the `InputGroup`.
+/// If this is not possible, use [BenchRunner](crate::BenchRunner) instead.
 pub struct InputGroup<I: 'static = ()> {
     inputs: Vec<OwnedNamedInput<I>>,
     benches_per_input: Vec<Vec<NamedBench<'static, I>>>,
@@ -32,7 +32,7 @@ impl InputGroup<()> {
     }
 }
 
-/// Input
+/// Bundles data with some name and its input_size_in_bytes.
 pub struct OwnedNamedInput<I> {
     pub(crate) name: String,
     pub(crate) data: I,
@@ -112,9 +112,11 @@ impl<I: 'static> InputGroup<I> {
     }
 
     /// Register a benchmark with the given name and function.
+    ///
+    /// The return value of the function will be reported as the `OutputValue` if it is `Some`.
     pub fn register<F, S: Into<String>>(&mut self, name: S, fun: F)
     where
-        F: Fn(&I) + 'static + Clone,
+        F: Fn(&I) -> Option<u64> + 'static + Clone,
     {
         let name = name.into();
 
@@ -132,6 +134,7 @@ impl<I: 'static> InputGroup<I> {
             let input = &self.inputs[ord];
             let mut group = BenchGroup::new(self.runner.clone());
             group.set_name(&input.name);
+            // reverse so we can use pop and keep the order
             benches.reverse();
             while let Some(bench) = benches.pop() {
                 let named_input: NamedInput<'_, I> = NamedInput {

@@ -42,10 +42,15 @@ fn run_bench() {
         group.set_name(input_name);
         group.set_input_size(data.len() * std::mem::size_of::<usize>());
         group.register_with_input("vec", data, move |data| {
-            black_box(test_vec(data));
+            let vec = black_box(test_vec(data));
+            Some(vec.len() as u64)
         });
         group.register_with_input("hashmap", data, move |data| {
-            black_box(test_hashmap(data));
+            let map = black_box(test_hashmap(data));
+            Some(
+                map.len() as u64
+                    * (std::mem::size_of::<usize>() + std::mem::size_of::<i32>()) as u64,
+            )
         });
         group.run();
     }

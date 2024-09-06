@@ -8,17 +8,26 @@
     missing_docs
 )]
 
-//! Binggan (餅乾, bǐng gān, means cookie in Chinese) is a benchmarking library for Rust.
+//! Binggan (餅乾, bǐng gān, cookie in Chinese) is a benchmarking library for Rust.
 //! It is designed to provide fast and stable results, report peak memory consumption and integrate with perf.
 //!
 //! It allows arbitrary named inputs to be passed to the benchmarks.
 //!
 //! # Benchmarking
-//! There are 2 main entry points [BenchRunner] and [InputGroup].
-//! If you want to run benchmarks with the same inputs, use [InputGroup].
+//! There are 2 main entry points:
+//! * [BenchRunner]
+//! * [InputGroup]
+//!
+//! If you want to run benchmarks with multiple inputs _and_ can transfer ownership of the inputs you can use [InputGroup].
 //! Otherwise if you need more flexibility you can use [BenchGroup] via [BenchRunner::new_group_with_name](crate::BenchRunner::new_group_with_name).
 //!
 //! See <https://github.com/PSeitz/binggan/tree/main/benches> for examples.
+//!
+//! Conceptually you have some input, pass it to some function and get some output. The
+//! benchmarks also return a `Option<u64>`, which will be reported as `OutputValue`.
+//! This can be useful e.g. in a compression benchmark were this would report the output size.
+//! `Option<T: Display>` would be better, but is not implemented for now.
+//!
 //!
 //! # Example for InputGroup
 //! ```rust
@@ -48,9 +57,11 @@
 //!     runner.config().enable_perf(); // Enable perf integration. This only works on linux.
 //!     runner.register("vec", move |data| {
 //!         test_vec(data);
+//!         None
 //!     });
 //!     runner.register("hashmap", move |data| {
 //!         test_hashmap(data);
+//!         None
 //!     });
 //!    runner.run();
 //! }
@@ -122,9 +133,11 @@
 //!         group.set_input_size(data.len() * std::mem::size_of::<usize>());
 //!         group.register_with_input("vec", data, move |data| {
 //!             black_box(test_vec(data));
+//!             None
 //!         });
 //!         group.register_with_input("hashmap", data, move |data| {
 //!             black_box(test_hashmap(data));
+//!             None
 //!         });
 //!     }
 //!     group.run();

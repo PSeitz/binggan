@@ -71,7 +71,12 @@ fn add_result(result: &BenchResult, report_memory: bool, table_data: &mut Vec<Ve
     };
 
     //bench.name
-    let mut stats_columns = stats.to_columns(old_stats, result.input_size_in_bytes, report_memory);
+    let mut stats_columns = stats.to_columns(
+        old_stats,
+        result.input_size_in_bytes,
+        result.output_value,
+        report_memory,
+    );
     stats_columns.insert(0, result.bench_name.to_string());
     table_data.push(stats_columns);
 
@@ -196,12 +201,5 @@ mod tests {
         ];
 
         print_table(data);
-
-        // Assertions would go here. In this case, since we're printing to the console,
-        // we don't have a return value to assert on. Typically, you'd want to assert
-        // on the function's output or side effects.
-        //
-        // However, in this case, manual verification of the printed table might be necessary
-        // since the primary function of `print_table` is to format and print the table to the console.
     }
 }

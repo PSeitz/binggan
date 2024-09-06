@@ -17,7 +17,7 @@ pub trait Bench<'a> {
     fn clear_results(&mut self);
 }
 
-pub(crate) type CallBench<'a, I> = Box<dyn FnMut(&'a I)>;
+pub(crate) type CallBench<'a, I> = Box<dyn FnMut(&'a I) -> Option<u64>>;
 
 pub(crate) struct NamedBench<'a, I> {
     pub name: String,
@@ -38,6 +38,7 @@ pub(crate) struct InputWithBenchmark<'a, I> {
     pub profiler: Option<PerfProfiler>,
     pub num_iter: usize,
 }
+
 impl<'a, I> InputWithBenchmark<'a, I> {
     pub fn new(
         input: NamedInput<'a, I>,
@@ -75,6 +76,8 @@ pub struct BenchResult {
     pub perf_counter: Option<CounterValues>,
     /// The size of the input in bytes if available.
     pub input_size_in_bytes: Option<usize>,
+    /// The size of the output returned by the bench. Enables reporting.
+    pub output_value: Option<u64>,
 }
 
 impl<'a, I> Bench<'a> for InputWithBenchmark<'a, I> {
@@ -107,11 +110,13 @@ impl<'a, I> Bench<'a> for InputWithBenchmark<'a, I> {
             .profiler
             .as_mut()
             .and_then(|profiler| profiler.finish(NUM_RUNS as u64 * self.num_iter as u64).ok());
+        let output_value = (self.bench.fun)(self.input.data);
         BenchResult {
             bench_id,
             stats,
             perf_counter,
             input_size_in_bytes: self.input_size_in_bytes,
+            output_value,
             bench_name: self.bench.name.clone(),
             input_name: self.input.name.to_string(),
         }

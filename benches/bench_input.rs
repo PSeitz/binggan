@@ -33,10 +33,13 @@ fn bench_group(mut runner: InputGroup<Vec<usize>>) {
     // Enables throughput reporting
     runner.throughput(|input| input.len() * std::mem::size_of::<usize>());
     runner.register("vec", |data| {
-        black_box(test_vec(data));
+        let vec = black_box(test_vec(data));
+        Some(vec.len() as u64) // The return value of the function will be reported as the `OutputValue` if it is `Some`.
     });
     runner.register("hashmap", move |data| {
-        black_box(test_hashmap(data));
+        let map = black_box(test_hashmap(data));
+        // The return value of the function will be reported as the `OutputValue` if it is `Some`.
+        Some(map.len() as u64 * (std::mem::size_of::<usize>() + std::mem::size_of::<i32>()) as u64)
     });
     runner.run();
 }
