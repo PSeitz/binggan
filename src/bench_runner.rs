@@ -6,6 +6,7 @@ use crate::{
     report::report_group,
     BenchGroup, Config,
 };
+use core::mem::size_of;
 use peakmem_alloc::*;
 use yansi::Paint;
 
