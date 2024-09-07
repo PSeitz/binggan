@@ -69,7 +69,7 @@ pub struct BenchResult {
     pub bench_name: String,
     /// The name of the input.
     #[allow(dead_code)]
-    pub input_name: String,
+    //pub input_name: String,
     /// The aggregated statistics of the benchmark run.
     pub stats: BenchStats,
     /// The performance counter values of the benchmark run. (Linux only)
@@ -103,8 +103,8 @@ impl<'a, I> Bench<'a> for InputWithBenchmark<'a, I> {
     }
 
     fn get_results(&mut self, test_name: &str) -> BenchResult {
-        let bench_id =
-            format!("{}_{}_{}", test_name, self.input.name, self.bench.name).replace('/', "-");
+        // TODO: add the bench runner name
+        let bench_id = get_bench_id("", test_name, &self.input.name, self.bench.name.as_str());
         let stats = compute_stats(&self.results, self.num_iter);
         let perf_counter: Option<CounterValues> = self
             .profiler
@@ -118,13 +118,27 @@ impl<'a, I> Bench<'a> for InputWithBenchmark<'a, I> {
             input_size_in_bytes: self.input_size_in_bytes,
             output_value,
             bench_name: self.bench.name.clone(),
-            input_name: self.input.name.to_string(),
+            //input_name: self.input.name.to_string(),
         }
     }
 
     fn clear_results(&mut self) {
         self.results.clear();
     }
+}
+
+/// create bench id from parts
+pub fn get_bench_id(
+    runner_name: &str,
+    test_name: &str,
+    input_name: &str,
+    bench_name: &str,
+) -> String {
+    format!(
+        "{}_{}_{}_{}",
+        runner_name, test_name, input_name, bench_name
+    )
+    .replace('/', "-")
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]

@@ -157,6 +157,7 @@ extern crate test;
 pub use peakmem_alloc::*;
 
 pub(crate) mod bench;
+pub(crate) mod bench_id;
 pub(crate) mod bench_runner;
 pub(crate) mod format;
 pub(crate) mod profiler;

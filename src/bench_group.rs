@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use crate::{
-    bench::{Bench, BenchResult, InputWithBenchmark, NamedBench},
+    bench::{get_bench_id, Bench, BenchResult, InputWithBenchmark, NamedBench},
     bench_runner::{BenchRunner, EMPTY_INPUT},
     NamedInput,
 };
@@ -9,7 +9,8 @@ use crate::{
 /// `BenchGroup` is a group of benchmarks wich are executed together.
 ///
 pub struct BenchGroup<'a> {
-    name: Option<String>,
+    bench_runner_name: Option<String>,
+    group_name: Option<String>,
     pub(crate) benches: Vec<Box<dyn Bench<'a> + 'a>>,
     /// The size of the input.
     /// Enables throughput reporting.
@@ -21,7 +22,8 @@ impl<'a> BenchGroup<'a> {
     /// Create a new BenchGroup with no benchmarks.
     pub fn new(runner: BenchRunner) -> Self {
         Self {
-            name: None,
+            group_name: None,
+            bench_runner_name: runner.name.to_owned(),
             benches: Vec::new(),
             input_size_in_bytes: None,
             runner,
@@ -31,7 +33,8 @@ impl<'a> BenchGroup<'a> {
     /// Create a new BenchGroup with no benchmarks.
     pub fn with_name<S: Into<String>>(runner: BenchRunner, name: S) -> Self {
         Self {
-            name: Some(name.into()),
+            group_name: Some(name.into()),
+            bench_runner_name: runner.name.to_owned(),
             benches: Vec::new(),
             input_size_in_bytes: None,
             runner,
@@ -40,7 +43,7 @@ impl<'a> BenchGroup<'a> {
 
     /// Sets name of the group and returns the group.
     pub fn name<S: Into<String>>(mut self, name: S) -> Self {
-        self.name = Some(name.into());
+        self.group_name = Some(name.into());
         self
     }
 
@@ -93,7 +96,14 @@ impl<'a> BenchGroup<'a> {
         input: NamedInput<'a, I>,
     ) {
         if let Some(filter) = &self.runner.options.filter {
-            if !bench.name.contains(filter) && !input.name.contains(filter) {
+            let bench_id = get_bench_id(
+                self.bench_runner_name.as_deref().unwrap_or(""),
+                self.group_name.as_deref().unwrap_or(""),
+                &input.name,
+                &bench.name,
+            );
+
+            if !bench_id.contains(filter) {
                 return;
             }
         }
@@ -112,12 +122,12 @@ impl<'a> BenchGroup<'a> {
     /// The name is printed before the benchmarks are run.
     /// It is also used to distinguish when writing the results to disk.
     pub fn set_name<S: AsRef<str>>(&mut self, name: S) {
-        self.name = Some(name.as_ref().into());
+        self.group_name = Some(name.as_ref().into());
     }
 
     /// Run the benchmarks and report the results.
     pub fn run(&mut self) -> Vec<BenchResult> {
         self.runner
-            .run_group(self.name.as_deref(), &mut self.benches)
+            .run_group(self.group_name.as_deref(), &mut self.benches)
     }
 }

@@ -28,7 +28,7 @@ pub struct BenchRunner {
     input_size_in_bytes: Option<usize>,
 
     /// Name of the test
-    name: Option<String>,
+    pub(crate) name: Option<String>,
 }
 
 /// Input
@@ -83,6 +83,9 @@ impl BenchRunner {
     }
     /// Creates a new named `BenchGroup`
     /// The group is a collection of benchmarks that are run together.
+    ///
+    /// The name of the group could be for example the label of the input on which the group is
+    /// run.
     pub fn new_group_with_name<'a, S: Into<String>>(&self, name: S) -> BenchGroup<'a> {
         BenchGroup::with_name(self.clone(), name)
     }
