@@ -5,8 +5,6 @@ use rustop::opts;
 pub struct Config {
     /// Interleave benchmarks
     pub interleave: bool,
-    /// Filter should match exact
-    pub exact: bool,
     /// The filter for the benchmarks
     /// This is read from the command line by default.
     pub filter: Option<String>,
@@ -26,7 +24,6 @@ impl Default for Config {
     fn default() -> Self {
         Config {
             interleave: true,
-            exact: false,
             filter: None,
             enable_perf: false,
             cache_trasher: false,
@@ -119,7 +116,6 @@ pub(crate) fn parse_args() -> Config {
     if let Ok((args, _rest)) = res {
         Config {
             interleave: args.interleave,
-            exact: args.exact,
             filter: args.filter,
             ..Default::default()
         }
