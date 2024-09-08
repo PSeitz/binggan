@@ -1,9 +1,6 @@
-use std::borrow::Cow;
-
 use crate::{
     bench::{get_bench_id, Bench, BenchResult, InputWithBenchmark, NamedBench},
-    bench_runner::{BenchRunner, EMPTY_INPUT},
-    NamedInput,
+    bench_runner::BenchRunner,
 };
 
 /// `BenchGroup` is a group of benchmarks wich are executed together.
@@ -67,13 +64,7 @@ impl<'a> BenchGroup<'a> {
         let name = bench_name.into();
 
         let bench = NamedBench::new(name, Box::new(fun));
-        self.register_named_with_input(
-            bench,
-            NamedInput {
-                name: Cow::Borrowed(""),
-                data: input,
-            },
-        );
+        self.register_named_with_input(bench, input);
     }
 
     /// Register a benchmark with the given name and function.
@@ -86,20 +77,16 @@ impl<'a> BenchGroup<'a> {
         let name = bench_name.into();
         let bench = NamedBench::new(name, Box::new(fun));
 
-        self.register_named_with_input(bench, EMPTY_INPUT);
+        self.register_named_with_input(bench, &());
     }
 
     /// Register a benchmark with the given name and function.
-    pub(crate) fn register_named_with_input<I>(
-        &mut self,
-        bench: NamedBench<'a, I>,
-        input: NamedInput<'a, I>,
-    ) {
+    pub(crate) fn register_named_with_input<I>(&mut self, bench: NamedBench<'a, I>, input: &'a I) {
         if let Some(filter) = &self.runner.options.filter {
             let bench_id = get_bench_id(
                 self.bench_runner_name.as_deref().unwrap_or(""),
                 self.group_name.as_deref().unwrap_or(""),
-                &input.name,
+                "",
                 &bench.name,
             );
 

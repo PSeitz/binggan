@@ -1,14 +1,7 @@
-use crate::{
-    bench_input_group::*,
-    bench_runner::{NamedInput, NUM_RUNS},
-    black_box,
-    profiler::*,
-    stats::*,
-};
+use crate::{bench_input_group::*, bench_runner::NUM_RUNS, black_box, profiler::*, stats::*};
 
 /// The trait which typically wraps a InputWithBenchmark and allows to hide the generics.
 pub trait Bench<'a> {
-    fn get_input_name(&self) -> &str;
     fn set_num_iter(&mut self, num_iter: usize);
     /// Sample the number of iterations the benchmark should do
     fn sample_num_iter(&mut self) -> usize;
@@ -31,8 +24,9 @@ impl<'a, I> NamedBench<'a, I> {
 
 /// Bundle of input and benchmark for running benchmarks
 pub(crate) struct InputWithBenchmark<'a, I> {
-    pub(crate) input: NamedInput<'a, I>,
+    pub(crate) input: &'a I,
     pub(crate) input_size_in_bytes: Option<usize>,
+    //pub(crate) bench_id: NamedBench<'a, I>,
     pub(crate) bench: NamedBench<'a, I>,
     pub(crate) results: Vec<RunResult>,
     pub profiler: Option<PerfProfiler>,
@@ -41,7 +35,7 @@ pub(crate) struct InputWithBenchmark<'a, I> {
 
 impl<'a, I> InputWithBenchmark<'a, I> {
     pub fn new(
-        input: NamedInput<'a, I>,
+        input: &'a I,
         input_size_in_bytes: Option<usize>,
         bench: NamedBench<'a, I>,
         enable_perf: bool,
@@ -82,12 +76,8 @@ pub struct BenchResult {
 
 impl<'a, I> Bench<'a> for InputWithBenchmark<'a, I> {
     #[inline]
-    fn get_input_name(&self) -> &str {
-        &self.input.name
-    }
-    #[inline]
     fn sample_num_iter(&mut self) -> usize {
-        self.bench.sample_and_get_iter(&self.input)
+        self.bench.sample_and_get_iter(self.input)
     }
     fn set_num_iter(&mut self, num_iter: usize) {
         self.num_iter = num_iter;
@@ -98,19 +88,19 @@ impl<'a, I> Bench<'a> for InputWithBenchmark<'a, I> {
     fn exec_bench(&mut self, alloc: &Option<Alloc>) {
         let res = self
             .bench
-            .exec_bench(&self.input, alloc, &mut self.profiler, self.num_iter);
+            .exec_bench(self.input, alloc, &mut self.profiler, self.num_iter);
         self.results.push(res);
     }
 
     fn get_results(&mut self, test_name: &str) -> BenchResult {
         // TODO: add the bench runner name
-        let bench_id = get_bench_id("", test_name, &self.input.name, self.bench.name.as_str());
+        let bench_id = get_bench_id("", test_name, "", self.bench.name.as_str());
         let stats = compute_stats(&self.results, self.num_iter);
         let perf_counter: Option<CounterValues> = self
             .profiler
             .as_mut()
             .and_then(|profiler| profiler.finish(NUM_RUNS as u64 * self.num_iter as u64).ok());
-        let output_value = (self.bench.fun)(self.input.data);
+        let output_value = (self.bench.fun)(self.input);
         BenchResult {
             bench_id,
             stats,
@@ -160,14 +150,14 @@ impl RunResult {
 impl<'a, I> NamedBench<'a, I> {
     #[inline]
     /// Each group has its own number of iterations. This is not the final num_iter
-    pub fn sample_and_get_iter(&mut self, input: &NamedInput<'a, I>) -> usize {
+    pub fn sample_and_get_iter(&mut self, input: &'a I) -> usize {
         // We want to run the benchmark for 100ms
         const TARGET_MS_PER_BENCH: u64 = 100;
         {
             // Preliminary test if function is very slow
             let start = std::time::Instant::now();
             #[allow(clippy::unit_arg)]
-            black_box((self.fun)(input.data));
+            black_box((self.fun)(input));
             let elapsed_ms = start.elapsed().as_millis() as u64;
             if elapsed_ms > TARGET_MS_PER_BENCH {
                 return 1;
@@ -177,7 +167,7 @@ impl<'a, I> NamedBench<'a, I> {
         let start = std::time::Instant::now();
         for _ in 0..64 {
             #[allow(clippy::unit_arg)]
-            black_box((self.fun)(input.data));
+            black_box((self.fun)(input));
         }
         let elapsed_ns = start.elapsed().as_nanos();
         let per_iter_ns = (elapsed_ns / 100) * NUM_RUNS as u128;
@@ -189,7 +179,7 @@ impl<'a, I> NamedBench<'a, I> {
     #[inline]
     pub fn exec_bench(
         &mut self,
-        input: &NamedInput<'a, I>,
+        input: &'a I,
         alloc: &Option<Alloc>,
         profiler: &mut Option<PerfProfiler>,
         num_iter: usize,
@@ -203,7 +193,7 @@ impl<'a, I> NamedBench<'a, I> {
         let start = std::time::Instant::now();
         for _ in 0..num_iter {
             #[allow(clippy::unit_arg)]
-            black_box((self.fun)(input.data));
+            black_box((self.fun)(input));
         }
         let elapsed = start.elapsed();
         if let Some(profiler) = profiler {

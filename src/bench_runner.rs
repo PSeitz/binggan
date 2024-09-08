@@ -1,4 +1,4 @@
-use std::{alloc::GlobalAlloc, borrow::Cow, cmp::Ordering};
+use std::{alloc::GlobalAlloc, cmp::Ordering};
 
 use crate::{
     bench::{Bench, BenchResult, InputWithBenchmark, NamedBench},
@@ -31,17 +31,7 @@ pub struct BenchRunner {
     pub(crate) name: Option<String>,
 }
 
-/// Input
-#[derive(Debug, Clone)]
-pub struct NamedInput<'a, I> {
-    pub(crate) name: Cow<'a, str>,
-    pub(crate) data: &'a I,
-}
-
-pub const EMPTY_INPUT: NamedInput<()> = NamedInput {
-    name: Cow::Borrowed(""),
-    data: &(),
-};
+pub const EMPTY_INPUT: &() = &();
 
 impl Default for BenchRunner {
     fn default() -> Self {

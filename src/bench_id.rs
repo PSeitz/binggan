@@ -24,19 +24,21 @@ impl PrintOnce {
 }
 
 pub struct BenchId {
-    name: String,
+    pub runner_name: Option<String>,
+    pub group_name: Option<String>,
+    pub bench_name: String,
 }
 
+impl BenchId {
+    pub fn get_full_name(&self) {
+        get_bench_id(
+            self.runner_name.as_deref().unwrap_or_default(),
+            self.group_name.as_deref().unwrap_or_default(),
+            &self.bench_name,
+        );
+    }
+}
 /// create bench id from parts
-pub fn get_bench_id(
-    runner_name: &str,
-    group_name: &str,
-    input_name: &str,
-    bench_name: &str,
-) -> String {
-    format!(
-        "{}_{}_{}_{}",
-        runner_name, group_name, input_name, bench_name
-    )
-    .replace('/', "-")
+pub fn get_bench_id(runner_name: &str, group_name: &str, bench_name: &str) -> String {
+    format!("{}_{}_{}", runner_name, group_name, bench_name).replace('/', "-")
 }

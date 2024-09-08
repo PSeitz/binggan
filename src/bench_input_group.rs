@@ -1,8 +1,6 @@
-use std::{alloc::GlobalAlloc, borrow::Cow, mem};
+use std::{alloc::GlobalAlloc, mem};
 
-use crate::{
-    bench::NamedBench, bench_runner::BenchRunner, parse_args, BenchGroup, Config, NamedInput,
-};
+use crate::{bench::NamedBench, bench_runner::BenchRunner, parse_args, BenchGroup, Config};
 use peakmem_alloc::*;
 
 pub(crate) type Alloc = &'static dyn PeakMemAllocTrait;
@@ -137,25 +135,20 @@ impl<I: 'static> InputGroup<I> {
             // reverse so we can use pop and keep the order
             benches.reverse();
             while let Some(bench) = benches.pop() {
-                let named_input: NamedInput<'_, I> = NamedInput {
-                    name: Cow::Borrowed(&input.name),
-                    data: &input.data,
-                };
                 // The input lives in the InputGroup, so we can transmute the lifetime to 'static
                 // (probably).
-                let named_input: NamedInput<'static, I> =
-                    unsafe { transmute_lifetime(named_input) };
+                let extended_input = unsafe { transmute_lifetime(&input.data) };
 
                 if let Some(input_size) = input.input_size_in_bytes {
                     group.set_input_size(input_size);
                 }
-                group.register_named_with_input(bench, named_input);
+                group.register_named_with_input(bench, extended_input);
             }
             group.run();
         }
     }
 }
 
-unsafe fn transmute_lifetime<I>(input: NamedInput<'_, I>) -> NamedInput<'static, I> {
+unsafe fn transmute_lifetime<I>(input: &I) -> &'static I {
     mem::transmute(input)
 }

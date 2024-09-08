@@ -171,7 +171,6 @@ mod config;
 pub use bench_group::BenchGroup;
 pub use bench_input_group::InputGroup;
 pub use bench_runner::BenchRunner;
-pub use bench_runner::NamedInput;
 pub use config::Config;
 
 pub(crate) use config::parse_args;
