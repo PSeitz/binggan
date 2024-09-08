@@ -1,45 +1,7 @@
-//!
-//! Module for reporting
-//!
-//! The `report` module contains the [report::Reporter] trait and the [report::PlainReporter] struct.
-//! You can set the reporter with the [BenchRunner::set_reporter] method.
-
 use yansi::Paint;
 
-use crate::{
-    bench::{Bench, BenchResult},
-    write_results::fetch_previous_run_and_write_results_to_disk,
-};
-
-/// The trait for reporting the results of a benchmark run.
-pub trait Reporter: ReporterClone {
-    /// Report the results from a group (can be a single bench)
-    fn report_results(&self, results: Vec<BenchResult>);
-}
-
-/// The trait to enable cloning on the Box reporter
-pub trait ReporterClone {
-    /// Clone the box
-    fn clone_box(&self) -> Box<dyn Reporter>;
-}
-
-pub(crate) fn report_group<'a>(
-    benches: &mut [Box<dyn Bench<'a> + 'a>],
-    reporter: &dyn Reporter,
-    report_memory: bool,
-) {
-    if benches.is_empty() {
-        return;
-    }
-
-    let mut results = Vec::new();
-    for bench in benches.iter_mut() {
-        let mut result = bench.get_results(report_memory);
-        fetch_previous_run_and_write_results_to_disk(&mut result);
-        results.push(result);
-    }
-    reporter.report_results(results);
-}
+use super::{avg_median_str, memory_str, min_max_str, BenchStats, Reporter, ReporterClone};
+use crate::bench::BenchResult;
 
 #[derive(Clone, Copy)]
 /// The PlainReporter prints the results in a plain text table.
@@ -62,34 +24,58 @@ impl Reporter for PlainReporter {
         let mut table_data: Vec<Vec<String>> = Vec::new();
 
         for result in results {
-            self.add_result(&result, &mut table_data);
+            let perf_counter = &result.perf_counter;
+
+            let mut stats_columns = self.to_columns(
+                result.stats,
+                result.old_stats,
+                result.input_size_in_bytes,
+                result.output_value,
+                result.tracked_memory,
+            );
+            stats_columns.insert(0, result.bench_id.bench_name.to_string());
+            table_data.push(stats_columns);
+
+            if let Some(perf_counter) = perf_counter.as_ref() {
+                let mut columns = perf_counter.to_columns(result.old_perf_counter);
+                columns.insert(0, "".to_string());
+                table_data.push(columns);
+            }
         }
         self.print_table(&table_data);
     }
 }
+
 impl PlainReporter {
     /// Create a new PlainReporter
     pub fn new() -> Self {
         Self {}
     }
 
-    fn add_result(&self, result: &BenchResult, table_data: &mut Vec<Vec<String>>) {
-        let stats = &result.stats;
-        let perf_counter = &result.perf_counter;
+    pub(crate) fn to_columns(
+        self,
+        stats: BenchStats,
+        other: Option<BenchStats>,
+        input_size_in_bytes: Option<usize>,
+        output_value: Option<u64>,
+        report_memory: bool,
+    ) -> Vec<String> {
+        let (avg_str, median_str) = avg_median_str(&stats, input_size_in_bytes, other);
+        let avg_str = format!("Avg: {}", avg_str);
+        let median_str = format!("Median: {}", median_str);
 
-        let mut stats_columns = stats.to_columns(
-            result.old_stats,
-            result.input_size_in_bytes,
-            result.output_value,
-            result.tracked_memory,
-        );
-        stats_columns.insert(0, result.bench_id.bench_name.to_string());
-        table_data.push(stats_columns);
-
-        if let Some(perf_counter) = perf_counter.as_ref() {
-            let mut columns = perf_counter.to_columns(result.old_perf_counter);
-            columns.insert(0, "".to_string());
-            table_data.push(columns);
+        let min_max = min_max_str(&stats, input_size_in_bytes);
+        let memory_string = memory_str(&stats, other, report_memory);
+        if let Some(output_value) = output_value {
+            vec![
+                memory_string,
+                avg_str,
+                median_str,
+                min_max,
+                format!("OutputValue: {}", output_value.to_string()),
+            ]
+        } else {
+            vec![memory_string, avg_str, median_str, min_max]
         }
     }
 

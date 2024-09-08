@@ -1,3 +1,14 @@
+/// Formats a duration given in nanoseconds into a human-readable string.
+///
+/// # Parameters
+/// - `duration`: The duration in nanoseconds.
+///
+/// # Returns
+/// A string representation of the duration, which can be in nanoseconds (ns), milliseconds (ms), or seconds (s).
+///
+/// - If the duration is less than 10,000 nanoseconds, it will be represented as nanoseconds.
+/// - If the duration is between 10,000 nanoseconds and 1 second, it will be represented as milliseconds.
+/// - If the duration is greater than 1 second, it will be represented as seconds.
 pub fn format_duration(duration: u64) -> String {
     const NANOS_PER_SEC: u64 = 1_000_000_000;
     const NANOS_PER_MILLI: u64 = 1_000_000;
@@ -15,7 +26,14 @@ pub fn format_duration(duration: u64) -> String {
     }
 }
 
-#[allow(dead_code)]
+/// Formats a number by adding underscores to separate thousands for better readability.
+///
+/// # Parameters
+/// - `number`: The number to format.
+///
+/// # Returns
+/// A string representation of the number, where underscores are inserted every three digits for readability.
+/// For example, `1000000` becomes `1_000_000`.
 pub fn format_with_underscores(number: u64) -> String {
     let num_str = number.to_string();
     let mut result = String::new();
@@ -35,10 +53,14 @@ pub const KB: u64 = 1_000;
 static UNITS: &str = "KMGTPE";
 static LN_KB: f64 = 6.931471806; // ln 1024
 
-/// Byte size representation
-#[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
-pub struct ByteSize(pub u64);
-
+/// Converts a byte size to a human-readable string representation.
+///
+/// # Parameters
+/// - `bytes`: The number of bytes to convert.
+///
+/// # Returns
+/// A string representing the size with an appropriate unit (e.g., B, KB, MB, GB, etc.).
+/// For example, `1024` bytes becomes `1.0 KB`, and `1_048_576` bytes becomes `1.0 MB`.
 pub fn bytes_to_string(bytes: u64) -> String {
     let unit = KB;
     let unit_base = LN_KB;

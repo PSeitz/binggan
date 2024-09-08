@@ -1,21 +1,31 @@
-use crate::{
-    bench::RunResult,
-    format::{bytes_to_string, format_duration},
-};
+use crate::bench::RunResult;
 use miniserde::{Deserialize, Serialize};
 use yansi::Paint;
 
+/// `BenchStats` holds statistical data for benchmarking performance,
+/// including timing and memory usage.
+///
+/// The data is already aggregated.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct BenchStats {
-    min_ns: u64,
-    max_ns: u64,
-    average_ns: u64,
-    median_ns: u64,
-    avg_memory: usize,
+    /// The minimum time taken for an operation, in nanoseconds.
+    pub min_ns: u64,
+
+    /// The maximum time taken for an operation, in nanoseconds.
+    pub max_ns: u64,
+
+    /// The average time taken for an operation, in nanoseconds.
+    pub average_ns: u64,
+
+    /// The median time taken for an operation, in nanoseconds.
+    pub median_ns: u64,
+
+    /// The average memory used during the operation, in bytes.
+    pub avg_memory: usize,
 }
 
 /// Compute diff from two values of BenchStats
-fn compute_diff<F: Fn(&BenchStats) -> u64>(
+pub fn compute_diff<F: Fn(&BenchStats) -> u64>(
     stats: &BenchStats,
     input_size_in_bytes: Option<usize>,
     other: Option<BenchStats>,
@@ -45,98 +55,10 @@ fn bytes_per_second(input_size_in_bytes: usize, ns: f64) -> f64 {
     (input_size_in_bytes as f64) / (ns / 1e9)
 }
 
-impl BenchStats {
-    pub fn to_columns(
-        self,
-        other: Option<BenchStats>,
-        input_size_in_bytes: Option<usize>,
-        output_value: Option<u64>,
-        report_memory: bool,
-    ) -> Vec<String> {
-        let avg_ns_diff = compute_diff(&self, input_size_in_bytes, other, |stats| stats.average_ns);
-        let median_ns_diff =
-            compute_diff(&self, input_size_in_bytes, other, |stats| stats.median_ns);
-
-        // if input_size_in_bytes is set report the throughput, otherwise just use format_duration
-        let format = |duration_ns: u64| {
-            if let Some(input_size_in_bytes) = input_size_in_bytes {
-                let mut duration_ns: f64 = duration_ns as f64;
-                let unit = unit_per_second(input_size_in_bytes, &mut duration_ns);
-                format!("{:>6} {}", short(duration_ns), unit)
-            } else {
-                format_duration(duration_ns).to_string()
-            }
-        };
-
-        let avg_str = format!("Avg: {} {}", format(self.average_ns), avg_ns_diff,);
-        let median_str = format!("Median: {} {}", format(self.median_ns), median_ns_diff,);
-
-        let min_max = if input_size_in_bytes.is_some() {
-            format!("[{} .. {}]", format(self.max_ns), format(self.min_ns))
-        } else {
-            format!("[{} .. {}]", format(self.min_ns), format(self.max_ns))
-        };
-        let memory_string = if report_memory {
-            let mem_diff = compute_diff(&self, None, other, |stats| stats.avg_memory as u64);
-            format!(
-                "Memory: {} {}",
-                bytes_to_string(self.avg_memory as u64).bright_cyan().bold(),
-                mem_diff,
-            )
-        } else {
-            "".to_string()
-        };
-        if let Some(output_value) = output_value {
-            vec![
-                memory_string,
-                avg_str,
-                median_str,
-                min_max,
-                format!("OutputValue: {}", output_value.to_string()),
-            ]
-        } else {
-            vec![memory_string, avg_str, median_str, min_max]
-        }
-    }
-}
-
 //fn format_throughput(bytes: usize, mut nanoseconds: f64) -> String {
 //let unit = bytes_per_second(bytes, &mut nanoseconds);
 //format!("{:>6} {}", short(nanoseconds), unit)
 //}
-
-/// Returns the unit and alters the passed parameter to match the unit
-fn unit_per_second(bytes: usize, nanoseconds: &mut f64) -> &'static str {
-    let bytes_per_second = bytes as f64 * (1e9 / *nanoseconds);
-    let (denominator, unit) = if bytes_per_second < 1024.0 {
-        (1.0, "  B/s")
-    } else if bytes_per_second < 1024.0 * 1024.0 {
-        (1024.0, "KiB/s")
-    } else if bytes_per_second < 1024.0 * 1024.0 * 1024.0 {
-        (1024.0 * 1024.0, "MiB/s")
-    } else {
-        (1024.0 * 1024.0 * 1024.0, "GiB/s")
-    };
-
-    let bytes_per_second = bytes as f64 * (1e9 / *nanoseconds);
-    *nanoseconds = bytes_per_second / denominator;
-
-    unit
-}
-
-pub fn short(n: f64) -> String {
-    if n < 10.0 {
-        format!("{:.4}", n)
-    } else if n < 100.0 {
-        format!("{:.3}", n)
-    } else if n < 1000.0 {
-        format!("{:.2}", n)
-    } else if n < 10000.0 {
-        format!("{:.1}", n)
-    } else {
-        format!("{:.0}", n)
-    }
-}
 
 pub fn compute_percentage_diff(a: f64, b: f64) -> f64 {
     (a / b - 1.0) * 100.0

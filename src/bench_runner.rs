@@ -77,6 +77,7 @@ impl BenchRunner {
             alloc: None,
             input_size_in_bytes: None,
             name: None,
+            //reporter: Box::new(crate::report::TableReporter {}),
             reporter: Box::new(PlainReporter::new()),
         }
     }

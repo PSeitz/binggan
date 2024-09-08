@@ -164,7 +164,8 @@ pub use peakmem_alloc::*;
 pub(crate) mod bench;
 pub(crate) mod bench_id;
 pub(crate) mod bench_runner;
-pub(crate) mod format;
+/// Helper methods to format benchmark results
+pub mod format;
 pub(crate) mod profiler;
 /// The module to report benchmark results
 pub mod report;

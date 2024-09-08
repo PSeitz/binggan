@@ -20,6 +20,7 @@ It is designed to be simple to use and to provide a good overview of the perform
 * 🧙 No Macros, No Magic (Just a regular API)
 * 🎨 NOW with colored output!
 * 🦀 Runs on Stable Rust
+* 🛠️ Custom Reporter
 
 ### Example
 
@@ -100,7 +101,6 @@ Disabling the NMI watchdog should help:
 
 ### TODO
 
-- [ ] Set your own label for `OutputValue`
 - [ ] Allow Hooks (perf integration as plugin)
 
 #### Maybe Later Features:
