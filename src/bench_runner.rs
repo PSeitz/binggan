@@ -156,7 +156,7 @@ impl BenchRunner {
         // If the group is quite big, we don't want to create too big chunks, which causes
         // slow tests, therefore a chunk is at most 5 elements large.
         for group in group.chunks_mut(MAX_GROUP_SIZE) {
-            Self::warm_up_group_and_set_iter(group, self.options.num_iter, self.options.verbose);
+            Self::detect_and_set_num_iter(group, self.options.num_iter, self.options.verbose);
 
             if self.options.interleave {
                 Self::run_interleaved(
@@ -234,7 +234,8 @@ impl BenchRunner {
         }
     }
 
-    fn warm_up_group_and_set_iter<'b>(
+    /// Detect how often each bench should be run if it is not set manually.
+    fn detect_and_set_num_iter<'b>(
         benches: &mut [Box<dyn Bench<'b> + 'b>],
         num_iter: Option<usize>,
         verbose: bool,
