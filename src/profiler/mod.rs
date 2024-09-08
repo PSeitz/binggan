@@ -53,7 +53,7 @@ fn print_counter_value<F: Fn(&CounterValues) -> f64>(
         })
         .unwrap_or_default();
 
-    format!("{}: {:.3} {}", name, format_number(f(stats)), diff_str,)
+    format!("{}: {} {}", name, format_number(f(stats)), diff_str,)
 }
 
 fn format_number(n: f64) -> String {

@@ -62,9 +62,6 @@ pub struct BenchResult {
     /// The bench id uniquely identifies the benchmark.
     /// It is a combination of the group name, input name and benchmark name.
     pub bench_id: BenchId,
-    /// The name of the input.
-    #[allow(dead_code)]
-    //pub input_name: String,
     /// The aggregated statistics of the benchmark run.
     pub stats: BenchStats,
     /// The performance counter values of the benchmark run. (Linux only)
@@ -106,8 +103,6 @@ impl<'a, I> Bench<'a> for InputWithBenchmark<'a, I> {
             perf_counter,
             input_size_in_bytes: self.input_size_in_bytes,
             output_value,
-            //bench_name: self.bench.name.clone(),
-            //input_name: self.input.name.to_string(),
         }
     }
 
@@ -122,12 +117,14 @@ impl<'a, I> Bench<'a> for InputWithBenchmark<'a, I> {
 pub struct RunResult {
     pub duration_ns: u64,
     pub memory_consumption: usize,
+    pub output: Option<u64>,
 }
 impl RunResult {
-    fn new(duration_ns: u64, memory_consumption: usize) -> Self {
+    fn new(duration_ns: u64, memory_consumption: usize, output: Option<u64>) -> Self {
         RunResult {
             duration_ns,
             memory_consumption,
+            output,
         }
     }
 }
@@ -176,9 +173,9 @@ impl<'a, I> NamedBench<'a, I> {
             profiler.enable();
         }
         let start = std::time::Instant::now();
+        let mut res = None;
         for _ in 0..num_iter {
-            #[allow(clippy::unit_arg)]
-            black_box((self.fun)(input));
+            res = black_box((self.fun)(input));
         }
         let elapsed = start.elapsed();
         if let Some(profiler) = profiler {
@@ -190,6 +187,6 @@ impl<'a, I> NamedBench<'a, I> {
             0
         };
 
-        RunResult::new(elapsed.as_nanos() as u64 / num_iter as u64, mem)
+        RunResult::new(elapsed.as_nanos() as u64 / num_iter as u64, mem, res)
     }
 }

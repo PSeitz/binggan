@@ -21,7 +21,8 @@
 //! If you want to run benchmarks with multiple inputs _and_ can transfer ownership of the inputs you can use [InputGroup].
 //! Otherwise if you need more flexibility you can use [BenchGroup] via [BenchRunner::new_group_with_name](crate::BenchRunner::new_group_with_name).
 //!
-//! See <https://github.com/PSeitz/binggan/tree/main/benches> for examples.
+//! See <https://github.com/PSeitz/binggan/tree/main/benches> for examples. `bench_group.rs` and
+//! `bench_input_group.rs` are different ways to produce the same output.
 //!
 //! Conceptually you have some input, pass it to some function and get some output. The
 //! benchmarks also return a `Option<u64>`, which will be reported as `OutputValue`.
@@ -147,6 +148,10 @@
 //!     run_bench();
 //! }
 //! ```
+//!
+//! # Perf Integration
+//! Binggan can integrate with perf to report hardware performance counters.
+//! It can be enabled with [Config::enable_perf](crate::Config::enable_perf).
 //!
 
 #![cfg_attr(feature = "real_blackbox", feature(test))]

@@ -8,8 +8,6 @@
 Binggan (餅乾, bǐng gān, means cookie in Chinese) is a benchmarking library for Rust.
 It is designed to be simple to use and to provide a good overview of the performance of your code and its memory consumption.
 
-It allows arbitrary named inputs to be passed to the benchmarks.
-
 ### Features
 
 * 📊 Peak Memory Usage
@@ -18,7 +16,7 @@ It allows arbitrary named inputs to be passed to the benchmarks.
 * 🔄 Delta Comparison
 * ⚡ Fast Execution
 * 🧩 Interleaving Test Runs (More accurate results)
-* 🏷️ Named Benchmark Inputs
+* 🏷️ Named Runs, Groups and Benchmarks
 * 🧙 No Macros, No Magic (Just a regular API)
 * 🎨 NOW with colored output!
 * 🦀 Runs on Stable Rust
@@ -77,31 +75,34 @@ fn main() {
 ```bash
 cargo bench
 
-turbo_buckets_vs_fxhashmap_zipfs1%
+turbo_buckets_vs_fxhashmap_full_unique
 100k max id / 100k num elem
-TurboBuckets                 Memory: 786.4 KB      Avg: 0.3411ms  (-8.90%)     Median: 0.3394ms  (-9.51%)     0.3223ms    0.3741ms    
-Vec                          Memory: 400.0 KB      Avg: 0.0503ms  (-10.27%)    Median: 0.0492ms  (-12.27%)    0.0463ms    0.0676ms    
-FxHashMap                    Memory: 442.4 KB      Avg: 1.0560ms  (+26.89%)    Median: 1.1512ms  (+58.61%)    0.6558ms    1.1979ms    
-FxHashMap Reserved Max Id    Memory: 1.2 MB        Avg: 0.5220ms  (-7.86%)     Median: 0.4988ms  (-11.40%)    0.4762ms    0.7515ms    
+TurboBuckets           Memory: 786.4 KB     Avg: 2.1107 GiB/s (+0.19%)    Median: 2.1288 GiB/s (+0.69%)    [1.9055 GiB/s .. 2.1464 GiB/s]    
+FxHashMap              Memory: 1.8 MB       Avg: 1.1116 GiB/s (-0.65%)    Median: 1.1179 GiB/s (-0.90%)    [1020.2 MiB/s .. 1.1363 GiB/s]    
 500k max id / 500k num elem
-TurboBuckets                 Memory: 4.5 MB      Avg: 1.7766ms  (+24.15%)    Median: 1.6490ms  (+15.67%)    1.3477ms    2.7288ms     
-Vec                          Memory: 2.0 MB      Avg: 0.3759ms  (0.75%)      Median: 0.3598ms  (0.50%)      0.2975ms    0.5415ms     
-FxHashMap                    Memory: 1.8 MB      Avg: 3.7157ms  (+6.57%)     Median: 3.5566ms  (+2.38%)     3.1622ms    5.2814ms     
-FxHashMap Reserved Max Id    Memory: 9.4 MB      Avg: 5.8076ms  (+39.56%)    Median: 5.3666ms  (+31.39%)    3.0705ms    15.8945ms    
-
+TurboBuckets           Memory: 2.4 MB       Avg: 5.7073 GiB/s (-0.29%)    Median: 5.7633 GiB/s (-0.55%)    [5.1313 GiB/s .. 6.1104 GiB/s]    
+FxHashMap              Memory: 14.2 MB      Avg: 521.50 MiB/s (-1.81%)    Median: 523.42 MiB/s (-1.75%)    [465.28 MiB/s .. 562.83 MiB/s]    
+1m max id / 1m num elem
+TurboBuckets           Memory: 4.5 MB       Avg: 6.2922 GiB/s (+5.48%)    Median: 6.3850 GiB/s (+6.56%)    [4.9580 GiB/s .. 6.7989 GiB/s]    
+FxHashMap              Memory: 28.3 MB      Avg: 403.52 MiB/s (+0.00%)    Median: 396.74 MiB/s (+0.97%)    [355.83 MiB/s .. 473.37 MiB/s]    
 ```
 
 ### Peak Memory
 To activate peak memory reporting, you need to wrap your allocator with the PeakMemAlloc and call `set_alloc` in the group.
 
-While number of allocations are also interesting for performance analysis, 
-peak memory will determine the memory requirements of the code.
+While number of allocations are also interesting for performance analysis, peak memory will determine the memory requirements of the code.
+
+### Perf Integration
+Perf may run into limitations where all counters are reported as zero. https://github.com/jimblandy/perf-event/issues/2
+Disabling the NMI watchdog should help:
+
+`sudo sh -c "echo '0' > /proc/sys/kernel/nmi_watchdog"`
 
 ### TODO
 
 - [ ] Customize Reporting (e.g. write your own reporter)
-- [ ] Report your own data
 - [ ] Set your own label for `OutputValue`
+- [ ] Allow Hooks (perf integration as plugin)
 
 #### Maybe Later Features:
 * Charts
