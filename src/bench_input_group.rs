@@ -1,6 +1,8 @@
 use std::{alloc::GlobalAlloc, mem};
 
-use crate::{bench::NamedBench, bench_runner::BenchRunner, parse_args, BenchGroup, Config};
+use crate::{
+    bench::NamedBench, bench_id::BenchId, bench_runner::BenchRunner, parse_args, BenchGroup, Config,
+};
 use peakmem_alloc::*;
 
 pub(crate) type Alloc = &'static dyn PeakMemAllocTrait;
@@ -118,9 +120,12 @@ impl<I: 'static> InputGroup<I> {
     {
         let name = name.into();
 
-        for (ord, _) in self.inputs.iter().enumerate() {
+        for (ord, input) in self.inputs.iter().enumerate() {
+            let bench_id = BenchId::from_bench_name(name.clone())
+                .runner_name(self.runner.name.as_deref())
+                .group_name(Some(input.name.clone()));
             let named_bench: NamedBench<'static, I> =
-                NamedBench::new(name.to_string(), Box::new(fun.clone()));
+                NamedBench::new(bench_id, Box::new(fun.clone()));
 
             self.benches_per_input[ord].push(named_bench);
         }

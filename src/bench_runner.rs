@@ -2,6 +2,7 @@ use std::{alloc::GlobalAlloc, cmp::Ordering};
 
 use crate::{
     bench::{Bench, BenchResult, InputWithBenchmark, NamedBench},
+    bench_id::{BenchId, PrintOnce},
     black_box, parse_args,
     report::report_group,
     BenchGroup, Config,
@@ -28,7 +29,7 @@ pub struct BenchRunner {
     input_size_in_bytes: Option<usize>,
 
     /// Name of the test
-    pub(crate) name: Option<String>,
+    pub(crate) name: Option<PrintOnce>,
 }
 
 pub const EMPTY_INPUT: &() = &();
@@ -80,11 +81,11 @@ impl BenchRunner {
         BenchGroup::with_name(self.clone(), name)
     }
 
-    /// Set the name of the current test.
+    /// Set the name of the current test runner. This is like a header for all tests in in this
+    /// runner.
     /// It is also used to distinguish when writing the results to disk.
     pub fn set_name<S: AsRef<str>>(&mut self, name: S) {
-        println!("{}", name.as_ref().black().on_red().invert().bold());
-        self.name = Some(name.as_ref().to_string());
+        self.name = Some(PrintOnce::new(name.as_ref().to_string()));
     }
 
     /// Set the peak mem allocator to be used for the benchmarks.
@@ -107,7 +108,8 @@ impl BenchRunner {
     where
         F: Fn(&()) -> Option<u64> + 'static,
     {
-        let named_bench = NamedBench::new(name.into(), Box::new(f));
+        let bench_id = BenchId::from_bench_name(name).runner_name(self.name.as_deref());
+        let named_bench = NamedBench::new(bench_id, Box::new(f));
         let bundle = InputWithBenchmark::new(
             EMPTY_INPUT,
             self.input_size_in_bytes,
@@ -134,6 +136,9 @@ impl BenchRunner {
     ) -> Vec<BenchResult> {
         if group.is_empty() {
             return Vec::new();
+        }
+        if let Some(runner_name) = &self.name {
+            runner_name.print_name();
         }
 
         if let Some(name) = &group_name {
@@ -163,23 +168,14 @@ impl BenchRunner {
                 Self::run_sequential(group, &self.alloc);
             }
         }
-        // We sort at the end, so the alignment is correct (could be calculated up front)
-        let test_name = format!(
-            "{}_{}",
-            self.name.as_deref().unwrap_or_default(),
-            group_name.unwrap_or_default()
-        );
 
-        report_group(&test_name, group, self.alloc.is_some());
+        report_group(group, self.alloc.is_some());
 
         // TODO: clearing should be optional, to check the results yourself, e.g. in CI
         //for bench in group {
         //bench.clear_results();
         //}
-        group
-            .iter_mut()
-            .map(|b| b.get_results(&test_name))
-            .collect()
+        group.iter_mut().map(|b| b.get_results()).collect()
     }
 
     fn run_sequential<'a>(benches: &mut [Box<dyn Bench<'a> + 'a>], alloc: &Option<Alloc>) {

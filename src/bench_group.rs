@@ -1,12 +1,13 @@
 use crate::{
-    bench::{get_bench_id, Bench, BenchResult, InputWithBenchmark, NamedBench},
+    bench::{Bench, BenchResult, InputWithBenchmark, NamedBench},
+    bench_id::{BenchId, PrintOnce},
     bench_runner::BenchRunner,
 };
 
 /// `BenchGroup` is a group of benchmarks wich are executed together.
 ///
 pub struct BenchGroup<'a> {
-    bench_runner_name: Option<String>,
+    bench_runner_name: Option<PrintOnce>,
     group_name: Option<String>,
     pub(crate) benches: Vec<Box<dyn Bench<'a> + 'a>>,
     /// The size of the input.
@@ -61,9 +62,7 @@ impl<'a> BenchGroup<'a> {
     ) where
         F: Fn(&'a I) -> Option<u64> + 'static,
     {
-        let name = bench_name.into();
-
-        let bench = NamedBench::new(name, Box::new(fun));
+        let bench = NamedBench::new(self.get_bench_id(bench_name.into()), Box::new(fun));
         self.register_named_with_input(bench, input);
     }
 
@@ -74,21 +73,22 @@ impl<'a> BenchGroup<'a> {
     where
         F: Fn(&'a ()) -> Option<u64> + 'static,
     {
-        let name = bench_name.into();
-        let bench = NamedBench::new(name, Box::new(fun));
+        let bench_name = bench_name.into();
+        let bench = NamedBench::new(self.get_bench_id(bench_name), Box::new(fun));
 
         self.register_named_with_input(bench, &());
+    }
+
+    fn get_bench_id(&self, bench_name: String) -> BenchId {
+        BenchId::from_bench_name(bench_name)
+            .runner_name(self.bench_runner_name.as_deref())
+            .group_name(self.group_name.clone())
     }
 
     /// Register a benchmark with the given name and function.
     pub(crate) fn register_named_with_input<I>(&mut self, bench: NamedBench<'a, I>, input: &'a I) {
         if let Some(filter) = &self.runner.options.filter {
-            let bench_id = get_bench_id(
-                self.bench_runner_name.as_deref().unwrap_or(""),
-                self.group_name.as_deref().unwrap_or(""),
-                "",
-                &bench.name,
-            );
+            let bench_id = bench.bench_id.get_full_name();
 
             if !bench_id.contains(filter) {
                 return;

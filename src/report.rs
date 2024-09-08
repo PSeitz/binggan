@@ -30,18 +30,14 @@ pub fn get_output_directory() -> PathBuf {
     }
 }
 
-pub(crate) fn report_group<'a>(
-    test_name: &str,
-    benches: &mut [Box<dyn Bench<'a> + 'a>],
-    report_memory: bool,
-) {
+pub(crate) fn report_group<'a>(benches: &mut [Box<dyn Bench<'a> + 'a>], report_memory: bool) {
     if benches.is_empty() {
         return;
     }
 
     let mut table_data: Vec<Vec<String>> = Vec::new();
     for bench in benches.iter_mut() {
-        let result = bench.get_results(test_name);
+        let result = bench.get_results();
         add_result(&result, report_memory, &mut table_data);
         write_results_to_disk(&result);
     }
@@ -49,7 +45,7 @@ pub(crate) fn report_group<'a>(
 }
 
 fn get_bench_file(result: &BenchResult) -> PathBuf {
-    get_output_directory().join(&result.bench_id)
+    get_output_directory().join(result.bench_id.get_full_name())
 }
 
 fn add_result(result: &BenchResult, report_memory: bool, table_data: &mut Vec<Vec<String>>) {
@@ -77,7 +73,7 @@ fn add_result(result: &BenchResult, report_memory: bool, table_data: &mut Vec<Ve
         result.output_value,
         report_memory,
     );
-    stats_columns.insert(0, result.bench_name.to_string());
+    stats_columns.insert(0, result.bench_id.bench_name.to_string());
     table_data.push(stats_columns);
 
     if let Some(perf_counter) = perf_counter.as_ref() {

@@ -1,4 +1,7 @@
-use crate::{bench_input_group::*, bench_runner::NUM_RUNS, black_box, profiler::*, stats::*};
+use crate::{
+    bench_id::BenchId, bench_input_group::*, bench_runner::NUM_RUNS, black_box, profiler::*,
+    stats::*,
+};
 
 /// The trait which typically wraps a InputWithBenchmark and allows to hide the generics.
 pub trait Bench<'a> {
@@ -6,19 +9,19 @@ pub trait Bench<'a> {
     /// Sample the number of iterations the benchmark should do
     fn sample_num_iter(&mut self) -> usize;
     fn exec_bench(&mut self, alloc: &Option<Alloc>);
-    fn get_results(&mut self, test_name: &str) -> BenchResult;
+    fn get_results(&mut self) -> BenchResult;
     fn clear_results(&mut self);
 }
 
 pub(crate) type CallBench<'a, I> = Box<dyn FnMut(&'a I) -> Option<u64>>;
 
 pub(crate) struct NamedBench<'a, I> {
-    pub name: String,
+    pub bench_id: BenchId,
     pub fun: CallBench<'a, I>,
 }
 impl<'a, I> NamedBench<'a, I> {
-    pub fn new(name: String, fun: CallBench<'a, I>) -> Self {
-        Self { name, fun }
+    pub fn new(bench_id: BenchId, fun: CallBench<'a, I>) -> Self {
+        Self { bench_id, fun }
     }
 }
 
@@ -58,9 +61,7 @@ impl<'a, I> InputWithBenchmark<'a, I> {
 pub struct BenchResult {
     /// The bench id uniquely identifies the benchmark.
     /// It is a combination of the group name, input name and benchmark name.
-    pub bench_id: String,
-    /// The name of the benchmark.
-    pub bench_name: String,
+    pub bench_id: BenchId,
     /// The name of the input.
     #[allow(dead_code)]
     //pub input_name: String,
@@ -92,9 +93,7 @@ impl<'a, I> Bench<'a> for InputWithBenchmark<'a, I> {
         self.results.push(res);
     }
 
-    fn get_results(&mut self, test_name: &str) -> BenchResult {
-        // TODO: add the bench runner name
-        let bench_id = get_bench_id("", test_name, "", self.bench.name.as_str());
+    fn get_results(&mut self) -> BenchResult {
         let stats = compute_stats(&self.results, self.num_iter);
         let perf_counter: Option<CounterValues> = self
             .profiler
@@ -102,12 +101,12 @@ impl<'a, I> Bench<'a> for InputWithBenchmark<'a, I> {
             .and_then(|profiler| profiler.finish(NUM_RUNS as u64 * self.num_iter as u64).ok());
         let output_value = (self.bench.fun)(self.input);
         BenchResult {
-            bench_id,
+            bench_id: self.bench.bench_id.clone(),
             stats,
             perf_counter,
             input_size_in_bytes: self.input_size_in_bytes,
             output_value,
-            bench_name: self.bench.name.clone(),
+            //bench_name: self.bench.name.clone(),
             //input_name: self.input.name.to_string(),
         }
     }
@@ -115,20 +114,6 @@ impl<'a, I> Bench<'a> for InputWithBenchmark<'a, I> {
     fn clear_results(&mut self) {
         self.results.clear();
     }
-}
-
-/// create bench id from parts
-pub fn get_bench_id(
-    runner_name: &str,
-    test_name: &str,
-    input_name: &str,
-    bench_name: &str,
-) -> String {
-    format!(
-        "{}_{}_{}_{}",
-        runner_name, test_name, input_name, bench_name
-    )
-    .replace('/', "-")
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
