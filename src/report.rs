@@ -35,52 +35,92 @@ pub(crate) fn report_group<'a>(benches: &mut [Box<dyn Bench<'a> + 'a>], report_m
         return;
     }
 
-    let mut table_data: Vec<Vec<String>> = Vec::new();
+    let mut table_reporter = TableReporter::new();
     for bench in benches.iter_mut() {
         let result = bench.get_results();
-        add_result(&result, report_memory, &mut table_data);
+        table_reporter.add_result(&result, report_memory);
         write_results_to_disk(&result);
     }
-    print_table(table_data);
+    table_reporter.print_table();
+}
+
+struct TableReporter {
+    table_data: Vec<Vec<String>>,
+}
+
+impl TableReporter {
+    fn new() -> Self {
+        Self {
+            table_data: Vec::new(),
+        }
+    }
+
+    fn add_result(&mut self, result: &BenchResult, report_memory: bool) {
+        let stats = &result.stats;
+        let perf_counter = &result.perf_counter;
+
+        // Filepath in target directory
+        let filepath = get_bench_file(result);
+        // Check if file exists and deserialize
+        let mut old_stats: Option<BenchStats> = None;
+        let mut old_counter: Option<CounterValues> = None;
+        if filepath.exists() {
+            let content = std::fs::read_to_string(&filepath).unwrap();
+            let lines: Vec<_> = content.lines().collect();
+            old_stats = miniserde::json::from_str(lines[0]).unwrap();
+            old_counter = lines
+                .get(1)
+                .and_then(|line| miniserde::json::from_str(line).ok());
+        };
+
+        //bench.name
+        let mut stats_columns = stats.to_columns(
+            old_stats,
+            result.input_size_in_bytes,
+            result.output_value,
+            report_memory,
+        );
+        stats_columns.insert(0, result.bench_id.bench_name.to_string());
+        self.table_data.push(stats_columns);
+
+        if let Some(perf_counter) = perf_counter.as_ref() {
+            let mut columns = perf_counter.to_columns(old_counter);
+            columns.insert(0, "".to_string());
+            self.table_data.push(columns);
+        }
+    }
+
+    fn print_table(&self) {
+        let table_data = &self.table_data;
+        if table_data.is_empty() {
+            return;
+        }
+
+        // Find the maximum number of columns in any row
+        let num_cols = table_data.iter().map(|row| row.len()).max().unwrap_or(0);
+
+        // Calculate the maximum width of each column
+        let mut column_width = vec![0; num_cols];
+        for row in table_data {
+            for (i, cell) in row.iter().enumerate() {
+                let cell = cell.resetting().to_string();
+                column_width[i] = column_width[i].max(cell.count_characters() + 4);
+            }
+        }
+
+        // Print each row with padded cells for alignment
+        for row in table_data {
+            for (i, cell) in row.iter().enumerate() {
+                let padding = column_width[i] - cell.resetting().to_string().count_characters();
+                print!("{}{}", cell, " ".repeat(padding),);
+            }
+            println!(); // Newline at the end of each row
+        }
+    }
 }
 
 fn get_bench_file(result: &BenchResult) -> PathBuf {
     get_output_directory().join(result.bench_id.get_full_name())
-}
-
-fn add_result(result: &BenchResult, report_memory: bool, table_data: &mut Vec<Vec<String>>) {
-    let stats = &result.stats;
-    let perf_counter = &result.perf_counter;
-
-    // Filepath in target directory
-    let filepath = get_bench_file(result);
-    // Check if file exists and deserialize
-    let mut old_stats: Option<BenchStats> = None;
-    let mut old_counter: Option<CounterValues> = None;
-    if filepath.exists() {
-        let content = std::fs::read_to_string(&filepath).unwrap();
-        let lines: Vec<_> = content.lines().collect();
-        old_stats = miniserde::json::from_str(lines[0]).unwrap();
-        old_counter = lines
-            .get(1)
-            .and_then(|line| miniserde::json::from_str(line).ok());
-    };
-
-    //bench.name
-    let mut stats_columns = stats.to_columns(
-        old_stats,
-        result.input_size_in_bytes,
-        result.output_value,
-        report_memory,
-    );
-    stats_columns.insert(0, result.bench_id.bench_name.to_string());
-    table_data.push(stats_columns);
-
-    if let Some(perf_counter) = perf_counter.as_ref() {
-        let mut columns = perf_counter.to_columns(old_counter);
-        columns.insert(0, "".to_string());
-        table_data.push(columns);
-    }
 }
 
 pub fn write_results_to_disk(result: &BenchResult) {
@@ -94,33 +134,6 @@ pub fn write_results_to_disk(result: &BenchResult) {
         out.push_str(&perf_out);
     }
     std::fs::write(filepath, out).unwrap();
-}
-
-fn print_table(table_data: Vec<Vec<String>>) {
-    if table_data.is_empty() {
-        return;
-    }
-
-    // Find the maximum number of columns in any row
-    let num_cols = table_data.iter().map(|row| row.len()).max().unwrap_or(0);
-
-    // Calculate the maximum width of each column
-    let mut column_width = vec![0; num_cols];
-    for row in &table_data {
-        for (i, cell) in row.iter().enumerate() {
-            let cell = cell.resetting().to_string();
-            column_width[i] = column_width[i].max(cell.count_characters() + 4);
-        }
-    }
-
-    // Print each row with padded cells for alignment
-    for row in table_data {
-        for (i, cell) in row.iter().enumerate() {
-            let padding = column_width[i] - cell.resetting().to_string().count_characters();
-            print!("{}{}", cell, " ".repeat(padding),);
-        }
-        println!(); // Newline at the end of each row
-    }
 }
 
 fn count_characters(input: &str) -> usize {
@@ -195,7 +208,9 @@ mod tests {
             .map(|s| s.to_string())
             .collect(),
         ];
+        let mut reporter = TableReporter::new();
+        reporter.table_data = data;
 
-        print_table(data);
+        reporter.print_table();
     }
 }

@@ -203,6 +203,7 @@ mod tests {
 
     fn create_res(duration_ns: u64, memory_consumption: usize) -> RunResult {
         RunResult {
+            output: None,
             duration_ns,
             memory_consumption,
         }
