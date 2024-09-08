@@ -100,7 +100,6 @@ Disabling the NMI watchdog should help:
 
 ### TODO
 
-- [ ] Customize Reporting (e.g. write your own reporter)
 - [ ] Set your own label for `OutputValue`
 - [ ] Allow Hooks (perf integration as plugin)
 

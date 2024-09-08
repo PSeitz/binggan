@@ -9,9 +9,7 @@
 )]
 
 //! Binggan (餅乾, bǐng gān, cookie in Chinese) is a benchmarking library for Rust.
-//! It is designed to provide fast and stable results, report peak memory consumption and integrate with perf.
-//!
-//! It allows arbitrary named inputs to be passed to the benchmarks.
+//! It is designed to be flexible, provide fast and stable results, report peak memory consumption and integrate with perf.
 //!
 //! # Benchmarking
 //! There are 2 main entry points:
@@ -29,6 +27,8 @@
 //! This can be useful e.g. in a compression benchmark were this would report the output size.
 //! `Option<T: Display>` would be better, but is not implemented for now.
 //!
+//! ## Reporting
+//! See the [report] module for more information on how to customize the output.
 //!
 //! # Example for InputGroup
 //! ```rust
@@ -166,8 +166,10 @@ pub(crate) mod bench_id;
 pub(crate) mod bench_runner;
 pub(crate) mod format;
 pub(crate) mod profiler;
-pub(crate) mod report;
+/// The module to report benchmark results
+pub mod report;
 pub(crate) mod stats;
+pub(crate) mod write_results;
 
 mod bench_group;
 mod bench_input_group;

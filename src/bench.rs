@@ -9,7 +9,7 @@ pub trait Bench<'a> {
     /// Sample the number of iterations the benchmark should do
     fn sample_num_iter(&mut self) -> usize;
     fn exec_bench(&mut self, alloc: &Option<Alloc>);
-    fn get_results(&mut self) -> BenchResult;
+    fn get_results(&mut self, report_memory: bool) -> BenchResult;
     fn clear_results(&mut self);
 }
 
@@ -64,12 +64,18 @@ pub struct BenchResult {
     pub bench_id: BenchId,
     /// The aggregated statistics of the benchmark run.
     pub stats: BenchStats,
+    /// The aggregated statistics of the previous run.
+    pub old_stats: Option<BenchStats>,
     /// The performance counter values of the benchmark run. (Linux only)
     pub perf_counter: Option<CounterValues>,
+    /// The performance counter values of the previous benchmark run. (Linux only)
+    pub old_perf_counter: Option<CounterValues>,
     /// The size of the input in bytes if available.
     pub input_size_in_bytes: Option<usize>,
     /// The size of the output returned by the bench. Enables reporting.
     pub output_value: Option<u64>,
+    /// Memory tracking is enabled and the peak memory consumption is reported.
+    pub tracked_memory: bool,
 }
 
 impl<'a, I> Bench<'a> for InputWithBenchmark<'a, I> {
@@ -90,7 +96,7 @@ impl<'a, I> Bench<'a> for InputWithBenchmark<'a, I> {
         self.results.push(res);
     }
 
-    fn get_results(&mut self) -> BenchResult {
+    fn get_results(&mut self, report_memory: bool) -> BenchResult {
         let stats = compute_stats(&self.results, self.num_iter);
         let perf_counter: Option<CounterValues> = self
             .profiler
@@ -102,7 +108,10 @@ impl<'a, I> Bench<'a> for InputWithBenchmark<'a, I> {
             stats,
             perf_counter,
             input_size_in_bytes: self.input_size_in_bytes,
+            tracked_memory: report_memory,
             output_value,
+            old_stats: None,
+            old_perf_counter: None,
         }
     }
 

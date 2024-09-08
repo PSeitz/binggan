@@ -1,97 +1,99 @@
-use std::{env, path::PathBuf, sync::Once};
+//!
+//! Module for reporting
+//!
+//! The `report` module contains the [report::Reporter] trait and the [report::PlainReporter] struct.
+//! You can set the reporter with the [BenchRunner::set_reporter] method.
 
 use yansi::Paint;
 
 use crate::{
     bench::{Bench, BenchResult},
-    profiler::CounterValues,
-    stats::BenchStats,
+    write_results::fetch_previous_run_and_write_results_to_disk,
 };
 
-/// Creates directory if it does not exist
-pub fn get_output_directory() -> PathBuf {
-    static INIT: Once = Once::new();
-    static mut OUTPUT_DIRECTORY: Option<PathBuf> = None;
-    unsafe {
-        INIT.call_once(|| {
-            let output_directory = if let Some(value) = env::var_os("BINGGAN_HOME") {
-                PathBuf::from(value)
-            } else if let Some(path) = env::var_os("CARGO_TARGET_DIR").map(PathBuf::from) {
-                path.join("binggan")
-            } else {
-                PathBuf::from("target/binggan")
-            };
-            if !output_directory.exists() {
-                let _ = std::fs::create_dir_all(&output_directory);
-            }
-            OUTPUT_DIRECTORY = Some(output_directory);
-        });
-        OUTPUT_DIRECTORY.clone().unwrap()
-    }
+/// The trait for reporting the results of a benchmark run.
+pub trait Reporter: ReporterClone {
+    /// Report the results from a group (can be a single bench)
+    fn report_results(&self, results: Vec<BenchResult>);
 }
 
-pub(crate) fn report_group<'a>(benches: &mut [Box<dyn Bench<'a> + 'a>], report_memory: bool) {
+/// The trait to enable cloning on the Box reporter
+pub trait ReporterClone {
+    /// Clone the box
+    fn clone_box(&self) -> Box<dyn Reporter>;
+}
+
+pub(crate) fn report_group<'a>(
+    benches: &mut [Box<dyn Bench<'a> + 'a>],
+    reporter: &dyn Reporter,
+    report_memory: bool,
+) {
     if benches.is_empty() {
         return;
     }
 
-    let mut table_reporter = TableReporter::new();
+    let mut results = Vec::new();
     for bench in benches.iter_mut() {
-        let result = bench.get_results();
-        table_reporter.add_result(&result, report_memory);
-        write_results_to_disk(&result);
+        let mut result = bench.get_results(report_memory);
+        fetch_previous_run_and_write_results_to_disk(&mut result);
+        results.push(result);
     }
-    table_reporter.print_table();
+    reporter.report_results(results);
 }
 
-struct TableReporter {
-    table_data: Vec<Vec<String>>,
+#[derive(Clone, Copy)]
+/// The PlainReporter prints the results in a plain text table.
+/// This is the default reporter.
+///
+/// e.g.
+/// ```text
+/// factorial 100    Avg: 33ns     Median: 32ns     [32ns .. 45ns]    
+/// factorial 400    Avg: 107ns    Median: 107ns    [107ns .. 109ns]    
+/// ```
+pub struct PlainReporter {}
+impl ReporterClone for PlainReporter {
+    fn clone_box(&self) -> Box<dyn Reporter> {
+        Box::new(*self)
+    }
 }
 
-impl TableReporter {
-    fn new() -> Self {
-        Self {
-            table_data: Vec::new(),
+impl Reporter for PlainReporter {
+    fn report_results(&self, results: Vec<BenchResult>) {
+        let mut table_data: Vec<Vec<String>> = Vec::new();
+
+        for result in results {
+            self.add_result(&result, &mut table_data);
         }
+        self.print_table(&table_data);
+    }
+}
+impl PlainReporter {
+    /// Create a new PlainReporter
+    pub fn new() -> Self {
+        Self {}
     }
 
-    fn add_result(&mut self, result: &BenchResult, report_memory: bool) {
+    fn add_result(&self, result: &BenchResult, table_data: &mut Vec<Vec<String>>) {
         let stats = &result.stats;
         let perf_counter = &result.perf_counter;
 
-        // Filepath in target directory
-        let filepath = get_bench_file(result);
-        // Check if file exists and deserialize
-        let mut old_stats: Option<BenchStats> = None;
-        let mut old_counter: Option<CounterValues> = None;
-        if filepath.exists() {
-            let content = std::fs::read_to_string(&filepath).unwrap();
-            let lines: Vec<_> = content.lines().collect();
-            old_stats = miniserde::json::from_str(lines[0]).unwrap();
-            old_counter = lines
-                .get(1)
-                .and_then(|line| miniserde::json::from_str(line).ok());
-        };
-
-        //bench.name
         let mut stats_columns = stats.to_columns(
-            old_stats,
+            result.old_stats,
             result.input_size_in_bytes,
             result.output_value,
-            report_memory,
+            result.tracked_memory,
         );
         stats_columns.insert(0, result.bench_id.bench_name.to_string());
-        self.table_data.push(stats_columns);
+        table_data.push(stats_columns);
 
         if let Some(perf_counter) = perf_counter.as_ref() {
-            let mut columns = perf_counter.to_columns(old_counter);
+            let mut columns = perf_counter.to_columns(result.old_perf_counter);
             columns.insert(0, "".to_string());
-            self.table_data.push(columns);
+            table_data.push(columns);
         }
     }
 
-    fn print_table(&self) {
-        let table_data = &self.table_data;
+    fn print_table(&self, table_data: &Vec<Vec<String>>) {
         if table_data.is_empty() {
             return;
         }
@@ -119,21 +121,10 @@ impl TableReporter {
     }
 }
 
-fn get_bench_file(result: &BenchResult) -> PathBuf {
-    get_output_directory().join(result.bench_id.get_full_name())
-}
-
-pub fn write_results_to_disk(result: &BenchResult) {
-    let perf_counter = &result.perf_counter;
-    let stats = &result.stats;
-    let filepath = get_bench_file(result);
-    let mut out = miniserde::json::to_string(&stats);
-    if let Some(perf_counter) = perf_counter {
-        out.push('\n');
-        let perf_out = miniserde::json::to_string(&perf_counter);
-        out.push_str(&perf_out);
+impl Default for PlainReporter {
+    fn default() -> Self {
+        Self::new()
     }
-    std::fs::write(filepath, out).unwrap();
 }
 
 fn count_characters(input: &str) -> usize {
@@ -208,9 +199,8 @@ mod tests {
             .map(|s| s.to_string())
             .collect(),
         ];
-        let mut reporter = TableReporter::new();
-        reporter.table_data = data;
+        let reporter = PlainReporter::new();
 
-        reporter.print_table();
+        reporter.print_table(&data);
     }
 }

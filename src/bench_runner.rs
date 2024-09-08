@@ -4,7 +4,7 @@ use crate::{
     bench::{Bench, BenchResult, InputWithBenchmark, NamedBench},
     bench_id::{BenchId, PrintOnce},
     black_box, parse_args,
-    report::report_group,
+    report::{report_group, PlainReporter, Reporter},
     BenchGroup, Config,
 };
 use core::mem::size_of;
@@ -19,7 +19,6 @@ pub const NUM_RUNS: usize = 32;
 
 /// The main struct to run benchmarks.
 ///
-#[derive(Clone)]
 pub struct BenchRunner {
     alloc: Option<Alloc>,
     cache_trasher: CacheTrasher,
@@ -30,6 +29,20 @@ pub struct BenchRunner {
 
     /// Name of the test
     pub(crate) name: Option<PrintOnce>,
+
+    reporter: Box<dyn Reporter>,
+}
+impl Clone for BenchRunner {
+    fn clone(&self) -> Self {
+        Self {
+            alloc: self.alloc,
+            cache_trasher: self.cache_trasher.clone(),
+            options: self.options.clone(),
+            input_size_in_bytes: self.input_size_in_bytes,
+            name: self.name.clone(),
+            reporter: self.reporter.clone_box(),
+        }
+    }
 }
 
 pub const EMPTY_INPUT: &() = &();
@@ -64,6 +77,7 @@ impl BenchRunner {
             alloc: None,
             input_size_in_bytes: None,
             name: None,
+            reporter: Box::new(PlainReporter::new()),
         }
     }
 
@@ -92,6 +106,11 @@ impl BenchRunner {
     /// This will report the peak memory consumption of the benchmarks.
     pub fn set_alloc<A: GlobalAlloc + 'static>(&mut self, alloc: &'static PeakMemAlloc<A>) {
         self.alloc = Some(alloc);
+    }
+
+    /// Set the reporter to be used for the benchmarks. See [Reporter] for more information.
+    pub fn set_reporter<R: Reporter + 'static>(&mut self, reporter: R) {
+        self.reporter = Box::new(reporter);
     }
 
     /// Enables throughput reporting. The throughput will be valid for all inputs that are
@@ -169,13 +188,18 @@ impl BenchRunner {
             }
         }
 
-        report_group(group, self.alloc.is_some());
+        let report_memory = self.alloc.is_some();
+
+        report_group(group, &*self.reporter, report_memory);
 
         // TODO: clearing should be optional, to check the results yourself, e.g. in CI
         //for bench in group {
         //bench.clear_results();
         //}
-        group.iter_mut().map(|b| b.get_results()).collect()
+        group
+            .iter_mut()
+            .map(|b| b.get_results(report_memory))
+            .collect()
     }
 
     fn run_sequential<'a>(benches: &mut [Box<dyn Bench<'a> + 'a>], alloc: &Option<Alloc>) {
