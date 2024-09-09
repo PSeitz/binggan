@@ -86,6 +86,11 @@ impl<I: 'static> InputGroup<I> {
         self.runner.set_alloc(alloc);
     }
 
+    /// Returns the runner that is used to run the benchmarks.
+    pub fn runner(&mut self) -> &mut BenchRunner {
+        &mut self.runner
+    }
+
     /// Enables throughput reporting.
     /// The passed closure should return the size of the input in bytes.
     pub fn throughput<F>(&mut self, f: F)

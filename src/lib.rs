@@ -19,16 +19,20 @@
 //! If you want to run benchmarks with multiple inputs _and_ can transfer ownership of the inputs you can use [InputGroup].
 //! Otherwise if you need more flexibility you can use [BenchGroup] via [BenchRunner::new_group_with_name](crate::BenchRunner::new_group_with_name).
 //!
-//! See <https://github.com/PSeitz/binggan/tree/main/benches> for examples. `bench_group.rs` and
-//! `bench_input_group.rs` are different ways to produce the same output.
+//! See <https://github.com/PSeitz/binggan/tree/main/benches> for examples. `benches/bench_group.rs` and
+//! `benches/bench_input_group.rs` are different ways to produce the same output.
 //!
 //! Conceptually you have some input, pass it to some function and get some output. The
 //! benchmarks also return a `Option<u64>`, which will be reported as `OutputValue`.
 //! This can be useful e.g. in a compression benchmark were this would report the output size.
-//! `Option<T: Display>` would be better, but is not implemented for now.
+//! (returning `Option<T: Display>` instead `Option<u64>` would be better, but is not implemented for now.)
 //!
 //! ## Reporting
 //! See the [report] module for more information on how to customize the output.
+//!
+//! # Perf Integration
+//! Binggan can integrate with perf to report hardware performance counters.
+//! It can be enabled with [Config::enable_perf](crate::Config::enable_perf).
 //!
 //! # Example for InputGroup
 //! ```rust
@@ -148,11 +152,6 @@
 //!     run_bench();
 //! }
 //! ```
-//!
-//! # Perf Integration
-//! Binggan can integrate with perf to report hardware performance counters.
-//! It can be enabled with [Config::enable_perf](crate::Config::enable_perf).
-//!
 
 #![cfg_attr(feature = "real_blackbox", feature(test))]
 
