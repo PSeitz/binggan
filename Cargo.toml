@@ -34,7 +34,6 @@ perf-event = { version = "0.4.8" }
 
 [features]
 real_blackbox = []
-# Enable perf profiler integration
 default = []
 
 [[bench]]

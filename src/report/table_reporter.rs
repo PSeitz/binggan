@@ -5,6 +5,15 @@ use crate::bench::BenchResult;
 /// The TableReporter prints the results using prettytable.
 ///
 /// It does not yet conver eveything, it does not report on OutputValue and perf stats.
+///
+/// ## Example
+/// ```text
+/// max id 100; 100 el all the same
+/// | Name    | Memory         | Avg                   | Median                | Min .. Max                     |
+/// +---------+----------------+-----------------------+-----------------------+--------------------------------+
+/// | vec     | Memory: 404 B  | 8.6635 GiB/s (+1.16%) | 8.5639 GiB/s (-1.15%) | [8.7654 GiB/s .. 8.2784 GiB/s] |
+/// | hashmap | Memory: 84 B   | 840.24 MiB/s (+1.54%) | 841.17 MiB/s (+0.33%) | [843.96 MiB/s .. 817.73 MiB/s] |
+/// ```
 pub struct TableReporter {}
 impl ReporterClone for TableReporter {
     fn clone_box(&self) -> Box<dyn Reporter> {

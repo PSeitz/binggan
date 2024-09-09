@@ -4,7 +4,7 @@ use crate::{
     bench::{Bench, BenchResult, InputWithBenchmark, NamedBench},
     bench_id::{BenchId, PrintOnce},
     black_box, parse_args,
-    report::{report_group, PlainReporter, Reporter},
+    report::{report_group, Reporter},
     BenchGroup, Config,
 };
 use core::mem::size_of;
@@ -78,7 +78,7 @@ impl BenchRunner {
             input_size_in_bytes: None,
             name: None,
             //reporter: Box::new(crate::report::TableReporter {}),
-            reporter: Box::new(PlainReporter::new()),
+            reporter: Box::new(crate::report::PlainReporter::new()),
         }
     }
 

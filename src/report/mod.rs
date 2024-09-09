@@ -6,12 +6,13 @@
 //!
 
 /// The plain_reporter
-pub mod plain_reporter;
+mod plain_reporter;
 /// The table_reporter
-pub mod table_reporter;
+mod table_reporter;
 
 pub use crate::stats::BenchStats;
 pub use plain_reporter::PlainReporter;
+pub use table_reporter::TableReporter;
 
 use yansi::Paint;
 
