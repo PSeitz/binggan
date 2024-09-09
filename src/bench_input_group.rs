@@ -1,7 +1,8 @@
 use std::{alloc::GlobalAlloc, mem};
 
 use crate::{
-    bench::NamedBench, bench_id::BenchId, bench_runner::BenchRunner, parse_args, BenchGroup, Config,
+    bench::NamedBench, bench_id::BenchId, bench_runner::BenchRunner, parse_args, report::Reporter,
+    BenchGroup, Config,
 };
 use peakmem_alloc::*;
 
@@ -40,11 +41,6 @@ pub struct OwnedNamedInput<I> {
 }
 
 impl<I: 'static> InputGroup<I> {
-    /// Sets name of the group and returns the group.
-    pub fn name<S: AsRef<str>>(mut self, name: S) -> Self {
-        self.runner.set_name(name);
-        self
-    }
     /// The inputs are a vector of tuples, where the first element is the name of the input and the
     /// second element is the input itself.
     pub fn new_with_inputs<S: Into<String>>(inputs: Vec<(S, I)>) -> Self {
@@ -80,16 +76,6 @@ impl<I: 'static> InputGroup<I> {
             benches_per_input,
         }
     }
-    /// Set the peak mem allocator to be used for the benchmarks.
-    /// This will report the peak memory consumption of the benchmarks.
-    pub fn set_alloc<A: GlobalAlloc + 'static>(&mut self, alloc: &'static PeakMemAlloc<A>) {
-        self.runner.set_alloc(alloc);
-    }
-
-    /// Returns the runner that is used to run the benchmarks.
-    pub fn runner(&mut self) -> &mut BenchRunner {
-        &mut self.runner
-    }
 
     /// Enables throughput reporting.
     /// The passed closure should return the size of the input in bytes.
@@ -100,20 +86,6 @@ impl<I: 'static> InputGroup<I> {
         for input in &mut self.inputs {
             input.input_size_in_bytes = Some(f(&input.data));
         }
-    }
-
-    /// Set the name of the group.
-    /// The name is printed before the benchmarks are run.
-    /// It is also used to distinguish when writing the results to disk.
-    pub fn set_name<S: AsRef<str>>(&mut self, name: S) {
-        self.runner.set_name(name);
-    }
-
-    /// Configure the benchmarking options.
-    ///
-    /// See the [Config] struct for more information.
-    pub fn config(&mut self) -> &mut Config {
-        &mut self.runner.options
     }
 
     /// Register a benchmark with the given name and function.
@@ -156,6 +128,32 @@ impl<I: 'static> InputGroup<I> {
             }
             group.run();
         }
+    }
+
+    // Expose runner methods
+    /// Set the peak mem allocator to be used for the benchmarks.
+    /// This will report the peak memory consumption of the benchmarks.
+    pub fn set_alloc<A: GlobalAlloc + 'static>(&mut self, alloc: &'static PeakMemAlloc<A>) {
+        self.runner.set_alloc(alloc);
+    }
+
+    /// Set the name of the group.
+    /// The name is printed before the benchmarks are run.
+    /// It is also used to distinguish when writing the results to disk.
+    pub fn set_name<S: AsRef<str>>(&mut self, name: S) {
+        self.runner.set_name(name);
+    }
+
+    /// Configure the benchmarking options.
+    ///
+    /// See the [Config] struct for more information.
+    pub fn config(&mut self) -> &mut Config {
+        &mut self.runner.options
+    }
+
+    /// Set the reporter to be used for the benchmarks. See [Reporter] for more information.
+    pub fn set_reporter<R: Reporter + 'static>(&mut self, reporter: R) {
+        self.runner.set_reporter(reporter);
     }
 }
 
