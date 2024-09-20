@@ -102,6 +102,8 @@ Disabling the NMI watchdog should help:
 ### TODO
 
 - [ ] Allow Hooks (perf integration as plugin)
+- [ ] Make the global `NUM_ITER = 32` configurable. NUM_ITER is not the number of iterations per benchmark, but instead used to interleave benchmarks in different ways.
+- [ ] Allow to set the number of iterations per benchmark (now setting this is global for all benches)
 
 #### Maybe Later Features:
 * Charts
