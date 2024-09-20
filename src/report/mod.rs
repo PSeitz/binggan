@@ -76,11 +76,19 @@ pub(crate) fn avg_median_str(
 }
 
 pub(crate) fn min_max_str(stats: &BenchStats, input_size_in_bytes: Option<usize>) -> String {
-    format!(
-        "[{} .. {}]",
-        format(stats.min_ns, input_size_in_bytes),
-        format(stats.max_ns, input_size_in_bytes)
-    )
+    if input_size_in_bytes.is_none() {
+        format!(
+            "[{} .. {}]",
+            format(stats.min_ns, None),
+            format(stats.max_ns, None)
+        )
+    } else {
+        format!(
+            "[{} .. {}]",
+            format(stats.max_ns, input_size_in_bytes), // flip min and max
+            format(stats.min_ns, input_size_in_bytes)
+        )
+    }
 }
 
 pub(crate) fn memory_str(
