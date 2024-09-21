@@ -23,7 +23,7 @@ fn test_hashmap(data: &Vec<usize>) -> HashMap<usize, i32> {
     map
 }
 
-fn bench_group(mut runner: InputGroup<Vec<usize>>) {
+fn bench_group(mut runner: InputGroup<Vec<usize>, u64>) {
     runner.set_alloc(GLOBAL); // Set the peak mem allocator. This will enable peak memory reporting.
 
     // Enables the perf integration. Only on Linux, noop on other OS.

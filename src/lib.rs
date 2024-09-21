@@ -8,31 +8,33 @@
     missing_docs
 )]
 
-//! Binggan (餅乾, bǐng gān, cookie in Chinese) is a benchmarking library for Rust.
-//! It is designed to be flexible, provide fast and stable results, report peak memory consumption and integrate with perf.
+//! # Binggan (餅乾, bǐng gān) - A Benchmarking Library for Stable Rust
 //!
-//! # Benchmarking
-//! There are 2 main entry points:
-//! * [BenchRunner]
-//! * [InputGroup]
+//! Binggan is a benchmarking library designed for flexibility, providing fast and stable results.
+//! It reports peak memory consumption and can integrate with `perf` for hardware performance counters.
 //!
-//! If you want to run benchmarks with multiple inputs _and_ can transfer ownership of the inputs you can use [InputGroup].
+//! ## Main Components
+//! Binggan has two primary entry points for running benchmarks:
+//!
+//! - **[BenchRunner]**: A main runner for. Useful for single benchmarks or to create groups.
+//! - **[InputGroup]**: Use this when running a group of benchmarks with the same inputs, where ownership of inputs can be transferred.
+//!
 //! Otherwise if you need more flexibility you can use [BenchGroup] via [BenchRunner::new_group_with_name](crate::BenchRunner::new_group_with_name).
 //!
 //! See <https://github.com/PSeitz/binggan/tree/main/benches> for examples. `benches/bench_group.rs` and
 //! `benches/bench_input_group.rs` are different ways to produce the same output.
 //!
-//! Conceptually you have some input, pass it to some function and get some output. The
-//! benchmarks also return a `Option<u64>`, which will be reported as `OutputValue`.
-//! This can be useful e.g. in a compression benchmark were this would report the output size.
-//! (returning `Option<T: Display>` instead `Option<u64>` would be better, but is not implemented for now.)
+//! ## OutputValue
+//! The typical benchmarking flow involves providing some input, processing it through a function, and obtaining an output.
+//! Benchmarks return [OutputValue], which represents the result of the benchmark. This output can be particularly
+//! useful in scenarios like compression benchmarks, where it reports the output size or other relevant metrics.
 //!
 //! ## Reporting
 //! See the [report] module for more information on how to customize the output.
 //!
 //! # Perf Integration
 //! Binggan can integrate with perf to report hardware performance counters.
-//! It can be enabled with [Config::enable_perf](crate::Config::enable_perf).
+//! See [Config::enable_perf](crate::Config::enable_perf) for more information.
 //!
 //! # Example for InputGroup
 //! ```rust
@@ -57,21 +59,21 @@
 //! }
 //!
 //! // Run the benchmark for the group with input `Vec<usize>`
-//! fn bench_group(mut runner: InputGroup<Vec<usize>>) {
+//! fn bench_group(mut runner: InputGroup<Vec<usize>, u64>) {
 //!     runner.set_alloc(GLOBAL); // Set the peak mem allocator. This will enable peak memory reporting.
 //!     runner.config().enable_perf(); // Enable perf integration. This only works on linux.
 //!     runner.register("vec", move |data| {
-//!         test_vec(data);
-//!         None
+//!         let vec = test_vec(data);
+//!         Some(vec.len() as u64)
 //!     });
 //!     runner.register("hashmap", move |data| {
-//!         test_hashmap(data);
-//!         None
+//!         let map = test_hashmap(data);
+//!         Some(map.len() as u64)
 //!     });
 //!    runner.run();
 //! }
 //!
-//! fn test_vec(data: &Vec<usize>) {
+//! fn test_vec(data: &Vec<usize>) -> Vec<usize> {
 //!     let mut vec = Vec::new();
 //!     for idx in data {
 //!         if vec.len() <= *idx {
@@ -79,14 +81,14 @@
 //!         }
 //!         vec[*idx] += 1;
 //!     }
-//!     black_box(vec);
+//!     black_box(vec)
 //! }
-//! fn test_hashmap(data: &Vec<usize>) {
+//! fn test_hashmap(data: &Vec<usize>) -> std::collections::HashMap<usize, i32> {
 //!     let mut map = std::collections::HashMap::new();
 //!     for idx in data {
-//!         *map.entry(idx).or_insert(0) += 1;
+//!         *map.entry(*idx).or_insert(0) += 1;
 //!     }
-//!     black_box(map);
+//!     black_box(map)
 //! }
 //!
 //! ```
@@ -138,11 +140,11 @@
 //!         group.set_input_size(data.len() * std::mem::size_of::<usize>());
 //!         group.register_with_input("vec", data, move |data| {
 //!             black_box(test_vec(data));
-//!             None
+//!             Some(())
 //!         });
 //!         group.register_with_input("hashmap", data, move |data| {
 //!             black_box(test_hashmap(data));
-//!             None
+//!             Some(())
 //!         });
 //!     }
 //!     group.run();
@@ -163,8 +165,8 @@ pub use peakmem_alloc::*;
 pub(crate) mod bench;
 pub(crate) mod bench_id;
 pub(crate) mod bench_runner;
-/// Helper methods to format benchmark results
-pub mod format;
+pub(crate) mod output_value;
+pub use output_value::OutputValue;
 pub(crate) mod profiler;
 /// The module to report benchmark results
 pub mod report;

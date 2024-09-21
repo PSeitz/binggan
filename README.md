@@ -49,11 +49,11 @@ fn bench_group(mut runner: InputGroup<Vec<usize>>) {
     runner.throughput(|input| input.len() * std::mem::size_of::<usize>());
     runner.register("vec", |data| {
         black_box(test_vec(data));
-        None
+        Some(()) // anything that implements OutputValue
     })
     runner.register("hashmap", move |data| {
         black_box(test_hashmap(data));
-        None
+        Some(())
     });
     runner.run();
 }

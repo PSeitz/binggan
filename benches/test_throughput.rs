@@ -18,7 +18,7 @@ fn run_bench() {
         let start = Instant::now();
         // Busy loop for approximately 10 milliseconds. This is more precise than sleep.
         while start.elapsed() < Duration::from_millis(10) {}
-        None
+        Some(())
     });
     group.run();
 }

@@ -1,5 +1,6 @@
 use std::{alloc::GlobalAlloc, mem};
 
+use crate::output_value::OutputValue;
 use crate::{
     bench::NamedBench, bench_id::BenchId, bench_runner::BenchRunner, parse_args, report::Reporter,
     BenchGroup, Config,
@@ -14,9 +15,9 @@ pub(crate) type Alloc = &'static dyn PeakMemAllocTrait;
 ///
 /// The ownership of the inputs is transferred to the `InputGroup`.
 /// If this is not possible, use [BenchRunner](crate::BenchRunner) instead.
-pub struct InputGroup<I: 'static = ()> {
+pub struct InputGroup<I: 'static = (), O = ()> {
     inputs: Vec<OwnedNamedInput<I>>,
-    benches_per_input: Vec<Vec<NamedBench<'static, I>>>,
+    benches_per_input: Vec<Vec<NamedBench<'static, I, O>>>,
     runner: BenchRunner,
 }
 
@@ -26,7 +27,7 @@ impl Default for InputGroup<()> {
     }
 }
 
-impl InputGroup<()> {
+impl InputGroup<(), ()> {
     /// Create a new InputGroup with no inputs.
     pub fn new() -> Self {
         Self::new_with_inputs(vec![("", ())])
@@ -40,7 +41,7 @@ pub struct OwnedNamedInput<I> {
     pub(crate) input_size_in_bytes: Option<usize>,
 }
 
-impl<I: 'static> InputGroup<I> {
+impl<I: 'static, O: OutputValue + 'static> InputGroup<I, O> {
     /// The inputs are a vector of tuples, where the first element is the name of the input and the
     /// second element is the input itself.
     pub fn new_with_inputs<S: Into<String>>(inputs: Vec<(S, I)>) -> Self {
@@ -93,7 +94,7 @@ impl<I: 'static> InputGroup<I> {
     /// The return value of the function will be reported as the `OutputValue` if it is `Some`.
     pub fn register<F, S: Into<String>>(&mut self, name: S, fun: F)
     where
-        F: Fn(&I) -> Option<u64> + 'static + Clone,
+        F: Fn(&I) -> Option<O> + 'static + Clone,
     {
         let name = name.into();
 
@@ -101,7 +102,7 @@ impl<I: 'static> InputGroup<I> {
             let bench_id = BenchId::from_bench_name(name.clone())
                 .runner_name(self.runner.name.as_deref())
                 .group_name(Some(input.name.clone()));
-            let named_bench: NamedBench<'static, I> =
+            let named_bench: NamedBench<'static, I, O> =
                 NamedBench::new(bench_id, Box::new(fun.clone()));
 
             self.benches_per_input[ord].push(named_bench);

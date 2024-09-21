@@ -19,7 +19,7 @@ fn bench_factorial() {
     for val in [100, 400] {
         runner.bench_function(format!("factorial {}", val), move |_| {
             factorial(black_box(val));
-            None
+            Some(())
         });
     }
 }

@@ -2,6 +2,7 @@ use crate::{
     bench::{Bench, BenchResult, InputWithBenchmark, NamedBench},
     bench_id::{BenchId, PrintOnce},
     bench_runner::BenchRunner,
+    output_value::OutputValue,
 };
 
 /// `BenchGroup` is a group of benchmarks wich are executed together.
@@ -54,13 +55,13 @@ impl<'a> BenchGroup<'a> {
     /// Register a benchmark with the given name, function and input.
     ///
     /// The return value of the function will be reported as the `OutputValue` if it is `Some`.
-    pub fn register_with_input<I, F, S: Into<String>>(
+    pub fn register_with_input<I, F, S: Into<String>, O: OutputValue + 'static>(
         &mut self,
         bench_name: S,
         input: &'a I,
         fun: F,
     ) where
-        F: Fn(&'a I) -> Option<u64> + 'static,
+        F: Fn(&'a I) -> Option<O> + 'static,
     {
         let bench = NamedBench::new(self.get_bench_id(bench_name.into()), Box::new(fun));
         self.register_named_with_input(bench, input);
@@ -69,9 +70,12 @@ impl<'a> BenchGroup<'a> {
     /// Register a benchmark with the given name and function.
     ///
     /// The return value of the function will be reported as the `OutputValue` if it is `Some`.
-    pub fn register<I, F, S: Into<String>>(&mut self, bench_name: S, fun: F)
-    where
-        F: Fn(&'a ()) -> Option<u64> + 'static,
+    pub fn register<I, F, S: Into<String>, O: OutputValue + 'static>(
+        &mut self,
+        bench_name: S,
+        fun: F,
+    ) where
+        F: Fn(&'a ()) -> Option<O> + 'static,
     {
         let bench_name = bench_name.into();
         let bench = NamedBench::new(self.get_bench_id(bench_name), Box::new(fun));
@@ -86,7 +90,11 @@ impl<'a> BenchGroup<'a> {
     }
 
     /// Register a benchmark with the given name and function.
-    pub(crate) fn register_named_with_input<I>(&mut self, bench: NamedBench<'a, I>, input: &'a I) {
+    pub(crate) fn register_named_with_input<I, O: OutputValue + 'static>(
+        &mut self,
+        bench: NamedBench<'a, I, O>,
+        input: &'a I,
+    ) {
         if let Some(filter) = &self.runner.options.filter {
             let bench_id = bench.bench_id.get_full_name();
 

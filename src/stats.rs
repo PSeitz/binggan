@@ -85,7 +85,7 @@ pub fn format_percentage(diff: f64, smaller_is_better: bool) -> String {
         diff_str.resetting().to_string()
     }
 }
-pub fn compute_stats(results: &[RunResult], _num_iter: usize) -> BenchStats {
+pub fn compute_stats<O>(results: &[RunResult<O>], _num_iter: usize) -> BenchStats {
     // Avg memory consumption
     let total_memory: usize = results.iter().map(|res| res.memory_consumption).sum();
     let avg_memory = total_memory / results.len();
@@ -123,7 +123,7 @@ pub fn compute_stats(results: &[RunResult], _num_iter: usize) -> BenchStats {
 mod tests {
     use super::*;
 
-    fn create_res(duration_ns: u64, memory_consumption: usize) -> RunResult {
+    fn create_res(duration_ns: u64, memory_consumption: usize) -> RunResult<u64> {
         RunResult {
             output: None,
             duration_ns,

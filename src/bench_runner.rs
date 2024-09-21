@@ -1,5 +1,6 @@
 use std::{alloc::GlobalAlloc, cmp::Ordering};
 
+use crate::output_value::OutputValue;
 use crate::{
     bench::{Bench, BenchResult, InputWithBenchmark, NamedBench},
     bench_id::{BenchId, PrintOnce},
@@ -124,9 +125,9 @@ impl BenchRunner {
     /// not support interleaved execution.
     ///
     /// The return value of the function will be reported as the `OutputValue` if it is `Some`.
-    pub fn bench_function<F, S: Into<String>>(&mut self, name: S, f: F) -> &mut Self
+    pub fn bench_function<F, S: Into<String>, O: OutputValue>(&mut self, name: S, f: F) -> &mut Self
     where
-        F: Fn(&()) -> Option<u64> + 'static,
+        F: Fn(&()) -> Option<O> + 'static,
     {
         let bench_id = BenchId::from_bench_name(name).runner_name(self.name.as_deref());
         let named_bench = NamedBench::new(bench_id, Box::new(f));

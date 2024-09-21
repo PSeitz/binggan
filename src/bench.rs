@@ -1,6 +1,6 @@
 use crate::{
-    bench_id::BenchId, bench_input_group::*, bench_runner::NUM_RUNS, black_box, profiler::*,
-    stats::*,
+    bench_id::BenchId, bench_input_group::*, bench_runner::NUM_RUNS, black_box,
+    output_value::OutputValue, profiler::*, stats::*,
 };
 
 /// The trait which typically wraps a InputWithBenchmark and allows to hide the generics.
@@ -13,34 +13,34 @@ pub trait Bench<'a> {
     fn clear_results(&mut self);
 }
 
-pub(crate) type CallBench<'a, I> = Box<dyn FnMut(&'a I) -> Option<u64>>;
+pub(crate) type CallBench<'a, I, O> = Box<dyn FnMut(&'a I) -> Option<O>>;
 
-pub(crate) struct NamedBench<'a, I> {
+pub(crate) struct NamedBench<'a, I, O> {
     pub bench_id: BenchId,
-    pub fun: CallBench<'a, I>,
+    pub fun: CallBench<'a, I, O>,
 }
-impl<'a, I> NamedBench<'a, I> {
-    pub fn new(bench_id: BenchId, fun: CallBench<'a, I>) -> Self {
+impl<'a, I, O> NamedBench<'a, I, O> {
+    pub fn new(bench_id: BenchId, fun: CallBench<'a, I, O>) -> Self {
         Self { bench_id, fun }
     }
 }
 
 /// Bundle of input and benchmark for running benchmarks
-pub(crate) struct InputWithBenchmark<'a, I> {
+pub(crate) struct InputWithBenchmark<'a, I, O> {
     pub(crate) input: &'a I,
     pub(crate) input_size_in_bytes: Option<usize>,
     //pub(crate) bench_id: NamedBench<'a, I>,
-    pub(crate) bench: NamedBench<'a, I>,
-    pub(crate) results: Vec<RunResult>,
+    pub(crate) bench: NamedBench<'a, I, O>,
+    pub(crate) results: Vec<RunResult<O>>,
     pub profiler: Option<PerfProfiler>,
     pub num_iter: usize,
 }
 
-impl<'a, I> InputWithBenchmark<'a, I> {
+impl<'a, I, O> InputWithBenchmark<'a, I, O> {
     pub fn new(
         input: &'a I,
         input_size_in_bytes: Option<usize>,
-        bench: NamedBench<'a, I>,
+        bench: NamedBench<'a, I, O>,
         enable_perf: bool,
     ) -> Self {
         InputWithBenchmark {
@@ -73,12 +73,12 @@ pub struct BenchResult {
     /// The size of the input in bytes if available.
     pub input_size_in_bytes: Option<usize>,
     /// The size of the output returned by the bench. Enables reporting.
-    pub output_value: Option<u64>,
+    pub output_value: Option<String>,
     /// Memory tracking is enabled and the peak memory consumption is reported.
     pub tracked_memory: bool,
 }
 
-impl<'a, I> Bench<'a> for InputWithBenchmark<'a, I> {
+impl<'a, I, O: OutputValue> Bench<'a> for InputWithBenchmark<'a, I, O> {
     #[inline]
     fn sample_num_iter(&mut self) -> usize {
         self.bench.sample_and_get_iter(self.input)
@@ -109,7 +109,7 @@ impl<'a, I> Bench<'a> for InputWithBenchmark<'a, I> {
             perf_counter,
             input_size_in_bytes: self.input_size_in_bytes,
             tracked_memory: report_memory,
-            output_value,
+            output_value: output_value.and_then(|el| el.format()),
             old_stats: None,
             old_perf_counter: None,
         }
@@ -123,13 +123,13 @@ impl<'a, I> Bench<'a> for InputWithBenchmark<'a, I> {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 /// The result of a single benchmark run.
 /// There are multiple runs for each benchmark which will be collected to a vector
-pub struct RunResult {
+pub struct RunResult<O> {
     pub duration_ns: u64,
     pub memory_consumption: usize,
-    pub output: Option<u64>,
+    pub output: Option<O>,
 }
-impl RunResult {
-    fn new(duration_ns: u64, memory_consumption: usize, output: Option<u64>) -> Self {
+impl<O> RunResult<O> {
+    fn new(duration_ns: u64, memory_consumption: usize, output: Option<O>) -> Self {
         RunResult {
             duration_ns,
             memory_consumption,
@@ -138,7 +138,7 @@ impl RunResult {
     }
 }
 
-impl<'a, I> NamedBench<'a, I> {
+impl<'a, I, O> NamedBench<'a, I, O> {
     #[inline]
     /// Each group has its own number of iterations. This is not the final num_iter
     pub fn sample_and_get_iter(&mut self, input: &'a I) -> usize {
@@ -174,7 +174,7 @@ impl<'a, I> NamedBench<'a, I> {
         alloc: &Option<Alloc>,
         profiler: &mut Option<PerfProfiler>,
         num_iter: usize,
-    ) -> RunResult {
+    ) -> RunResult<O> {
         if let Some(alloc) = alloc {
             alloc.reset_peak_memory();
         }

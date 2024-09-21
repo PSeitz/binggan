@@ -57,7 +57,7 @@ impl PlainReporter {
         stats: BenchStats,
         other: Option<BenchStats>,
         input_size_in_bytes: Option<usize>,
-        output_value: Option<u64>,
+        output_value: Option<String>,
         report_memory: bool,
     ) -> Vec<String> {
         let (avg_str, median_str) = avg_median_str(&stats, input_size_in_bytes, other);
