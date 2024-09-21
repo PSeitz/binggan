@@ -48,4 +48,8 @@ harness = false
 name = "bench_input"
 harness = false
 
+[[bench]]
+name = "test_throughput"
+harness = false
+
 

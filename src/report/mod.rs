@@ -162,18 +162,31 @@ pub fn short(n: f64) -> String {
 /// Returns the unit and alters the passed parameter to match the unit
 pub fn unit_per_second(bytes: usize, nanoseconds: &mut f64) -> &'static str {
     let bytes_per_second = bytes as f64 * (1e9 / *nanoseconds);
-    let (denominator, unit) = if bytes_per_second < 1024.0 {
+    let (denominator, unit) = if bytes_per_second < 1000.0 {
         (1.0, "  B/s")
-    } else if bytes_per_second < 1024.0 * 1024.0 {
-        (1024.0, "KiB/s")
-    } else if bytes_per_second < 1024.0 * 1024.0 * 1024.0 {
-        (1024.0 * 1024.0, "MiB/s")
+    } else if bytes_per_second < 1000.0 * 1000.0 {
+        (1000.0, "KB/s")
+    } else if bytes_per_second < 1000.0 * 1000.0 * 1000.0 {
+        (1000.0 * 1000.0, "MB/s")
     } else {
-        (1024.0 * 1024.0 * 1024.0, "GiB/s")
+        (1000.0 * 1000.0 * 1000.0, "GB/s")
     };
 
     let bytes_per_second = bytes as f64 * (1e9 / *nanoseconds);
     *nanoseconds = bytes_per_second / denominator;
 
     unit
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn format_throughput_test() {
+        let bytes = 1000;
+        let mut nanoseconds = 1e9;
+        assert_eq!(unit_per_second(bytes, &mut nanoseconds), "KB/s");
+        assert_eq!(format(1e9 as u64, Some(1000000)), "1.000 KiB/s");
+    }
 }
