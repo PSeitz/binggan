@@ -1,6 +1,6 @@
 use crate::{
-    bench_id::BenchId, bench_input_group::*, bench_runner::NUM_RUNS, black_box,
-    output_value::OutputValue, profiler::*, stats::*,
+    bench_id::BenchId, bench_input_group::*, black_box, output_value::OutputValue, profiler::*,
+    stats::*,
 };
 
 /// The trait which typically wraps a InputWithBenchmark and allows to hide the generics.
@@ -20,10 +20,15 @@ pub(crate) type CallBench<'a, I, O> = Box<dyn FnMut(&'a I) -> Option<O>>;
 pub(crate) struct NamedBench<'a, I, O> {
     pub bench_id: BenchId,
     pub fun: CallBench<'a, I, O>,
+    pub num_group_iter: usize,
 }
 impl<'a, I, O> NamedBench<'a, I, O> {
-    pub fn new(bench_id: BenchId, fun: CallBench<'a, I, O>) -> Self {
-        Self { bench_id, fun }
+    pub fn new(bench_id: BenchId, fun: CallBench<'a, I, O>, num_group_iter: usize) -> Self {
+        Self {
+            bench_id,
+            fun,
+            num_group_iter,
+        }
     }
 }
 
@@ -69,8 +74,8 @@ impl<'a, I, O> InputWithBenchmark<'a, I, O> {
         InputWithBenchmark {
             input,
             input_size_in_bytes,
+            results: Vec::with_capacity(bench.num_group_iter),
             bench,
-            results: Vec::new(),
             num_iter,
             profiler: if enable_perf {
                 PerfProfiler::new().ok()
@@ -97,7 +102,6 @@ impl<'a, I, O: OutputValue> Bench<'a> for InputWithBenchmark<'a, I, O> {
     }
     fn set_num_iter(&mut self, num_iter: usize) {
         self.num_iter = Some(num_iter);
-        self.results.reserve(NUM_RUNS * num_iter);
     }
 
     #[inline]
@@ -112,10 +116,11 @@ impl<'a, I, O: OutputValue> Bench<'a> for InputWithBenchmark<'a, I, O> {
     fn get_results(&mut self, report_memory: bool) -> BenchResult {
         let num_iter = self.get_num_iter_or_fail();
         let stats = compute_stats(&self.results, num_iter);
-        let perf_counter: Option<CounterValues> = self
-            .profiler
-            .as_mut()
-            .and_then(|profiler| profiler.finish(NUM_RUNS as u64 * num_iter as u64).ok());
+        let perf_counter: Option<CounterValues> = self.profiler.as_mut().and_then(|profiler| {
+            profiler
+                .finish(self.bench.num_group_iter as u64 * num_iter as u64)
+                .ok()
+        });
         let output_value = (self.bench.fun)(self.input);
         BenchResult {
             bench_id: self.bench.bench_id.clone(),
@@ -158,6 +163,7 @@ impl<'a, I, O> NamedBench<'a, I, O> {
     pub fn sample_and_get_iter(&mut self, input: &'a I) -> usize {
         // We want to run the benchmark for 100ms
         const TARGET_MS_PER_BENCH: u64 = 100;
+        const TARGET_NS_PER_BENCH: u128 = 100 * 1_000_000;
         {
             // Preliminary test if function is very slow
             let start = std::time::Instant::now();
@@ -175,9 +181,11 @@ impl<'a, I, O> NamedBench<'a, I, O> {
             black_box((self.fun)(input));
         }
         let elapsed_ns = start.elapsed().as_nanos();
-        let per_iter_ns = (elapsed_ns / 100) * NUM_RUNS as u128;
+        let per_iter_ns = elapsed_ns / 64;
+        // The test is run multiple times in the group.
+        let per_iter_ns_group_run = self.num_group_iter as u128 * per_iter_ns;
 
-        let num_iter = TARGET_MS_PER_BENCH as u128 * 1_000_000 / per_iter_ns;
+        let num_iter = TARGET_NS_PER_BENCH / per_iter_ns_group_run;
         // We want to run the benchmark for at least 1 iterations
         (num_iter as usize).max(1)
     }

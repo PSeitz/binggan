@@ -66,7 +66,11 @@ impl<'a> BenchGroup<'a> {
     ) where
         F: Fn(&'a I) -> Option<O> + 'static,
     {
-        let bench = NamedBench::new(self.get_bench_id(bench_name.into()), Box::new(fun));
+        let bench = NamedBench::new(
+            self.get_bench_id(bench_name.into()),
+            Box::new(fun),
+            self.runner.config().get_num_iter_for_group(),
+        );
         self.register_named_with_input(bench, input);
     }
 
@@ -81,7 +85,11 @@ impl<'a> BenchGroup<'a> {
         F: Fn(&'a ()) -> Option<O> + 'static,
     {
         let bench_name = bench_name.into();
-        let bench = NamedBench::new(self.get_bench_id(bench_name), Box::new(fun));
+        let bench = NamedBench::new(
+            self.get_bench_id(bench_name),
+            Box::new(fun),
+            self.runner.config().get_num_iter_for_group(),
+        );
 
         self.register_named_with_input(bench, &());
     }
@@ -98,7 +106,7 @@ impl<'a> BenchGroup<'a> {
         bench: NamedBench<'a, I, O>,
         input: &'a I,
     ) {
-        if let Some(filter) = &self.runner.options.filter {
+        if let Some(filter) = &self.runner.config.filter {
             let bench_id = bench.bench_id.get_full_name();
 
             if !bench_id.contains(filter) {
@@ -110,8 +118,8 @@ impl<'a> BenchGroup<'a> {
             input,
             self.input_size_in_bytes,
             bench,
-            self.runner.options.enable_perf,
-            self.runner.options.num_iter,
+            self.runner.config.enable_perf,
+            self.runner.config.num_iter_bench,
         );
 
         self.benches.push(Box::new(bundle));

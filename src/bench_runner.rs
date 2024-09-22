@@ -14,16 +14,12 @@ use yansi::Paint;
 
 pub(crate) type Alloc = &'static dyn PeakMemAllocTrait;
 
-/// Each bench is run N times in a inner loop.
-/// The outer loop is fixed. In the outer loop the order of the benchmarks in a group is shuffled.
-pub const NUM_RUNS: usize = 32;
-
 /// The main struct to run benchmarks.
 ///
 pub struct BenchRunner {
     alloc: Option<Alloc>,
     cache_trasher: CacheTrasher,
-    pub(crate) options: Config,
+    pub(crate) config: Config,
     /// The size of the input.
     /// Enables throughput reporting.
     input_size_in_bytes: Option<usize>,
@@ -38,7 +34,7 @@ impl Clone for BenchRunner {
         Self {
             alloc: self.alloc,
             cache_trasher: self.cache_trasher.clone(),
-            options: self.options.clone(),
+            config: self.config.clone(),
             input_size_in_bytes: self.input_size_in_bytes,
             name: self.name.clone(),
             reporter: self.reporter.clone_box(),
@@ -74,7 +70,7 @@ impl BenchRunner {
 
         BenchRunner {
             cache_trasher: CacheTrasher::new(1024 * 1024 * 16),
-            options,
+            config: options,
             alloc: None,
             input_size_in_bytes: None,
             name: None,
@@ -130,13 +126,17 @@ impl BenchRunner {
         F: Fn(&()) -> Option<O> + 'static,
     {
         let bench_id = BenchId::from_bench_name(name).runner_name(self.name.as_deref());
-        let named_bench = NamedBench::new(bench_id, Box::new(f));
+        let named_bench = NamedBench::new(
+            bench_id,
+            Box::new(f),
+            self.config().get_num_iter_for_group(),
+        );
         let bundle = InputWithBenchmark::new(
             EMPTY_INPUT,
             self.input_size_in_bytes,
             named_bench,
-            self.options.enable_perf,
-            self.config().num_iter,
+            self.config.enable_perf,
+            self.config().num_iter_bench,
         );
 
         self.run_group(None, &mut [Box::new(bundle)], O::column_title());
@@ -147,7 +147,7 @@ impl BenchRunner {
     ///
     /// See the [Config] struct for more information.
     pub fn config(&mut self) -> &mut Config {
-        &mut self.options
+        &mut self.config
     }
 
     /// Run the benchmarks and report the results.
@@ -169,26 +169,28 @@ impl BenchRunner {
         }
 
         const MAX_GROUP_SIZE: usize = 5;
-        if self.options.verbose && group.len() > MAX_GROUP_SIZE {
+        if self.config.verbose && group.len() > MAX_GROUP_SIZE {
             println!(
                 "Group is quite big, splitting into chunks of {} elements",
                 MAX_GROUP_SIZE
             );
         }
 
+        let num_group_iter = self.config.get_num_iter_for_group();
         // If the group is quite big, we don't want to create too big chunks, which causes
         // slow tests, therefore a chunk is at most 5 elements large.
         for group in group.chunks_mut(MAX_GROUP_SIZE) {
-            Self::detect_and_set_num_iter(group, self.options.verbose);
+            Self::detect_and_set_num_iter(group, self.config.verbose);
 
-            if self.options.interleave {
+            if self.config.interleave {
                 Self::run_interleaved(
                     group,
                     &self.alloc,
-                    self.options.cache_trasher.then_some(&self.cache_trasher),
+                    self.config.cache_trasher.then_some(&self.cache_trasher),
+                    num_group_iter,
                 );
             } else {
-                Self::run_sequential(group, &self.alloc);
+                Self::run_sequential(group, &self.alloc, num_group_iter);
             }
         }
 
@@ -211,9 +213,13 @@ impl BenchRunner {
             .collect()
     }
 
-    fn run_sequential<'a>(benches: &mut [Box<dyn Bench<'a> + 'a>], alloc: &Option<Alloc>) {
+    fn run_sequential<'a>(
+        benches: &mut [Box<dyn Bench<'a> + 'a>],
+        alloc: &Option<Alloc>,
+        num_group_iter: usize,
+    ) {
         for bench in benches {
-            for iteration in 0..NUM_RUNS {
+            for iteration in 0..num_group_iter {
                 alloca::with_alloca(
                     iteration, // we increase the byte offset by 1 for each iteration
                     |_memory: &mut [core::mem::MaybeUninit<u8>]| {
@@ -229,9 +235,10 @@ impl BenchRunner {
         benches: &mut [Box<dyn Bench<'a> + 'a>],
         alloc: &Option<Alloc>,
         cache_trasher: Option<&CacheTrasher>,
+        num_group_iter: usize,
     ) {
         let mut bench_indices: Vec<usize> = (0..benches.len()).collect();
-        for iteration in 0..NUM_RUNS {
+        for iteration in 0..num_group_iter {
             // We interleave the benches to address benchmarking randomness
             //
             // This has the drawback, that one bench will affect another one.

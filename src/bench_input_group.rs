@@ -98,12 +98,13 @@ impl<I: 'static, O: OutputValue + 'static> InputGroup<I, O> {
     {
         let name = name.into();
 
+        let num_iter_for_group = self.config().get_num_iter_for_group();
         for (ord, input) in self.inputs.iter().enumerate() {
             let bench_id = BenchId::from_bench_name(name.clone())
                 .runner_name(self.runner.name.as_deref())
                 .group_name(Some(input.name.clone()));
             let named_bench: NamedBench<'static, I, O> =
-                NamedBench::new(bench_id, Box::new(fun.clone()));
+                NamedBench::new(bench_id, Box::new(fun.clone()), num_iter_for_group);
 
             self.benches_per_input[ord].push(named_bench);
         }
@@ -149,7 +150,7 @@ impl<I: 'static, O: OutputValue + 'static> InputGroup<I, O> {
     ///
     /// See the [Config] struct for more information.
     pub fn config(&mut self) -> &mut Config {
-        &mut self.runner.options
+        &mut self.runner.config
     }
 
     /// Set the reporter to be used for the benchmarks. See [Reporter] for more information.

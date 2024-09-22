@@ -14,10 +14,13 @@ pub struct Config {
     pub cache_trasher: bool,
     /// Verbose output of binggan. Prints the number of iterations.
     pub verbose: bool,
-    /// Manully set the number of iterations the benchmarks registered afterwards are called.
+    /// Manually set the number of iterations the benchmarks registered afterwards are called.
     ///
     /// This disables the automatic detection of the number of iterations.
-    pub num_iter: Option<usize>,
+    pub num_iter_bench: Option<usize>,
+    /// Manually set the number of iterations the benchmark group is run.
+    ///
+    pub num_iter_group: Option<usize>,
 }
 
 impl Default for Config {
@@ -28,7 +31,8 @@ impl Default for Config {
             enable_perf: false,
             cache_trasher: false,
             verbose: false,
-            num_iter: None,
+            num_iter_bench: None,
+            num_iter_group: None,
         }
     }
 }
@@ -48,8 +52,22 @@ impl Config {
     /// iterations has a big impact on measurement and the iteration detection may
     /// not always get the same num iterations between runs. There are ways implemented
     /// to mitigate that but they are limited.
-    pub fn set_num_iter(&mut self, num_iter: usize) -> &mut Self {
-        self.num_iter = Some(num_iter);
+    pub fn set_num_iter_for_bench(&mut self, num_iter: usize) -> &mut Self {
+        self.num_iter_bench = Some(num_iter);
+        self
+    }
+
+    /// Returns the number of iterations for the group.
+    pub fn get_num_iter_for_group(&self) -> usize {
+        self.num_iter_group.unwrap_or(32)
+    }
+
+    /// Manully set the number of iterations the benchmark group is run.
+    ///
+    /// The benchmarks in a group are interleaved for more stable results.
+    /// For long running benchmarks that may not be desirable.
+    pub fn set_num_iter_for_group(&mut self, num_iter: usize) -> &mut Self {
+        self.num_iter_group = Some(num_iter);
         self
     }
 

@@ -11,6 +11,7 @@ fn run_bench() {
 
     runner.config().enable_perf();
     runner.config().set_cache_trasher(true);
+    runner.config().set_num_iter_for_group(128);
 
     let mut group = runner.new_group();
     group.set_input_size(10_000);
