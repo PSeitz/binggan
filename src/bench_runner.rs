@@ -281,6 +281,9 @@ impl BenchRunner {
             .iter_mut()
             .filter(|b| b.get_num_iter().is_none())
             .collect::<Vec<_>>();
+        if benches.is_empty() {
+            return;
+        }
         // In order to make the benchmarks in a group comparable, it is imperative to call them
         // the same numer of times
         let (min_num_iter, max_num_iter) =
