@@ -14,14 +14,14 @@ use crate::bench::BenchResult;
 /// | vec     | Memory: 404 B  | 8.6635 GiB/s (+1.16%) | 8.5639 GiB/s (-1.15%) | [8.7654 GiB/s .. 8.2784 GiB/s] |
 /// | hashmap | Memory: 84 B   | 840.24 MiB/s (+1.54%) | 841.17 MiB/s (+0.33%) | [843.96 MiB/s .. 817.73 MiB/s] |
 /// ```
-pub struct TableReporter {}
+pub struct TableReporter;
 impl ReporterClone for TableReporter {
     fn clone_box(&self) -> Box<dyn Reporter> {
         Box::new(*self)
     }
 }
 impl Reporter for TableReporter {
-    fn report_results(&self, results: Vec<BenchResult>) {
+    fn report_results(&self, results: Vec<BenchResult>, output_value_column_title: &'static str) {
         use prettytable::*;
         let mut table = Table::new();
         let format = format::FormatBuilder::new()
@@ -39,6 +39,10 @@ impl Reporter for TableReporter {
         if !results[0].tracked_memory {
             row.remove_cell(1);
         }
+        let has_output_value = results.iter().any(|r| r.output_value.is_some());
+        if has_output_value {
+            row.add_cell(Cell::new(output_value_column_title));
+        }
         table.set_titles(row);
         for result in results {
             let (avg_str, median_str) =
@@ -52,6 +56,9 @@ impl Reporter for TableReporter {
                 Cell::new(&median_str),
                 Cell::new(&min_max),
             ]);
+            if has_output_value {
+                row.add_cell(Cell::new(&result.output_value.unwrap_or_default()));
+            }
             if !result.tracked_memory {
                 row.remove_cell(1);
             }

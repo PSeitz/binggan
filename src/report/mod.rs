@@ -29,7 +29,7 @@ use crate::{
 /// The trait for reporting the results of a benchmark run.
 pub trait Reporter: ReporterClone {
     /// Report the results from a group (can be a single bench)
-    fn report_results(&self, results: Vec<BenchResult>);
+    fn report_results(&self, results: Vec<BenchResult>, output_value_column_title: &'static str);
 }
 
 /// The trait to enable cloning on the Box reporter
@@ -42,6 +42,7 @@ pub(crate) fn report_group<'a>(
     benches: &mut [Box<dyn Bench<'a> + 'a>],
     reporter: &dyn Reporter,
     report_memory: bool,
+    output_value_column_title: &'static str,
 ) {
     if benches.is_empty() {
         return;
@@ -53,7 +54,7 @@ pub(crate) fn report_group<'a>(
         fetch_previous_run_and_write_results_to_disk(&mut result);
         results.push(result);
     }
-    reporter.report_results(results);
+    reporter.report_results(results, output_value_column_title);
 }
 
 pub(crate) fn avg_median_str(

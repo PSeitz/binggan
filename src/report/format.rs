@@ -115,15 +115,15 @@ pub fn format_duration_or_throughput(
 ///
 /// # Examples
 /// ```
-/// use binggan::report::short;
+/// use binggan::report::format::format_float;
 /// let value = 9.876543;
-/// assert_eq!(short(value), "9.8765");
+/// assert_eq!(format_float(value), "9.8765");
 ///
 /// let value = 987.6543;
-/// assert_eq!(short(value), "987.65");
+/// assert_eq!(format_float(value), "987.65");
 ///
 /// let value = 12345.67;
-/// assert_eq!(short(value), "12346");
+/// assert_eq!(format_float(value), "12346");
 /// ```
 pub fn format_float(n: f64) -> String {
     if n < 10.0 {

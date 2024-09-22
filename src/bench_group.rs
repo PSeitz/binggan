@@ -15,6 +15,7 @@ pub struct BenchGroup<'a> {
     /// Enables throughput reporting.
     input_size_in_bytes: Option<usize>,
     pub(crate) runner: BenchRunner,
+    pub(crate) coutput_value_column_title: &'static str,
 }
 
 impl<'a> BenchGroup<'a> {
@@ -26,6 +27,7 @@ impl<'a> BenchGroup<'a> {
             benches: Vec::new(),
             input_size_in_bytes: None,
             runner,
+            coutput_value_column_title: "Output",
         }
     }
 
@@ -37,6 +39,7 @@ impl<'a> BenchGroup<'a> {
             benches: Vec::new(),
             input_size_in_bytes: None,
             runner,
+            coutput_value_column_title: "Output",
         }
     }
 
@@ -122,7 +125,10 @@ impl<'a> BenchGroup<'a> {
 
     /// Run the benchmarks and report the results.
     pub fn run(&mut self) -> Vec<BenchResult> {
-        self.runner
-            .run_group(self.group_name.as_deref(), &mut self.benches)
+        self.runner.run_group(
+            self.group_name.as_deref(),
+            &mut self.benches,
+            self.coutput_value_column_title,
+        )
     }
 }

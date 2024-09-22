@@ -2,12 +2,9 @@ use crate::report::format::{format_duration, format_with_underscores};
 
 /// Every bench returns an OutputValue, which can be formatted to a string.
 ///
-/// This can be useful in many cases as it allows to return additional information from a bench to
-/// provide additional dimensions to track and compare.
+/// This can be useful in many cases as provide additional dimensions to track for a bench.
 ///
-/// The OutputValue is typically a single value, but can be a tuple or struct if multiple values
-/// are needed.
-/// The OutputValue is printed in the output table.
+/// The OutputValue is printed in the output table with the title [OutputValue::column_title].
 ///
 /// # Example
 /// In a compression benchmark this could be the output size.
@@ -20,6 +17,10 @@ pub trait OutputValue {
     /// If the value is None, it will not be printed.
     ///
     fn format(&self) -> Option<String>;
+    /// The name of the column title. The default is "Output".
+    fn column_title() -> &'static str {
+        "Output"
+    }
 }
 
 impl OutputValue for () {

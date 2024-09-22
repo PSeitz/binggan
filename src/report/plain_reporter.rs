@@ -20,7 +20,7 @@ impl ReporterClone for PlainReporter {
 }
 
 impl Reporter for PlainReporter {
-    fn report_results(&self, results: Vec<BenchResult>) {
+    fn report_results(&self, results: Vec<BenchResult>, output_value_column_title: &'static str) {
         let mut table_data: Vec<Vec<String>> = Vec::new();
 
         for result in results {
@@ -32,6 +32,7 @@ impl Reporter for PlainReporter {
                 result.input_size_in_bytes,
                 result.output_value,
                 result.tracked_memory,
+                output_value_column_title,
             );
             stats_columns.insert(0, result.bench_id.bench_name.to_string());
             table_data.push(stats_columns);
@@ -59,6 +60,7 @@ impl PlainReporter {
         input_size_in_bytes: Option<usize>,
         output_value: Option<String>,
         report_memory: bool,
+        output_value_column_title: &'static str,
     ) -> Vec<String> {
         let (avg_str, median_str) = avg_median_str(&stats, input_size_in_bytes, other);
         let avg_str = format!("Avg: {}", avg_str);
@@ -72,7 +74,11 @@ impl PlainReporter {
                 avg_str,
                 median_str,
                 min_max,
-                format!("OutputValue: {}", output_value.to_string()),
+                format!(
+                    "{}: {}",
+                    output_value_column_title,
+                    output_value.to_string()
+                ),
             ]
         } else {
             vec![memory_string, avg_str, median_str, min_max]

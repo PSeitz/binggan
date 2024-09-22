@@ -15,12 +15,13 @@ It is designed to be simple to use and to provide a good overview of the perform
 * 💖 Perf Integration (Linux)
 * 🔄 Delta Comparison
 * ⚡ Fast Execution
-* 🧩 Interleaving Test Runs (More accurate results)
+* 🔀 Interleaving Test Runs (More accurate results)
 * 🏷️ Named Runs, Groups and Benchmarks
 * 🧙 No Macros, No Magic (Just a regular API)
 * 🎨 NOW with colored output!
 * 🦀 Runs on Stable Rust
-* 🛠️ Custom Reporter
+* 📈 Custom reporter
+* 🧩 Custom OutputValues
 
 ### Example
 
@@ -104,6 +105,7 @@ Disabling the NMI watchdog should help:
 - [ ] Allow Hooks (perf integration as plugin)
 - [ ] Make the global `NUM_ITER = 32` configurable. NUM_ITER is not the number of iterations per benchmark, but instead used to interleave benchmarks in different ways.
 - [ ] Allow to set the number of iterations per benchmark (now setting this is global for all benches)
+- [ ] Improve the reporter api. Currently the reporter gets preaggregated data.
 
 #### Maybe Later Features:
 * Charts

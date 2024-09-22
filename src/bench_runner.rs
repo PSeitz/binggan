@@ -124,7 +124,7 @@ impl BenchRunner {
     /// Run a single function. This will directly execute and report the function and therefore does
     /// not support interleaved execution.
     ///
-    /// The return value of the function will be reported as the `OutputValue` if it is `Some`.
+    /// The return value of the function will be reported as the [OutputValue::column_title] if it is `Some`.
     pub fn bench_function<F, S: Into<String>, O: OutputValue>(&mut self, name: S, f: F) -> &mut Self
     where
         F: Fn(&()) -> Option<O> + 'static,
@@ -138,7 +138,7 @@ impl BenchRunner {
             self.options.enable_perf,
         );
 
-        self.run_group(None, &mut [Box::new(bundle)]);
+        self.run_group(None, &mut [Box::new(bundle)], O::column_title());
         self
     }
 
@@ -154,6 +154,7 @@ impl BenchRunner {
         &self,
         group_name: Option<&str>,
         group: &mut [Box<dyn Bench<'a> + 'a>],
+        output_value_column_title: &'static str,
     ) -> Vec<BenchResult> {
         if group.is_empty() {
             return Vec::new();
@@ -192,7 +193,12 @@ impl BenchRunner {
 
         let report_memory = self.alloc.is_some();
 
-        report_group(group, &*self.reporter, report_memory);
+        report_group(
+            group,
+            &*self.reporter,
+            report_memory,
+            output_value_column_title,
+        );
 
         // TODO: clearing should be optional, to check the results yourself, e.g. in CI
         //for bench in group {
