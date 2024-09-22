@@ -1,27 +1,23 @@
-use std::{env, path::PathBuf, sync::Once};
+use std::{env, path::PathBuf, sync::OnceLock};
 
 use crate::bench::BenchResult;
 
 /// Creates directory if it does not exist
-pub fn get_output_directory() -> PathBuf {
-    static INIT: Once = Once::new();
-    static mut OUTPUT_DIRECTORY: Option<PathBuf> = None;
-    unsafe {
-        INIT.call_once(|| {
-            let output_directory = if let Some(value) = env::var_os("BINGGAN_HOME") {
-                PathBuf::from(value)
-            } else if let Some(path) = env::var_os("CARGO_TARGET_DIR").map(PathBuf::from) {
-                path.join("binggan")
-            } else {
-                PathBuf::from("target/binggan")
-            };
-            if !output_directory.exists() {
-                let _ = std::fs::create_dir_all(&output_directory);
-            }
-            OUTPUT_DIRECTORY = Some(output_directory);
-        });
-        OUTPUT_DIRECTORY.clone().unwrap()
-    }
+pub fn get_output_directory() -> &'static PathBuf {
+    static OUTPUT_DIRECTORY: OnceLock<PathBuf> = OnceLock::new();
+    OUTPUT_DIRECTORY.get_or_init(|| {
+        let output_directory = if let Some(value) = env::var_os("BINGGAN_HOME") {
+            PathBuf::from(value)
+        } else if let Some(path) = env::var_os("CARGO_TARGET_DIR").map(PathBuf::from) {
+            path.join("binggan")
+        } else {
+            PathBuf::from("target/binggan")
+        };
+        if !output_directory.exists() {
+            let _ = std::fs::create_dir_all(&output_directory);
+        }
+        output_directory
+    })
 }
 
 fn get_bench_file(result: &BenchResult) -> PathBuf {
