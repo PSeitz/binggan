@@ -5,6 +5,8 @@ use crate::{
 
 /// The trait which typically wraps a InputWithBenchmark and allows to hide the generics.
 pub trait Bench<'a> {
+    /// Returns the number of iterations the benchmark should do
+    fn get_num_iter(&self) -> Option<usize>;
     fn set_num_iter(&mut self, num_iter: usize);
     /// Sample the number of iterations the benchmark should do
     fn sample_num_iter(&mut self) -> usize;
@@ -25,38 +27,6 @@ impl<'a, I, O> NamedBench<'a, I, O> {
     }
 }
 
-/// Bundle of input and benchmark for running benchmarks
-pub(crate) struct InputWithBenchmark<'a, I, O> {
-    pub(crate) input: &'a I,
-    pub(crate) input_size_in_bytes: Option<usize>,
-    //pub(crate) bench_id: NamedBench<'a, I>,
-    pub(crate) bench: NamedBench<'a, I, O>,
-    pub(crate) results: Vec<RunResult<O>>,
-    pub profiler: Option<PerfProfiler>,
-    pub num_iter: usize,
-}
-
-impl<'a, I, O> InputWithBenchmark<'a, I, O> {
-    pub fn new(
-        input: &'a I,
-        input_size_in_bytes: Option<usize>,
-        bench: NamedBench<'a, I, O>,
-        enable_perf: bool,
-    ) -> Self {
-        InputWithBenchmark {
-            input,
-            input_size_in_bytes,
-            bench,
-            results: Vec::new(),
-            num_iter: 1,
-            profiler: if enable_perf {
-                PerfProfiler::new().ok()
-            } else {
-                None
-            },
-        }
-    }
-}
 /// The result of a benchmark run.
 pub struct BenchResult {
     /// The bench id uniquely identifies the benchmark.
@@ -78,30 +48,74 @@ pub struct BenchResult {
     pub tracked_memory: bool,
 }
 
+/// Bundle of input and benchmark for running benchmarks
+pub(crate) struct InputWithBenchmark<'a, I, O> {
+    pub(crate) input: &'a I,
+    pub(crate) input_size_in_bytes: Option<usize>,
+    pub(crate) bench: NamedBench<'a, I, O>,
+    pub(crate) results: Vec<RunResult<O>>,
+    pub profiler: Option<PerfProfiler>,
+    pub num_iter: Option<usize>,
+}
+
+impl<'a, I, O> InputWithBenchmark<'a, I, O> {
+    pub fn new(
+        input: &'a I,
+        input_size_in_bytes: Option<usize>,
+        bench: NamedBench<'a, I, O>,
+        enable_perf: bool,
+        num_iter: Option<usize>,
+    ) -> Self {
+        InputWithBenchmark {
+            input,
+            input_size_in_bytes,
+            bench,
+            results: Vec::new(),
+            num_iter,
+            profiler: if enable_perf {
+                PerfProfiler::new().ok()
+            } else {
+                None
+            },
+        }
+    }
+}
+
+impl<'a, I, O: OutputValue> InputWithBenchmark<'a, I, O> {
+    fn get_num_iter_or_fail(&self) -> usize {
+        self.num_iter
+            .expect("Number of iterations not set. Call set_num_iter before running the benchmark.")
+    }
+}
 impl<'a, I, O: OutputValue> Bench<'a> for InputWithBenchmark<'a, I, O> {
     #[inline]
     fn sample_num_iter(&mut self) -> usize {
         self.bench.sample_and_get_iter(self.input)
     }
+    fn get_num_iter(&self) -> Option<usize> {
+        self.num_iter
+    }
     fn set_num_iter(&mut self, num_iter: usize) {
-        self.num_iter = num_iter;
-        self.results.reserve(NUM_RUNS * self.num_iter);
+        self.num_iter = Some(num_iter);
+        self.results.reserve(NUM_RUNS * num_iter);
     }
 
     #[inline]
     fn exec_bench(&mut self, alloc: &Option<Alloc>) {
+        let num_iter = self.get_num_iter_or_fail();
         let res = self
             .bench
-            .exec_bench(self.input, alloc, &mut self.profiler, self.num_iter);
+            .exec_bench(self.input, alloc, &mut self.profiler, num_iter);
         self.results.push(res);
     }
 
     fn get_results(&mut self, report_memory: bool) -> BenchResult {
-        let stats = compute_stats(&self.results, self.num_iter);
+        let num_iter = self.get_num_iter_or_fail();
+        let stats = compute_stats(&self.results, num_iter);
         let perf_counter: Option<CounterValues> = self
             .profiler
             .as_mut()
-            .and_then(|profiler| profiler.finish(NUM_RUNS as u64 * self.num_iter as u64).ok());
+            .and_then(|profiler| profiler.finish(NUM_RUNS as u64 * num_iter as u64).ok());
         let output_value = (self.bench.fun)(self.input);
         BenchResult {
             bench_id: self.bench.bench_id.clone(),

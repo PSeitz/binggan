@@ -136,6 +136,7 @@ impl BenchRunner {
             self.input_size_in_bytes,
             named_bench,
             self.options.enable_perf,
+            self.config().num_iter,
         );
 
         self.run_group(None, &mut [Box::new(bundle)], O::column_title());
@@ -178,7 +179,7 @@ impl BenchRunner {
         // If the group is quite big, we don't want to create too big chunks, which causes
         // slow tests, therefore a chunk is at most 5 elements large.
         for group in group.chunks_mut(MAX_GROUP_SIZE) {
-            Self::detect_and_set_num_iter(group, self.options.num_iter, self.options.verbose);
+            Self::detect_and_set_num_iter(group, self.options.verbose);
 
             if self.options.interleave {
                 Self::run_interleaved(
@@ -267,21 +268,12 @@ impl BenchRunner {
     }
 
     /// Detect how often each bench should be run if it is not set manually.
-    fn detect_and_set_num_iter<'b>(
-        benches: &mut [Box<dyn Bench<'b> + 'b>],
-        num_iter: Option<usize>,
-        verbose: bool,
-    ) {
-        if let Some(num_iter) = num_iter {
-            if verbose {
-                println!("Manually set num iterations to {}", num_iter);
-            }
-
-            for input_and_bench in benches {
-                input_and_bench.set_num_iter(num_iter);
-            }
-            return;
-        }
+    fn detect_and_set_num_iter<'b>(benches: &mut [Box<dyn Bench<'b> + 'b>], verbose: bool) {
+        // Filter benches that already have num_iter set
+        let mut benches: Vec<_> = benches
+            .iter_mut()
+            .filter(|b| b.get_num_iter().is_none())
+            .collect::<Vec<_>>();
         // In order to make the benchmarks in a group comparable, it is imperative to call them
         // the same numer of times
         let (min_num_iter, max_num_iter) =
@@ -294,7 +286,7 @@ impl BenchRunner {
             );
         }
         // If the difference between min and max_num_iter is more than 10x, we just set
-        // max_num_iter to 10x of min. This is done to avoid having too lon running benchmarks
+        // max_num_iter to 10x of min. This is done to avoid having too long running benchmarks
         let max_num_iter = max_num_iter.min(min_num_iter * 10);
         // We round up, so that we may get the same number of iterations between runs
         let max_num_iter = round_up(max_num_iter as u64) as usize;

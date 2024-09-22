@@ -111,6 +111,7 @@ impl<'a> BenchGroup<'a> {
             self.input_size_in_bytes,
             bench,
             self.runner.options.enable_perf,
+            self.runner.options.num_iter,
         );
 
         self.benches.push(Box::new(bundle));

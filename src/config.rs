@@ -14,7 +14,7 @@ pub struct Config {
     pub cache_trasher: bool,
     /// Verbose output of binggan. Prints the number of iterations.
     pub verbose: bool,
-    /// Manully set the number of iterations each benchmark is called.
+    /// Manully set the number of iterations the benchmarks registered afterwards are called.
     ///
     /// This disables the automatic detection of the number of iterations.
     pub num_iter: Option<usize>,
@@ -39,7 +39,7 @@ impl Config {
         parse_args()
     }
 
-    /// Manully set the number of iterations each benchmark is called.
+    /// Manully set the number of iterations the benchmarks registered afterwards are called.
     ///
     /// This disables the automatic detection of the number of iterations.
     ///
