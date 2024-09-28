@@ -33,6 +33,11 @@ impl OutputValue for u64 {
         Some(format_with_underscores(*self))
     }
 }
+impl OutputValue for usize {
+    fn format(&self) -> Option<String> {
+        Some(format_with_underscores(*self as u64))
+    }
+}
 impl OutputValue for String {
     fn format(&self) -> Option<String> {
         Some(self.clone())

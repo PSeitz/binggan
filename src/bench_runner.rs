@@ -29,18 +29,6 @@ pub struct BenchRunner {
 
     reporter: Box<dyn Reporter>,
 }
-impl Clone for BenchRunner {
-    fn clone(&self) -> Self {
-        Self {
-            alloc: self.alloc,
-            cache_trasher: self.cache_trasher.clone(),
-            config: self.config.clone(),
-            input_size_in_bytes: self.input_size_in_bytes,
-            name: self.name.clone(),
-            reporter: self.reporter.clone_box(),
-        }
-    }
-}
 
 pub const EMPTY_INPUT: &() = &();
 
@@ -81,16 +69,8 @@ impl BenchRunner {
 
     /// Creates a new `BenchGroup`
     /// The group is a collection of benchmarks that are run together.
-    pub fn new_group<'a>(&self) -> BenchGroup<'a> {
-        BenchGroup::new(self.clone())
-    }
-    /// Creates a new named `BenchGroup`
-    /// The group is a collection of benchmarks that are run together.
-    ///
-    /// The name of the group could be for example the label of the input on which the group is
-    /// run.
-    pub fn new_group_with_name<'a, S: Into<String>>(&self, name: S) -> BenchGroup<'a> {
-        BenchGroup::with_name(self.clone(), name)
+    pub fn new_group(&mut self) -> BenchGroup<'_, '_> {
+        BenchGroup::new(self)
     }
 
     /// Set the name of the current test runner. This is like a header for all tests in in this

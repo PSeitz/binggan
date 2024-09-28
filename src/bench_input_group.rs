@@ -9,7 +9,7 @@ use peakmem_alloc::*;
 
 pub(crate) type Alloc = &'static dyn PeakMemAllocTrait;
 
-/// `InputGroup` is a collection of benchmarks that are run with the same inputs.
+/// `InputGroup<Input, OutputValue>` is a collection of benchmarks that are run with the same inputs.
 ///
 /// It is self-contained and can be run independently.
 ///
@@ -112,9 +112,10 @@ impl<I: 'static, O: OutputValue + 'static> InputGroup<I, O> {
 
     /// Run the benchmarks and report the results.
     pub fn run(&mut self) {
-        for (ord, benches) in self.benches_per_input.iter_mut().enumerate() {
+        let mut benches_per_input = mem::take(&mut self.benches_per_input);
+        for (ord, benches) in benches_per_input.iter_mut().enumerate() {
             let input = &self.inputs[ord];
-            let mut group = BenchGroup::new(self.runner.clone());
+            let mut group = BenchGroup::new(&mut self.runner);
             group.set_name(&input.name);
             // reverse so we can use pop and keep the order
             benches.reverse();

@@ -1,45 +1,31 @@
 use crate::{
     bench::{Bench, BenchResult, InputWithBenchmark, NamedBench},
-    bench_id::{BenchId, PrintOnce},
+    bench_id::BenchId,
     bench_runner::BenchRunner,
     output_value::OutputValue,
 };
 
 /// `BenchGroup` is a group of benchmarks wich are executed together.
 ///
-pub struct BenchGroup<'a> {
-    bench_runner_name: Option<PrintOnce>,
+pub struct BenchGroup<'a, 'runner> {
     group_name: Option<String>,
     pub(crate) benches: Vec<Box<dyn Bench<'a> + 'a>>,
     /// The size of the input.
     /// Enables throughput reporting.
     input_size_in_bytes: Option<usize>,
-    pub(crate) runner: BenchRunner,
-    pub(crate) coutput_value_column_title: &'static str,
+    pub(crate) runner: &'runner mut BenchRunner,
+    pub(crate) output_value_column_title: &'static str,
 }
 
-impl<'a> BenchGroup<'a> {
+impl<'a, 'runner> BenchGroup<'a, 'runner> {
     /// Create a new BenchGroup with no benchmarks.
-    pub fn new(runner: BenchRunner) -> Self {
+    pub fn new(runner: &'runner mut BenchRunner) -> Self {
         Self {
             group_name: None,
-            bench_runner_name: runner.name.to_owned(),
             benches: Vec::new(),
             input_size_in_bytes: None,
             runner,
-            coutput_value_column_title: "Output",
-        }
-    }
-
-    /// Create a new BenchGroup with no benchmarks.
-    pub fn with_name<S: Into<String>>(runner: BenchRunner, name: S) -> Self {
-        Self {
-            group_name: Some(name.into()),
-            bench_runner_name: runner.name.to_owned(),
-            benches: Vec::new(),
-            input_size_in_bytes: None,
-            runner,
-            coutput_value_column_title: "Output",
+            output_value_column_title: "Output",
         }
     }
 
@@ -96,7 +82,7 @@ impl<'a> BenchGroup<'a> {
 
     fn get_bench_id(&self, bench_name: String) -> BenchId {
         BenchId::from_bench_name(bench_name)
-            .runner_name(self.bench_runner_name.as_deref())
+            .runner_name(self.runner.name.as_deref())
             .group_name(self.group_name.clone())
     }
 
@@ -106,6 +92,7 @@ impl<'a> BenchGroup<'a> {
         bench: NamedBench<'a, I, O>,
         input: &'a I,
     ) {
+        self.output_value_column_title = O::column_title();
         if let Some(filter) = &self.runner.config.filter {
             let bench_id = bench.bench_id.get_full_name();
 
@@ -137,7 +124,7 @@ impl<'a> BenchGroup<'a> {
         self.runner.run_group(
             self.group_name.as_deref(),
             &mut self.benches,
-            self.coutput_value_column_title,
+            self.output_value_column_title,
         )
     }
 }
