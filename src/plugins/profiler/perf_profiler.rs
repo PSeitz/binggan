@@ -2,7 +2,6 @@ use std::error::Error;
 
 use crate::bench_id::BenchId;
 use crate::plugins::profiler::CounterValues;
-use crate::plugins::profiler::Profiler;
 use crate::plugins::{BingganEvents, EventListener, PerBenchData};
 use perf_event::events::{Cache, CacheOp, CacheResult, Hardware, WhichCache};
 use perf_event::Counter;
@@ -69,14 +68,14 @@ impl PerfCounters {
     }
 }
 
-impl Profiler for PerfCounters {
-    fn enable(&mut self) {
+impl PerfCounters {
+    pub fn enable(&mut self) {
         self.group.enable().unwrap();
     }
-    fn disable(&mut self) {
+    pub fn disable(&mut self) {
         self.group.disable().unwrap();
     }
-    fn finish(&mut self, num_iter: u64) -> std::io::Result<CounterValues> {
+    pub fn finish(&mut self, num_iter: u64) -> std::io::Result<CounterValues> {
         let num_iter = num_iter as f64;
         let l1d_access_count = self.l1d_access_counter.read()? as f64 / num_iter;
         let tlbd_access_count = self.tlbd_access_counter.read()? as f64 / num_iter;

@@ -1,23 +1,13 @@
 use crate::stats::*;
 use miniserde::*;
 
-#[cfg(not(target_os = "linux"))]
-pub(crate) mod dummy_profiler;
 #[cfg(target_os = "linux")]
 pub(crate) mod perf_profiler;
 
-#[cfg(not(target_os = "linux"))]
-pub(crate) use dummy_profiler::*;
 #[cfg(target_os = "linux")]
 pub(crate) use perf_profiler::*;
 
 use yansi::Paint;
-
-pub trait Profiler {
-    fn enable(&mut self);
-    fn disable(&mut self);
-    fn finish(&mut self, num_iter: u64) -> std::io::Result<CounterValues>;
-}
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone, Copy)]
 pub struct CounterValues {

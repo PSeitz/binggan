@@ -116,14 +116,8 @@ impl<'a, I, O: OutputValue> Bench<'a> for InputWithBenchmark<'a, I, O> {
             .and_then(|counters| counters.get_by_bench_id(&self.bench.bench_id));
         let stats = compute_stats(&self.results, memory_consumption);
         let tracked_memory = memory_consumption.is_some();
-        let perf_counter: Option<CounterValues> = events
-            .downcast_listener::<PerfCounterPerBench>(PERF_CNT_EVENT_LISTENER_NAME)
-            .and_then(|counters| {
-                counters
-                    .get_by_bench_id_mut(&self.bench.bench_id)
-                    .and_then(|perf_cnt| perf_cnt.finish(total_num_iter).ok())
-            });
 
+        let perf_counter = get_perf_counter(events, &self.bench.bench_id, total_num_iter);
         let output_value = (self.bench.fun)(self.input);
         BenchResult {
             bench_id: self.bench.bench_id.clone(),
@@ -139,6 +133,27 @@ impl<'a, I, O: OutputValue> Bench<'a> for InputWithBenchmark<'a, I, O> {
 
     fn clear_results(&mut self) {
         self.results.clear();
+    }
+}
+
+fn get_perf_counter(
+    _events: &mut EventManager,
+    _bench_id: &BenchId,
+    _total_num_iter: u64,
+) -> Option<CounterValues> {
+    #[cfg(target_os = "linux")]
+    {
+        _events
+            .downcast_listener::<PerfCounterPerBench>(PERF_CNT_EVENT_LISTENER_NAME)
+            .and_then(|counters| {
+                counters
+                    .get_by_bench_id_mut(_bench_id)
+                    .and_then(|perf_cnt| perf_cnt.finish(_total_num_iter).ok())
+            })
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        None
     }
 }
 

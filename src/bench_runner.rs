@@ -3,7 +3,6 @@ use std::{alloc::GlobalAlloc, cmp::Ordering};
 
 use crate::output_value::OutputValue;
 use crate::plugins::alloc::AllocPerBench;
-use crate::plugins::profiler::PerfCounterPerBench;
 use crate::plugins::{BingganEvents, EventManager};
 use crate::{
     bench::{Bench, InputWithBenchmark, NamedBench},
@@ -151,9 +150,13 @@ impl BenchRunner {
         if let Some(runner_name) = &self.name {
             runner_name.print_name();
         }
-        if self.config().enable_perf {
-            self.listeners
-                .add_listener_if_absent(PerfCounterPerBench::default());
+        #[cfg(target_os = "linux")]
+        {
+            use crate::plugins::profiler::PerfCounterPerBench;
+            if self.config().enable_perf {
+                self.listeners
+                    .add_listener_if_absent(PerfCounterPerBench::default());
+            }
         }
 
         if let Some(name) = &group_name {
