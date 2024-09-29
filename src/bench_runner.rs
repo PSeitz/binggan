@@ -1,8 +1,11 @@
+use std::env;
 use std::{alloc::GlobalAlloc, cmp::Ordering};
 
+use crate::events::{BingganEvents, EventManager};
 use crate::output_value::OutputValue;
+use crate::profiler::PerfCounterPerBench;
 use crate::{
-    bench::{Bench, BenchResult, InputWithBenchmark, NamedBench},
+    bench::{Bench, InputWithBenchmark, NamedBench},
     bench_id::{BenchId, PrintOnce},
     black_box, parse_args,
     report::{report_group, Reporter},
@@ -28,6 +31,7 @@ pub struct BenchRunner {
     pub(crate) name: Option<PrintOnce>,
 
     reporter: Box<dyn Reporter>,
+    listeners: EventManager,
 }
 
 pub const EMPTY_INPUT: &() = &();
@@ -51,6 +55,12 @@ impl BenchRunner {
         new
     }
 
+    /// Returns the event manager, which can be used to add listeners to the benchmarks.
+    /// See [EventManager] for more information.
+    pub fn get_event_manager(&mut self) -> &mut EventManager {
+        &mut self.listeners
+    }
+
     /// Creates a new `BenchRunner` with custom options set.
     pub(crate) fn new_with_options(options: Config) -> Self {
         use yansi::Condition;
@@ -64,6 +74,7 @@ impl BenchRunner {
             name: None,
             //reporter: Box::new(crate::report::TableReporter {}),
             reporter: Box::new(crate::report::PlainReporter::new()),
+            listeners: EventManager::new(),
         }
     }
 
@@ -115,7 +126,6 @@ impl BenchRunner {
             EMPTY_INPUT,
             self.input_size_in_bytes,
             named_bench,
-            self.config.enable_perf,
             self.config().num_iter_bench,
         );
 
@@ -132,19 +142,24 @@ impl BenchRunner {
 
     /// Run the benchmarks and report the results.
     pub fn run_group<'a>(
-        &self,
+        &mut self,
         group_name: Option<&str>,
         group: &mut [Box<dyn Bench<'a> + 'a>],
         output_value_column_title: &'static str,
-    ) -> Vec<BenchResult> {
+    ) {
         if group.is_empty() {
-            return Vec::new();
+            return;
         }
         if let Some(runner_name) = &self.name {
             runner_name.print_name();
         }
+        if self.config().enable_perf {
+            self.listeners
+                .add_listener_if_absent(PerfCounterPerBench::default());
+        }
 
         if let Some(name) = &group_name {
+            self.listeners.emit(BingganEvents::GroupStart(name));
             println!("{}", name.black().on_yellow().invert().bold());
         }
 
@@ -168,42 +183,42 @@ impl BenchRunner {
                     &self.alloc,
                     self.config.cache_trasher.then_some(&self.cache_trasher),
                     num_group_iter,
+                    &mut self.listeners,
                 );
             } else {
-                Self::run_sequential(group, &self.alloc, num_group_iter);
+                Self::run_sequential(group, &self.alloc, num_group_iter, &mut self.listeners);
             }
         }
 
         let report_memory = self.alloc.is_some();
 
         report_group(
+            group_name,
             group,
             &*self.reporter,
             report_memory,
             output_value_column_title,
+            &mut self.listeners,
         );
 
         // TODO: clearing should be optional, to check the results yourself, e.g. in CI
         //for bench in group {
         //bench.clear_results();
         //}
-        group
-            .iter_mut()
-            .map(|b| b.get_results(report_memory))
-            .collect()
     }
 
     fn run_sequential<'a>(
         benches: &mut [Box<dyn Bench<'a> + 'a>],
         alloc: &Option<Alloc>,
         num_group_iter: usize,
+        events: &mut EventManager,
     ) {
         for bench in benches {
             for iteration in 0..num_group_iter {
                 alloca::with_alloca(
                     iteration, // we increase the byte offset by 1 for each iteration
                     |_memory: &mut [core::mem::MaybeUninit<u8>]| {
-                        bench.exec_bench(alloc);
+                        bench.exec_bench(alloc, events);
                         black_box(());
                     },
                 );
@@ -216,6 +231,7 @@ impl BenchRunner {
         alloc: &Option<Alloc>,
         cache_trasher: Option<&CacheTrasher>,
         num_group_iter: usize,
+        events: &mut EventManager,
     ) {
         let mut bench_indices: Vec<usize> = (0..benches.len()).collect();
         for iteration in 0..num_group_iter {
@@ -241,7 +257,7 @@ impl BenchRunner {
                     alloca::with_alloca(
                         iteration, // we increase the byte offset by 1 for each iteration
                         |_memory: &mut [core::mem::MaybeUninit<u8>]| {
-                            bench.exec_bench(alloc);
+                            bench.exec_bench(alloc, events);
                             black_box(());
                         },
                     );
@@ -256,6 +272,15 @@ impl BenchRunner {
 
     /// Detect how often each bench should be run if it is not set manually.
     fn detect_and_set_num_iter<'b>(benches: &mut [Box<dyn Bench<'b> + 'b>], verbose: bool) {
+        if let Some(num_iter) = env::var("NUM_ITER_BENCH")
+            .ok()
+            .and_then(|val| val.parse::<usize>().ok())
+        {
+            for input_and_bench in benches {
+                input_and_bench.set_num_iter(num_iter);
+            }
+            return;
+        }
         // Filter benches that already have num_iter set
         let mut benches: Vec<_> = benches
             .iter_mut()

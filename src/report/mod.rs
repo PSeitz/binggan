@@ -22,6 +22,7 @@ use format::{bytes_to_string, format_duration_or_throughput};
 
 use crate::{
     bench::{Bench, BenchResult},
+    events::{BingganEvents, EventManager},
     stats::compute_diff,
     write_results::fetch_previous_run_and_write_results_to_disk,
 };
@@ -39,10 +40,12 @@ pub trait ReporterClone {
 }
 
 pub(crate) fn report_group<'a>(
+    group_name: Option<&str>,
     benches: &mut [Box<dyn Bench<'a> + 'a>],
     reporter: &dyn Reporter,
     report_memory: bool,
     output_value_column_title: &'static str,
+    events: &mut EventManager,
 ) {
     if benches.is_empty() {
         return;
@@ -50,10 +53,15 @@ pub(crate) fn report_group<'a>(
 
     let mut results = Vec::new();
     for bench in benches.iter_mut() {
-        let mut result = bench.get_results(report_memory);
+        let mut result = bench.get_results(report_memory, events);
         fetch_previous_run_and_write_results_to_disk(&mut result);
         results.push(result);
     }
+    events.emit(BingganEvents::GroupStop {
+        name: group_name,
+        results: &results,
+        output_value_column_title,
+    });
     reporter.report_results(results, output_value_column_title);
 }
 

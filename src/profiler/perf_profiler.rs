@@ -1,13 +1,12 @@
 use std::error::Error;
 
+use crate::profiler::CounterValues;
+use crate::profiler::Profiler;
 use perf_event::events::{Cache, CacheOp, CacheResult, Hardware, WhichCache};
 use perf_event::Counter;
 use perf_event::{Builder, Group};
 
-use crate::profiler::CounterValues;
-use crate::profiler::Profiler;
-
-pub(crate) struct PerfProfiler {
+pub(crate) struct PerfCounters {
     group: Group,
     // translation lookaside buffer
     tlbd_access_counter: Counter,
@@ -17,7 +16,7 @@ pub(crate) struct PerfProfiler {
     branches: Counter,
     branch_misses: Counter,
 }
-impl PerfProfiler {
+impl PerfCounters {
     pub fn new() -> Result<Self, Box<dyn Error>> {
         let mut group = Group::new()?;
         const L1D_ACCESS: Cache = Cache {
@@ -55,7 +54,7 @@ impl PerfProfiler {
             .build()?;
         group.disable()?;
 
-        Ok(PerfProfiler {
+        Ok(PerfCounters {
             group,
             tlbd_access_counter,
             tlbd_miss_counter,
@@ -66,7 +65,8 @@ impl PerfProfiler {
         })
     }
 }
-impl Profiler for PerfProfiler {
+
+impl Profiler for PerfCounters {
     fn enable(&mut self) {
         self.group.enable().unwrap();
     }

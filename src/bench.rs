@@ -1,5 +1,10 @@
 use crate::{
-    bench_id::BenchId, bench_input_group::*, black_box, output_value::OutputValue, profiler::*,
+    bench_id::BenchId,
+    bench_input_group::*,
+    black_box,
+    events::{BingganEvents, EventManager},
+    output_value::OutputValue,
+    profiler::*,
     stats::*,
 };
 
@@ -10,8 +15,8 @@ pub trait Bench<'a> {
     fn set_num_iter(&mut self, num_iter: usize);
     /// Sample the number of iterations the benchmark should do
     fn sample_num_iter(&mut self) -> usize;
-    fn exec_bench(&mut self, alloc: &Option<Alloc>);
-    fn get_results(&mut self, report_memory: bool) -> BenchResult;
+    fn exec_bench(&mut self, alloc: &Option<Alloc>, events: &mut EventManager);
+    fn get_results(&mut self, report_memory: bool, events: &mut EventManager) -> BenchResult;
     fn clear_results(&mut self);
 }
 
@@ -33,6 +38,7 @@ impl<'a, I, O> NamedBench<'a, I, O> {
 }
 
 /// The result of a benchmark run.
+#[derive(Debug, Clone)]
 pub struct BenchResult {
     /// The bench id uniquely identifies the benchmark.
     /// It is a combination of the group name, input name and benchmark name.
@@ -59,7 +65,6 @@ pub(crate) struct InputWithBenchmark<'a, I, O> {
     pub(crate) input_size_in_bytes: Option<usize>,
     pub(crate) bench: NamedBench<'a, I, O>,
     pub(crate) results: Vec<RunResult<O>>,
-    pub profiler: Option<PerfProfiler>,
     pub num_iter: Option<usize>,
 }
 
@@ -68,7 +73,6 @@ impl<'a, I, O> InputWithBenchmark<'a, I, O> {
         input: &'a I,
         input_size_in_bytes: Option<usize>,
         bench: NamedBench<'a, I, O>,
-        enable_perf: bool,
         num_iter: Option<usize>,
     ) -> Self {
         InputWithBenchmark {
@@ -77,11 +81,6 @@ impl<'a, I, O> InputWithBenchmark<'a, I, O> {
             results: Vec::with_capacity(bench.num_group_iter),
             bench,
             num_iter,
-            profiler: if enable_perf {
-                PerfProfiler::new().ok()
-            } else {
-                None
-            },
         }
     }
 }
@@ -105,22 +104,28 @@ impl<'a, I, O: OutputValue> Bench<'a> for InputWithBenchmark<'a, I, O> {
     }
 
     #[inline]
-    fn exec_bench(&mut self, alloc: &Option<Alloc>) {
+    fn exec_bench(&mut self, alloc: &Option<Alloc>, events: &mut EventManager) {
         let num_iter = self.get_num_iter_or_fail();
-        let res = self
-            .bench
-            .exec_bench(self.input, alloc, &mut self.profiler, num_iter);
+        let res = self.bench.exec_bench(self.input, alloc, num_iter, events);
         self.results.push(res);
     }
 
-    fn get_results(&mut self, report_memory: bool) -> BenchResult {
+    fn get_results(&mut self, report_memory: bool, events: &mut EventManager) -> BenchResult {
         let num_iter = self.get_num_iter_or_fail();
+        let total_num_iter = self.bench.num_group_iter as u64 * num_iter as u64;
         let stats = compute_stats(&self.results, num_iter);
-        let perf_counter: Option<CounterValues> = self.profiler.as_mut().and_then(|profiler| {
-            profiler
-                .finish(self.bench.num_group_iter as u64 * num_iter as u64)
-                .ok()
-        });
+        let perf_counter: Option<CounterValues> = events
+            .get_listener(PERF_CNT_EVENT_LISTENER_NAME)
+            .and_then(|listener| {
+                let counters = listener
+                    .as_any()
+                    .downcast_mut::<PerfCounterPerBench>()
+                    .expect("Expected PerfCounterPerBench");
+                counters
+                    .get_by_bench_id_mut(&self.bench.bench_id)
+                    .and_then(|perf_cnt| perf_cnt.finish(total_num_iter).ok())
+            });
+
         let output_value = (self.bench.fun)(self.input);
         BenchResult {
             bench_id: self.bench.bench_id.clone(),
@@ -140,8 +145,9 @@ impl<'a, I, O: OutputValue> Bench<'a> for InputWithBenchmark<'a, I, O> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-/// The result of a single benchmark run.
-/// There are multiple runs for each benchmark which will be collected to a vector
+/// The result of a single benchmark run. This is already aggregated since a single bench may be
+/// run multiple times to improve the accuracy.
+/// There are multiple runs in a group for each benchmark which will be collected to a vector
 pub struct RunResult<O> {
     pub duration_ns: u64,
     pub memory_consumption: usize,
@@ -194,30 +200,30 @@ impl<'a, I, O> NamedBench<'a, I, O> {
         &mut self,
         input: &'a I,
         alloc: &Option<Alloc>,
-        profiler: &mut Option<PerfProfiler>,
         num_iter: usize,
+        events: &mut EventManager,
     ) -> RunResult<O> {
         if let Some(alloc) = alloc {
             alloc.reset_peak_memory();
         }
-        if let Some(profiler) = profiler {
-            profiler.enable();
-        }
+        events.emit(BingganEvents::BenchStart(&self.bench_id));
         let start = std::time::Instant::now();
         let mut res = None;
         for _ in 0..num_iter {
             res = black_box((self.fun)(input));
         }
         let elapsed = start.elapsed();
-        if let Some(profiler) = profiler {
-            profiler.disable();
-        }
         let mem = if let Some(alloc) = alloc {
             alloc.get_peak_memory()
         } else {
             0
         };
 
-        RunResult::new(elapsed.as_nanos() as u64 / num_iter as u64, mem, res)
+        let run_result = RunResult::new(elapsed.as_nanos() as u64 / num_iter as u64, mem, res);
+        events.emit(BingganEvents::BenchStop(
+            &self.bench_id,
+            run_result.duration_ns,
+        ));
+        run_result
     }
 }

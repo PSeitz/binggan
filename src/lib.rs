@@ -165,6 +165,7 @@ pub use peakmem_alloc::*;
 pub(crate) mod bench;
 pub(crate) mod bench_id;
 pub(crate) mod bench_runner;
+pub(crate) mod events;
 pub(crate) mod output_value;
 pub use output_value::OutputValue;
 pub(crate) mod profiler;

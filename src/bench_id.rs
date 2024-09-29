@@ -49,7 +49,7 @@ impl PrintOnce {
 /// - runner_name: The name of the runner that executed the benchmark.
 /// - group_name: The name of the group that the benchmark belongs to. This is typically the input name.
 /// - bench_name: The name of the benchmark.
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BenchId {
     runner_name: Option<String>,
     /// This is typically the input name

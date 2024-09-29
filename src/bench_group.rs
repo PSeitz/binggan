@@ -1,5 +1,5 @@
 use crate::{
-    bench::{Bench, BenchResult, InputWithBenchmark, NamedBench},
+    bench::{Bench, InputWithBenchmark, NamedBench},
     bench_id::BenchId,
     bench_runner::BenchRunner,
     output_value::OutputValue,
@@ -105,7 +105,6 @@ impl<'a, 'runner> BenchGroup<'a, 'runner> {
             input,
             self.input_size_in_bytes,
             bench,
-            self.runner.config.enable_perf,
             self.runner.config.num_iter_bench,
         );
 
@@ -120,7 +119,7 @@ impl<'a, 'runner> BenchGroup<'a, 'runner> {
     }
 
     /// Run the benchmarks and report the results.
-    pub fn run(&mut self) -> Vec<BenchResult> {
+    pub fn run(&mut self) {
         self.runner.run_group(
             self.group_name.as_deref(),
             &mut self.benches,

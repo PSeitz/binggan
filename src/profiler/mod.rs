@@ -1,5 +1,12 @@
+use std::any::Any;
+
 use crate::stats::*;
 use miniserde::*;
+
+use rustc_hash::FxHashMap;
+
+use crate::bench_id::BenchId;
+use crate::events::{BingganEvents, EventListener};
 
 #[cfg(not(target_os = "linux"))]
 pub(crate) mod dummy_profiler;
@@ -108,5 +115,44 @@ impl CounterValues {
                 .red()
                 .to_string(),
         ]
+    }
+}
+
+pub static PERF_CNT_EVENT_LISTENER_NAME: &str = "_binggan_perf";
+
+/// Integration via EventListener
+/// One counter per bench id.
+#[derive(Default)]
+pub struct PerfCounterPerBench {
+    perf_per_bench: FxHashMap<BenchId, PerfCounters>,
+}
+
+impl PerfCounterPerBench {
+    pub fn get_by_bench_id_mut(&mut self, bench_id: &BenchId) -> Option<&mut PerfCounters> {
+        self.perf_per_bench.get_mut(bench_id)
+    }
+}
+
+impl EventListener for PerfCounterPerBench {
+    fn as_any(&mut self) -> &mut dyn Any {
+        self
+    }
+    fn name(&self) -> &'static str {
+        PERF_CNT_EVENT_LISTENER_NAME
+    }
+    fn on_event(&mut self, event: BingganEvents) {
+        match event {
+            BingganEvents::BenchStart(bench_id) => {
+                let perf = PerfCounters::new().unwrap();
+                self.perf_per_bench.insert(bench_id.clone(), perf);
+                let perf = self.perf_per_bench.get_mut(bench_id).unwrap();
+                perf.enable();
+            }
+            BingganEvents::BenchStop(bench_id, _) => {
+                let perf = self.perf_per_bench.get_mut(bench_id).unwrap();
+                perf.disable();
+            }
+            _ => {}
+        }
     }
 }
