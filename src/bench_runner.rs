@@ -327,7 +327,7 @@ fn round_up(num: u64) -> u64 {
         divisor *= 10;
     }
 
-    ((num + divisor - 1) / divisor) * divisor
+    num.div_ceil(divisor)
 }
 
 pub fn minmax<I, T>(mut vals: I) -> Option<(T, T)>
