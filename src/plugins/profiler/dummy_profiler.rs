@@ -1,4 +1,4 @@
-use crate::profiler::Profiler;
+use crate::plugins::profiler::Profiler;
 use std::error::Error;
 
 use super::CounterValues;
