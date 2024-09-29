@@ -102,7 +102,7 @@ Disabling the NMI watchdog should help:
 
 ### TODO
 
-- [ ] Allow Hooks (perf integration as plugin)
+- [ ] Move reporter to plugin API
 - [ ] Improve the reporter api. Currently the reporter gets preaggregated data.
 
 #### Maybe Later Features:

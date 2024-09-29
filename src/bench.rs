@@ -165,7 +165,7 @@ impl<'a, I, O> NamedBench<'a, I, O> {
     pub fn sample_and_get_iter(&mut self, input: &'a I) -> usize {
         // We want to run the benchmark for 100ms
         const TARGET_MS_PER_BENCH: u64 = 100;
-        const TARGET_NS_PER_BENCH: u128 = 100 * 1_000_000;
+        const TARGET_NS_PER_BENCH: u128 = TARGET_MS_PER_BENCH as u128 * 1_000_000;
         {
             // Preliminary test if function is very slow
             let start = std::time::Instant::now();
