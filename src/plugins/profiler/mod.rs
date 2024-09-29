@@ -122,12 +122,14 @@ pub static PERF_CNT_EVENT_LISTENER_NAME: &str = "_binggan_perf";
 /// One counter per bench id.
 #[derive(Default)]
 pub struct PerfCounterPerBench {
-    perf_per_bench: PerBenchData<PerfCounters>,
+    perf_per_bench: PerBenchData<Option<PerfCounters>>,
 }
 
 impl PerfCounterPerBench {
     pub fn get_by_bench_id_mut(&mut self, bench_id: &BenchId) -> Option<&mut PerfCounters> {
-        self.perf_per_bench.get_mut(bench_id)
+        self.perf_per_bench
+            .get_mut(bench_id)
+            .and_then(Option::as_mut)
     }
 }
 
@@ -142,13 +144,17 @@ impl EventListener for PerfCounterPerBench {
         match event {
             BingganEvents::BenchStart(bench_id) => {
                 self.perf_per_bench
-                    .insert_if_absent(bench_id, || PerfCounters::new().unwrap());
+                    .insert_if_absent(bench_id, || PerfCounters::new().ok());
                 let perf = self.perf_per_bench.get_mut(bench_id).unwrap();
-                perf.enable();
+                if let Some(perf) = perf {
+                    perf.enable();
+                }
             }
             BingganEvents::BenchStop(bench_id, _) => {
                 let perf = self.perf_per_bench.get_mut(bench_id).unwrap();
-                perf.disable();
+                if let Some(perf) = perf {
+                    perf.disable();
+                }
             }
             _ => {}
         }
