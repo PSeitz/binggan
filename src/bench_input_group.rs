@@ -7,8 +7,6 @@ use crate::{
 };
 use peakmem_alloc::*;
 
-pub(crate) type Alloc = &'static dyn PeakMemAllocTrait;
-
 /// `InputGroup<Input, OutputValue>` is a collection of benchmarks that are run with the same inputs.
 ///
 /// It is self-contained and can be run independently.

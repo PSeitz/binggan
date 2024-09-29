@@ -85,10 +85,17 @@ pub fn format_percentage(diff: f64, smaller_is_better: bool) -> String {
         diff_str.resetting().to_string()
     }
 }
-pub fn compute_stats<O>(results: &[RunResult<O>], _num_iter: usize) -> BenchStats {
+pub fn compute_stats<O>(
+    results: &[RunResult<O>],
+    memory_consumption: Option<&Vec<usize>>,
+) -> BenchStats {
     // Avg memory consumption
-    let total_memory: usize = results.iter().map(|res| res.memory_consumption).sum();
-    let avg_memory = total_memory / results.len();
+    let avg_memory = memory_consumption
+        .map(|memory_consumption| {
+            let total_memory: usize = memory_consumption.iter().copied().sum();
+            total_memory / memory_consumption.len()
+        })
+        .unwrap_or(0);
 
     let mut sorted_results: Vec<u64> = results.iter().map(|res| res.duration_ns).collect();
     sorted_results.sort();
@@ -123,18 +130,17 @@ pub fn compute_stats<O>(results: &[RunResult<O>], _num_iter: usize) -> BenchStat
 mod tests {
     use super::*;
 
-    fn create_res(duration_ns: u64, memory_consumption: usize) -> RunResult<u64> {
+    fn create_res(duration_ns: u64) -> RunResult<u64> {
         RunResult {
             output: None,
             duration_ns,
-            memory_consumption,
         }
     }
 
     #[test]
     fn test_compute_stats_median_odd() {
-        let results = vec![create_res(10, 0), create_res(20, 0), create_res(30, 0)];
-        let stats = compute_stats(&results, 32);
+        let results = vec![create_res(10), create_res(20), create_res(30)];
+        let stats = compute_stats(&results, None);
         assert_eq!(
             stats.median_ns, 20,
             "Median should be the middle element for odd count"
@@ -144,12 +150,12 @@ mod tests {
     #[test]
     fn test_compute_stats_median_even() {
         let results = vec![
-            create_res(10, 0),
-            create_res(20, 0),
-            create_res(30, 0),
-            create_res(40, 0),
+            create_res(10),
+            create_res(20),
+            create_res(30),
+            create_res(40),
         ];
-        let stats = compute_stats(&results, 32);
+        let stats = compute_stats(&results, None);
         assert_eq!(
             stats.median_ns, 25,
             "Median should be the average of the two middle elements for even count"

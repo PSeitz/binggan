@@ -165,10 +165,9 @@ pub use peakmem_alloc::*;
 pub(crate) mod bench;
 pub(crate) mod bench_id;
 pub(crate) mod bench_runner;
-pub(crate) mod events;
 pub(crate) mod output_value;
+pub(crate) mod plugins;
 pub use output_value::OutputValue;
-pub(crate) mod profiler;
 /// The module to report benchmark results
 pub mod report;
 pub(crate) mod stats;

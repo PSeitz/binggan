@@ -1,7 +1,7 @@
 use std::error::Error;
 
-use crate::profiler::CounterValues;
-use crate::profiler::Profiler;
+use crate::plugins::profiler::CounterValues;
+use crate::plugins::profiler::Profiler;
 use perf_event::events::{Cache, CacheOp, CacheResult, Hardware, WhichCache};
 use perf_event::Counter;
 use perf_event::{Builder, Group};

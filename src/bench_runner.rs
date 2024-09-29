@@ -1,9 +1,10 @@
 use std::env;
 use std::{alloc::GlobalAlloc, cmp::Ordering};
 
-use crate::events::{BingganEvents, EventManager};
 use crate::output_value::OutputValue;
-use crate::profiler::PerfCounterPerBench;
+use crate::plugins::alloc::AllocPerBench;
+use crate::plugins::profiler::PerfCounterPerBench;
+use crate::plugins::{BingganEvents, EventManager};
 use crate::{
     bench::{Bench, InputWithBenchmark, NamedBench},
     bench_id::{BenchId, PrintOnce},
@@ -15,12 +16,9 @@ use core::mem::size_of;
 use peakmem_alloc::*;
 use yansi::Paint;
 
-pub(crate) type Alloc = &'static dyn PeakMemAllocTrait;
-
 /// The main struct to run benchmarks.
 ///
 pub struct BenchRunner {
-    alloc: Option<Alloc>,
     cache_trasher: CacheTrasher,
     pub(crate) config: Config,
     /// The size of the input.
@@ -69,7 +67,6 @@ impl BenchRunner {
         BenchRunner {
             cache_trasher: CacheTrasher::new(1024 * 1024 * 16),
             config: options,
-            alloc: None,
             input_size_in_bytes: None,
             name: None,
             //reporter: Box::new(crate::report::TableReporter {}),
@@ -94,7 +91,8 @@ impl BenchRunner {
     /// Set the peak mem allocator to be used for the benchmarks.
     /// This will report the peak memory consumption of the benchmarks.
     pub fn set_alloc<A: GlobalAlloc + 'static>(&mut self, alloc: &'static PeakMemAlloc<A>) {
-        self.alloc = Some(alloc);
+        let alloc = AllocPerBench::new(alloc);
+        self.listeners.add_listener_if_absent(alloc);
     }
 
     /// Set the reporter to be used for the benchmarks. See [Reporter] for more information.
@@ -180,23 +178,19 @@ impl BenchRunner {
             if self.config.interleave {
                 Self::run_interleaved(
                     group,
-                    &self.alloc,
                     self.config.cache_trasher.then_some(&self.cache_trasher),
                     num_group_iter,
                     &mut self.listeners,
                 );
             } else {
-                Self::run_sequential(group, &self.alloc, num_group_iter, &mut self.listeners);
+                Self::run_sequential(group, num_group_iter, &mut self.listeners);
             }
         }
-
-        let report_memory = self.alloc.is_some();
 
         report_group(
             group_name,
             group,
             &*self.reporter,
-            report_memory,
             output_value_column_title,
             &mut self.listeners,
         );
@@ -209,7 +203,6 @@ impl BenchRunner {
 
     fn run_sequential<'a>(
         benches: &mut [Box<dyn Bench<'a> + 'a>],
-        alloc: &Option<Alloc>,
         num_group_iter: usize,
         events: &mut EventManager,
     ) {
@@ -218,7 +211,7 @@ impl BenchRunner {
                 alloca::with_alloca(
                     iteration, // we increase the byte offset by 1 for each iteration
                     |_memory: &mut [core::mem::MaybeUninit<u8>]| {
-                        bench.exec_bench(alloc, events);
+                        bench.exec_bench(events);
                         black_box(());
                     },
                 );
@@ -228,7 +221,6 @@ impl BenchRunner {
 
     fn run_interleaved<'a>(
         benches: &mut [Box<dyn Bench<'a> + 'a>],
-        alloc: &Option<Alloc>,
         cache_trasher: Option<&CacheTrasher>,
         num_group_iter: usize,
         events: &mut EventManager,
@@ -257,14 +249,14 @@ impl BenchRunner {
                     alloca::with_alloca(
                         iteration, // we increase the byte offset by 1 for each iteration
                         |_memory: &mut [core::mem::MaybeUninit<u8>]| {
-                            bench.exec_bench(alloc, events);
+                            bench.exec_bench(events);
                             black_box(());
                         },
                     );
                 }
                 #[cfg(not(any(target_family = "unix", target_family = "windows")))]
                 {
-                    black_box(bench.exec_bench(alloc));
+                    black_box(bench.exec_bench(events));
                 }
             }
         }

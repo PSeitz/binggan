@@ -1,5 +1,7 @@
 use std::any::Any;
 
+use rustc_hash::FxHashMap;
+
 use crate::{bench::BenchResult, bench_id::BenchId};
 
 /// Events that can be emitted by the benchmark runner.
@@ -57,6 +59,15 @@ impl EventManager {
             .map(|(_, l)| l)
     }
 
+    pub fn downcast_listener<T: 'static>(&mut self, name: &str) -> Option<&mut T> {
+        Some(
+            self.get_listener(name)?
+                .as_any()
+                .downcast_mut::<T>()
+                .expect("Listener is not of the expected type"),
+        )
+    }
+
     /// Remove a listener by name.
     pub fn remove_listener_by_name(&mut self, name: &str) {
         self.listeners.retain(|(n, _)| n != name);
@@ -72,5 +83,33 @@ impl EventManager {
 impl Default for EventManager {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Helper struct to store data per bench id
+pub struct PerBenchData<T> {
+    per_bench_data: FxHashMap<BenchId, T>,
+}
+impl<T> Default for PerBenchData<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+impl<T> PerBenchData<T> {
+    pub fn new() -> Self {
+        Self {
+            per_bench_data: FxHashMap::default(),
+        }
+    }
+    pub fn get_mut(&mut self, bench_id: &BenchId) -> Option<&mut T> {
+        self.per_bench_data.get_mut(bench_id)
+    }
+    pub fn get(&self, bench_id: &BenchId) -> Option<&T> {
+        self.per_bench_data.get(bench_id)
+    }
+    pub fn insert_if_absent<F: FnOnce() -> T>(&mut self, bench_id: &BenchId, data: F) {
+        if !self.per_bench_data.contains_key(bench_id) {
+            self.per_bench_data.insert(bench_id.clone(), data());
+        }
     }
 }

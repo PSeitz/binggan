@@ -3,10 +3,8 @@ use std::any::Any;
 use crate::stats::*;
 use miniserde::*;
 
-use rustc_hash::FxHashMap;
-
 use crate::bench_id::BenchId;
-use crate::events::{BingganEvents, EventListener};
+use crate::plugins::{BingganEvents, EventListener, PerBenchData};
 
 #[cfg(not(target_os = "linux"))]
 pub(crate) mod dummy_profiler;
@@ -124,7 +122,7 @@ pub static PERF_CNT_EVENT_LISTENER_NAME: &str = "_binggan_perf";
 /// One counter per bench id.
 #[derive(Default)]
 pub struct PerfCounterPerBench {
-    perf_per_bench: FxHashMap<BenchId, PerfCounters>,
+    perf_per_bench: PerBenchData<PerfCounters>,
 }
 
 impl PerfCounterPerBench {
@@ -143,8 +141,8 @@ impl EventListener for PerfCounterPerBench {
     fn on_event(&mut self, event: BingganEvents) {
         match event {
             BingganEvents::BenchStart(bench_id) => {
-                let perf = PerfCounters::new().unwrap();
-                self.perf_per_bench.insert(bench_id.clone(), perf);
+                self.perf_per_bench
+                    .insert_if_absent(bench_id, || PerfCounters::new().unwrap());
                 let perf = self.perf_per_bench.get_mut(bench_id).unwrap();
                 perf.enable();
             }

@@ -22,7 +22,7 @@ use format::{bytes_to_string, format_duration_or_throughput};
 
 use crate::{
     bench::{Bench, BenchResult},
-    events::{BingganEvents, EventManager},
+    plugins::{BingganEvents, EventManager},
     stats::compute_diff,
     write_results::fetch_previous_run_and_write_results_to_disk,
 };
@@ -43,7 +43,6 @@ pub(crate) fn report_group<'a>(
     group_name: Option<&str>,
     benches: &mut [Box<dyn Bench<'a> + 'a>],
     reporter: &dyn Reporter,
-    report_memory: bool,
     output_value_column_title: &'static str,
     events: &mut EventManager,
 ) {
@@ -53,7 +52,7 @@ pub(crate) fn report_group<'a>(
 
     let mut results = Vec::new();
     for bench in benches.iter_mut() {
-        let mut result = bench.get_results(report_memory, events);
+        let mut result = bench.get_results(events);
         fetch_previous_run_and_write_results_to_disk(&mut result);
         results.push(result);
     }
