@@ -1,10 +1,13 @@
 use std::error::Error;
 
+use crate::bench_id::BenchId;
 use crate::plugins::profiler::CounterValues;
 use crate::plugins::profiler::Profiler;
+use crate::plugins::{BingganEvents, EventListener, PerBenchData};
 use perf_event::events::{Cache, CacheOp, CacheResult, Hardware, WhichCache};
 use perf_event::Counter;
 use perf_event::{Builder, Group};
+use std::any::Any;
 
 pub(crate) struct PerfCounters {
     group: Group,
@@ -90,5 +93,51 @@ impl Profiler for PerfCounters {
             branches_count,
             missed_branches_count,
         })
+    }
+}
+
+// Plugin
+pub static PERF_CNT_EVENT_LISTENER_NAME: &str = "_binggan_perf";
+
+/// Integration via EventListener
+/// One counter per bench id.
+#[derive(Default)]
+pub struct PerfCounterPerBench {
+    perf_per_bench: PerBenchData<Option<PerfCounters>>,
+}
+
+impl PerfCounterPerBench {
+    pub fn get_by_bench_id_mut(&mut self, bench_id: &BenchId) -> Option<&mut PerfCounters> {
+        self.perf_per_bench
+            .get_mut(bench_id)
+            .and_then(Option::as_mut)
+    }
+}
+
+impl EventListener for PerfCounterPerBench {
+    fn as_any(&mut self) -> &mut dyn Any {
+        self
+    }
+    fn name(&self) -> &'static str {
+        PERF_CNT_EVENT_LISTENER_NAME
+    }
+    fn on_event(&mut self, event: BingganEvents) {
+        match event {
+            BingganEvents::BenchStart(bench_id) => {
+                self.perf_per_bench
+                    .insert_if_absent(bench_id, || PerfCounters::new().ok());
+                let perf = self.perf_per_bench.get_mut(bench_id).unwrap();
+                if let Some(perf) = perf {
+                    perf.enable();
+                }
+            }
+            BingganEvents::BenchStop(bench_id, _) => {
+                let perf = self.perf_per_bench.get_mut(bench_id).unwrap();
+                if let Some(perf) = perf {
+                    perf.disable();
+                }
+            }
+            _ => {}
+        }
     }
 }

@@ -60,12 +60,7 @@ impl EventManager {
     }
 
     pub fn downcast_listener<T: 'static>(&mut self, name: &str) -> Option<&mut T> {
-        Some(
-            self.get_listener(name)?
-                .as_any()
-                .downcast_mut::<T>()
-                .expect("Listener is not of the expected type"),
-        )
+        self.get_listener(name)?.as_any().downcast_mut::<T>()
     }
 
     /// Remove a listener by name.
