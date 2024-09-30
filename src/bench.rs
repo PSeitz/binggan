@@ -213,7 +213,9 @@ impl<'a, I, O> NamedBench<'a, I, O> {
         num_iter: usize,
         events: &mut EventManager,
     ) -> RunResult<O> {
-        events.emit(BingganEvents::BenchStart(&self.bench_id));
+        events.emit(BingganEvents::BenchStart {
+            bench_id: &self.bench_id,
+        });
         let start = std::time::Instant::now();
         let mut res = None;
         for _ in 0..num_iter {
@@ -222,10 +224,10 @@ impl<'a, I, O> NamedBench<'a, I, O> {
         let elapsed = start.elapsed();
 
         let run_result = RunResult::new(elapsed.as_nanos() as u64 / num_iter as u64, res);
-        events.emit(BingganEvents::BenchStop(
-            &self.bench_id,
-            run_result.duration_ns,
-        ));
+        events.emit(BingganEvents::BenchStop {
+            bench_id: &self.bench_id,
+            duration: run_result.duration_ns,
+        });
         run_result
     }
 }

@@ -122,7 +122,7 @@ impl EventListener for PerfCounterPerBench {
     }
     fn on_event(&mut self, event: BingganEvents) {
         match event {
-            BingganEvents::BenchStart(bench_id) => {
+            BingganEvents::BenchStart { bench_id } => {
                 self.perf_per_bench
                     .insert_if_absent(bench_id, || PerfCounters::new().ok());
                 let perf = self.perf_per_bench.get_mut(bench_id).unwrap();
@@ -130,7 +130,7 @@ impl EventListener for PerfCounterPerBench {
                     perf.enable();
                 }
             }
-            BingganEvents::BenchStop(bench_id, _) => {
+            BingganEvents::BenchStop { bench_id, .. } => {
                 let perf = self.perf_per_bench.get_mut(bench_id).unwrap();
                 if let Some(perf) = perf {
                     perf.disable();

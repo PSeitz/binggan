@@ -9,7 +9,7 @@ use crate::{
 
 /// Integration via EventListener
 /// tracks the max memory consumption per bench
-pub struct AllocPerBench {
+pub(crate) struct AllocPerBench {
     alloc_per_bench: PerBenchData<Vec<usize>>,
     alloc: &'static dyn PeakMemAllocTrait,
 }
@@ -39,11 +39,11 @@ impl EventListener for AllocPerBench {
     }
     fn on_event(&mut self, event: BingganEvents) {
         match event {
-            BingganEvents::BenchStart(bench_id) => {
+            BingganEvents::BenchStart { bench_id } => {
                 self.alloc_per_bench.insert_if_absent(bench_id, Vec::new);
                 self.alloc.reset_peak_memory();
             }
-            BingganEvents::BenchStop(bench_id, _) => {
+            BingganEvents::BenchStop { bench_id, .. } => {
                 let perf = self.alloc_per_bench.get_mut(bench_id).unwrap();
                 perf.push(self.alloc.get_peak_memory());
             }

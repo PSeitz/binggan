@@ -19,7 +19,7 @@
 //! - **[BenchRunner]**: A main runner for. Useful for single benchmarks or to create groups.
 //! - **[InputGroup]**: Use this when running a group of benchmarks with the same inputs, where ownership of inputs can be transferred.
 //!
-//! Otherwise if you need more flexibility you can use [BenchGroup] via [BenchRunner::new_group_with_name](crate::BenchRunner::new_group_with_name).
+//! Otherwise if you need more flexibility you can use [BenchGroup] via [BenchRunner::new_group](crate::BenchRunner::new).
 //!
 //! See <https://github.com/PSeitz/binggan/tree/main/benches> for examples. `benches/bench_group.rs` and
 //! `benches/bench_input_group.rs` are different ways to produce the same output.
@@ -166,7 +166,8 @@ pub(crate) mod bench;
 pub(crate) mod bench_id;
 pub(crate) mod bench_runner;
 pub(crate) mod output_value;
-pub(crate) mod plugins;
+/// The module to define custom plugins
+pub mod plugins;
 pub use output_value::OutputValue;
 /// The module to report benchmark results
 pub mod report;

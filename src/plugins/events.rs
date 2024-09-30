@@ -1,41 +1,106 @@
-use std::any::Any;
-
-use rustc_hash::FxHashMap;
+//! Event manager for Binggan.
+//! The event manager is responsible for managing event listeners and emitting events.
+//! It is used to notify listeners about events that occur during the benchmark run.
+//!
+//! # Example
+//! ```rust no_run
+//! use binggan::plugins::*;
+//!
+//! struct MyListener;
+//!
+//! impl EventListener for MyListener {
+//!     fn name(&self) -> &'static str {
+//!         "my_listener"
+//!     }
+//!     fn on_event(&mut self, event: BingganEvents) {
+//!         match event {
+//!             BingganEvents::GroupStart{runner_name, ..} => {
+//!                 println!("Starting: {:?}", runner_name);
+//!             }
+//!             _ => {}
+//!         }
+//!     }
+//!     fn as_any(&mut self) -> &mut dyn std::any::Any {
+//!         self
+//!     }
+//! }
+//!
+//! let mut event_manager = EventManager::new();
+//! event_manager.add_listener_if_absent(MyListener);
+//! event_manager.emit(BingganEvents::GroupStart{runner_name: Some("test"), group_name: None,  output_value_column_title: "output"});
+//! ```
+//!
+//! See the `BingganEvents` enum for the list of events that can be emitted.
+//! Any type that implements the `EventListener` trait can be added to the event manager.
+//!
 
 use crate::{bench::BenchResult, bench_id::BenchId};
+use rustc_hash::FxHashMap;
+use std::any::Any;
 
 /// Events that can be emitted by the benchmark runner.
 #[derive(Debug, Clone, Copy)]
 pub enum BingganEvents<'a> {
-    /// Parameter is the name of the run
-    StartRun(&'a str),
-    /// Parameter is the name of the benchmark group
-    GroupStart(&'a str),
-    GroupStop {
-        name: Option<&'a str>,
-        results: &'a [BenchResult],
+    /// Profiling of the group started
+    GroupStart {
+        /// The name of the runner
+        runner_name: Option<&'a str>,
+        /// The name of the group
+        group_name: Option<&'a str>,
+        /// The name of the column of the output value.
         output_value_column_title: &'static str,
     },
-    /// The benchmark is started. Note that a benchmark can be run multiple times for higher
+    /// Profiling of the group finished.
+    GroupStop {
+        /// The name of the runner
+        runner_name: Option<&'a str>,
+        /// The name of the group
+        group_name: Option<&'a str>,
+        /// The results of the group
+        /// This will include the results of all the benchmarks in the group.
+        /// It also contains delta information of the last run if available
+        results: &'a [BenchResult],
+        /// The name of the column of the output value.
+        output_value_column_title: &'static str,
+    },
+    /// A benchmark in a group is started. Note that a benchmark can be run multiple times for higher
     /// accuracy. BenchStart and BenchStop are not called for each iteration.
     ///
-    BenchStart(&'a BenchId),
-    BenchStop(&'a BenchId, u64),
+    /// A group is iterated multiple times. This will be called for every iteration in the group.
+    BenchStart {
+        /// The bench id
+        bench_id: &'a BenchId,
+    },
+    /// A benchmark in a group is stopped.
+    BenchStop {
+        /// The bench id
+        bench_id: &'a BenchId,
+        /// The duration of the benchmark
+        duration: u64,
+    },
 }
 
+/// The trait for listening to events emitted by the benchmark runner.
 pub trait EventListener: Any {
+    /// The name of the event listener.
     fn name(&self) -> &'static str;
+    /// Handle an event.
+    /// See the [BingganEvents] enum for the list of events that can be emitted.
     fn on_event(&mut self, event: BingganEvents);
+    /// Downcast the listener to `Any`.
     fn as_any(&mut self) -> &mut dyn Any;
 }
 
 /// The event manager is responsible for managing event listeners and emitting events.
 /// It is used to notify listeners about events that occur during the benchmark run.
 ///
+/// See the `BingganEvents` enum for the list of events that can be emitted.
+/// Any type that implements the `EventListener` trait can be added to the event manager.
 pub struct EventManager {
     listeners: Vec<(String, Box<dyn EventListener>)>,
 }
 impl EventManager {
+    /// Create a new instance of `EventManager`.
     pub fn new() -> Self {
         Self {
             listeners: Vec::new(),
@@ -59,6 +124,7 @@ impl EventManager {
             .map(|(_, l)| l)
     }
 
+    /// Downcast a listener to a specific type.
     pub fn downcast_listener<T: 'static>(&mut self, name: &str) -> Option<&mut T> {
         self.get_listener(name)?.as_any().downcast_mut::<T>()
     }
@@ -68,6 +134,7 @@ impl EventManager {
         self.listeners.retain(|(n, _)| n != name);
     }
 
+    /// Emit an event to all listeners.
     pub fn emit(&mut self, event: BingganEvents) {
         for (_, listener) in self.listeners.iter_mut() {
             listener.on_event(event);
@@ -91,17 +158,21 @@ impl<T> Default for PerBenchData<T> {
     }
 }
 impl<T> PerBenchData<T> {
+    /// Create a new instance of `PerBenchData`.
     pub fn new() -> Self {
         Self {
             per_bench_data: FxHashMap::default(),
         }
     }
+    /// Get a mutable reference to the data for a specific bench id.
     pub fn get_mut(&mut self, bench_id: &BenchId) -> Option<&mut T> {
         self.per_bench_data.get_mut(bench_id)
     }
+    /// Get a reference to the data for a specific bench id.
     pub fn get(&self, bench_id: &BenchId) -> Option<&T> {
         self.per_bench_data.get(bench_id)
     }
+    /// Insert data for a specific bench id if it is not already present.
     pub fn insert_if_absent<F: FnOnce() -> T>(&mut self, bench_id: &BenchId, data: F) {
         if !self.per_bench_data.contains_key(bench_id) {
             self.per_bench_data.insert(bench_id.clone(), data());

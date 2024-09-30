@@ -1,4 +1,4 @@
-pub mod alloc;
-pub(crate) mod events;
-pub mod profiler;
+pub(crate) mod alloc;
+pub mod events;
+pub(crate) mod profiler;
 pub use events::*;

@@ -40,6 +40,7 @@ pub trait ReporterClone {
 }
 
 pub(crate) fn report_group<'a>(
+    runner_name: Option<&str>,
     group_name: Option<&str>,
     benches: &mut [Box<dyn Bench<'a> + 'a>],
     reporter: &dyn Reporter,
@@ -57,7 +58,8 @@ pub(crate) fn report_group<'a>(
         results.push(result);
     }
     events.emit(BingganEvents::GroupStop {
-        name: group_name,
+        runner_name,
+        group_name,
         results: &results,
         output_value_column_title,
     });

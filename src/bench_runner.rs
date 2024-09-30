@@ -53,7 +53,7 @@ impl BenchRunner {
     }
 
     /// Returns the event manager, which can be used to add listeners to the benchmarks.
-    /// See [EventManager] for more information.
+    /// See [crate::plugins::EventManager] for more information.
     pub fn get_event_manager(&mut self) -> &mut EventManager {
         &mut self.listeners
     }
@@ -159,8 +159,12 @@ impl BenchRunner {
             }
         }
 
+        self.listeners.emit(BingganEvents::GroupStart {
+            runner_name: self.name.as_deref(),
+            group_name,
+            output_value_column_title,
+        });
         if let Some(name) = &group_name {
-            self.listeners.emit(BingganEvents::GroupStart(name));
             println!("{}", name.black().on_yellow().invert().bold());
         }
 
@@ -191,6 +195,7 @@ impl BenchRunner {
         }
 
         report_group(
+            self.name.as_deref(),
             group_name,
             group,
             &*self.reporter,
@@ -327,7 +332,7 @@ fn round_up(num: u64) -> u64 {
         divisor *= 10;
     }
 
-    num.div_ceil(divisor)
+    num.div_ceil(divisor) * divisor
 }
 
 pub fn minmax<I, T>(mut vals: I) -> Option<(T, T)>
