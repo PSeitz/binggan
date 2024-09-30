@@ -2,34 +2,6 @@
 //! The event manager is responsible for managing event listeners and emitting events.
 //! It is used to notify listeners about events that occur during the benchmark run.
 //!
-//! # Example
-//! ```rust no_run
-//! use binggan::plugins::*;
-//!
-//! struct MyListener;
-//!
-//! impl EventListener for MyListener {
-//!     fn name(&self) -> &'static str {
-//!         "my_listener"
-//!     }
-//!     fn on_event(&mut self, event: BingganEvents) {
-//!         match event {
-//!             BingganEvents::GroupStart{runner_name, ..} => {
-//!                 println!("Starting: {:?}", runner_name);
-//!             }
-//!             _ => {}
-//!         }
-//!     }
-//!     fn as_any(&mut self) -> &mut dyn std::any::Any {
-//!         self
-//!     }
-//! }
-//!
-//! let mut event_manager = EventManager::new();
-//! event_manager.add_listener_if_absent(MyListener);
-//! event_manager.emit(BingganEvents::GroupStart{runner_name: Some("test"), group_name: None,  output_value_column_title: "output"});
-//! ```
-//!
 //! See the `BingganEvents` enum for the list of events that can be emitted.
 //! Any type that implements the `EventListener` trait can be added to the event manager.
 //!

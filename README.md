@@ -18,10 +18,11 @@ It is designed to be simple to use and to provide a good overview of the perform
 * 🔀 Interleaving Test Runs (More accurate results)
 * 🏷️ Named Runs, Groups and Benchmarks
 * 🧙 No Macros, No Magic (Just a regular API)
-* 🎨 NOW with colored output!
 * 🦀 Runs on Stable Rust
 * 📈 Custom reporter
-* 🧩 Custom OutputValues
+* 🧩 Report output of benchmarks
+* 🔌 Plugin System
+* 🎨 NOW with colored output!
 
 ### Example
 

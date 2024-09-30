@@ -35,7 +35,7 @@ impl<'a, I, O> NamedBench<'a, I, O> {
     }
 }
 
-/// The result of a benchmark run.
+/// The result of a single benchmark.
 #[derive(Debug, Clone)]
 pub struct BenchResult {
     /// The bench id uniquely identifies the benchmark.

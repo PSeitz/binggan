@@ -29,8 +29,12 @@
 //! Benchmarks return [OutputValue], which represents the result of the benchmark. This output can be particularly
 //! useful in scenarios like compression benchmarks, where it reports the output size or other relevant metrics.
 //!
+//! ## Plugins
+//! See the [plugins] module for more information on how to register custom plugins.
+//!
 //! ## Reporting
 //! See the [report] module for more information on how to customize the output.
+//! Notice: This may be replaced by [plugins] later on.
 //!
 //! # Perf Integration
 //! Binggan can integrate with perf to report hardware performance counters.
@@ -163,7 +167,8 @@ extern crate test;
 pub use peakmem_alloc::*;
 
 pub(crate) mod bench;
-pub(crate) mod bench_id;
+/// Ids for benchmarks
+pub mod bench_id;
 pub(crate) mod bench_runner;
 pub(crate) mod output_value;
 /// The module to define custom plugins
@@ -173,6 +178,8 @@ pub use output_value::OutputValue;
 pub mod report;
 pub(crate) mod stats;
 pub(crate) mod write_results;
+
+pub use bench::BenchResult;
 
 mod bench_group;
 mod bench_input_group;

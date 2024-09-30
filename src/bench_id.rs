@@ -25,6 +25,7 @@ struct PrintOnceInner {
 }
 
 impl PrintOnce {
+    /// Create a new PrintOnce instance
     pub fn new(name: String) -> Self {
         PrintOnce {
             inner: Arc::new(PrintOnceInner {
@@ -34,11 +35,13 @@ impl PrintOnce {
         }
     }
 
+    /// Print the name. This will only print the name once.
     pub fn print_name(&self) {
         self.inner.print_once.call_once(|| {
             println!("{}", self.get_name().black().on_red().invert().bold());
         });
     }
+    /// Get the name
     pub fn get_name(&self) -> &str {
         &self.inner.name
     }
@@ -51,28 +54,33 @@ impl PrintOnce {
 /// - bench_name: The name of the benchmark.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BenchId {
-    runner_name: Option<String>,
-    /// This is typically the input name
-    group_name: Option<String>,
-    pub(crate) bench_name: String,
+    /// This is the name set on the BenchRunner.
+    pub runner_name: Option<String>,
+    /// The name of the group.
+    /// This is typically the input name.
+    pub group_name: Option<String>,
+    /// The name of the benchmark.
+    pub bench_name: String,
 }
 
 impl BenchId {
-    pub fn from_bench_name<S: Into<String>>(bench_name: S) -> Self {
+    pub(crate) fn from_bench_name<S: Into<String>>(bench_name: S) -> Self {
         BenchId {
             runner_name: None,
             group_name: None,
             bench_name: bench_name.into(),
         }
     }
-    pub fn runner_name(mut self, name: Option<&str>) -> Self {
+    pub(crate) fn runner_name(mut self, name: Option<&str>) -> Self {
         self.runner_name = name.map(|el| el.to_owned());
         self
     }
-    pub fn group_name(mut self, name: Option<String>) -> Self {
+    pub(crate) fn group_name(mut self, name: Option<String>) -> Self {
         self.group_name = name;
         self
     }
+    /// Returns the full name of the bench id.
+    /// This is used to identify the bench in the output.
     pub fn get_full_name(&self) -> String {
         get_bench_id(
             self.runner_name.as_deref().unwrap_or_default(),
