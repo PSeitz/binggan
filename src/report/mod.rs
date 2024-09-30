@@ -28,15 +28,9 @@ use crate::{
 };
 
 /// The trait for reporting the results of a benchmark run.
-pub trait Reporter: ReporterClone {
+pub trait Reporter {
     /// Report the results from a group (can be a single bench)
     fn report_results(&self, results: Vec<BenchResult>, output_value_column_title: &'static str);
-}
-
-/// The trait to enable cloning on the Box reporter
-pub trait ReporterClone {
-    /// Clone the box
-    fn clone_box(&self) -> Box<dyn Reporter>;
 }
 
 pub(crate) fn report_group<'a>(

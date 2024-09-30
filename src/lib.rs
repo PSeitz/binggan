@@ -164,31 +164,30 @@
 #[cfg(feature = "real_blackbox")]
 extern crate test;
 
-pub use peakmem_alloc::*;
-
-pub(crate) mod bench;
-/// Ids for benchmarks
-pub mod bench_id;
-pub(crate) mod bench_runner;
-pub(crate) mod output_value;
 /// The module to define custom plugins
 pub mod plugins;
-pub use output_value::OutputValue;
 /// The module to report benchmark results
 pub mod report;
+
+pub(crate) mod bench;
+pub(crate) mod bench_id;
+pub(crate) mod bench_runner;
+pub(crate) mod output_value;
 pub(crate) mod stats;
 pub(crate) mod write_results;
-
-pub use bench::BenchResult;
 
 mod bench_group;
 mod bench_input_group;
 mod config;
 
+pub use bench::BenchResult;
 pub use bench_group::BenchGroup;
+pub use bench_id::BenchId;
 pub use bench_input_group::InputGroup;
 pub use bench_runner::BenchRunner;
 pub use config::Config;
+pub use output_value::OutputValue;
+pub use peakmem_alloc::*;
 
 pub(crate) use config::parse_args;
 

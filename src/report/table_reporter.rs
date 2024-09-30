@@ -1,4 +1,4 @@
-use super::{avg_median_str, memory_str, min_max_str, Reporter, ReporterClone};
+use super::{avg_median_str, memory_str, min_max_str, Reporter};
 use crate::bench::BenchResult;
 
 #[derive(Clone, Copy)]
@@ -15,11 +15,6 @@ use crate::bench::BenchResult;
 /// | hashmap | Memory: 84 B   | 840.24 MiB/s (+1.54%) | 841.17 MiB/s (+0.33%) | [843.96 MiB/s .. 817.73 MiB/s] |
 /// ```
 pub struct TableReporter;
-impl ReporterClone for TableReporter {
-    fn clone_box(&self) -> Box<dyn Reporter> {
-        Box::new(*self)
-    }
-}
 impl Reporter for TableReporter {
     fn report_results(&self, results: Vec<BenchResult>, output_value_column_title: &'static str) {
         use prettytable::*;

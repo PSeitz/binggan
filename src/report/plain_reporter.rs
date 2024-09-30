@@ -1,6 +1,6 @@
 use yansi::Paint;
 
-use super::{avg_median_str, memory_str, min_max_str, BenchStats, Reporter, ReporterClone};
+use super::{avg_median_str, memory_str, min_max_str, BenchStats, Reporter};
 use crate::bench::BenchResult;
 
 #[derive(Clone, Copy)]
@@ -13,11 +13,6 @@ use crate::bench::BenchResult;
 /// factorial 400    Avg: 107ns    Median: 107ns    [107ns .. 109ns]    
 /// ```
 pub struct PlainReporter {}
-impl ReporterClone for PlainReporter {
-    fn clone_box(&self) -> Box<dyn Reporter> {
-        Box::new(*self)
-    }
-}
 
 impl Reporter for PlainReporter {
     fn report_results(&self, results: Vec<BenchResult>, output_value_column_title: &'static str) {
