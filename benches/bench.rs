@@ -22,6 +22,13 @@ fn bench_factorial() {
             Some(())
         });
     }
+
+    let mut group = runner.new_group();
+    group.register("factorial 100", |()| {
+        factorial(black_box(100));
+        Some(())
+    });
+    group.run();
 }
 
 fn main() {

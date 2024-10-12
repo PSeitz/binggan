@@ -63,11 +63,8 @@ impl<'a, 'runner> BenchGroup<'a, 'runner> {
     /// Register a benchmark with the given name and function.
     ///
     /// The return value of the function will be reported as the `OutputValue` if it is `Some`.
-    pub fn register<I, F, S: Into<String>, O: OutputValue + 'static>(
-        &mut self,
-        bench_name: S,
-        fun: F,
-    ) where
+    pub fn register<F, S: Into<String>, O: OutputValue + 'static>(&mut self, bench_name: S, fun: F)
+    where
         F: Fn(&'a ()) -> Option<O> + 'static,
     {
         let bench_name = bench_name.into();

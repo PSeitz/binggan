@@ -119,6 +119,8 @@ use std::{
     sync::{Arc, Once},
 };
 
+/// Helper to print name only once.
+///
 /// The bench runners name is like a header and should only be printed if there are tests to be
 /// run. Since this information is available at the time of creation, it will be handled when
 /// executing the benches instead.
