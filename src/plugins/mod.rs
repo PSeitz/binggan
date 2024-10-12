@@ -1,5 +1,13 @@
 //! The plugin system works by registering to events.
 //!
+//! The `BingganEvents` enum contains all the events that can be emitted.
+//! The `EventListener` trait is used to listen to these events.
+//!
+//! The `BenchRunner` has an `EventManager` which can be used to add listeners.
+//! The listeners can be used to track memory consumption, report results, etc.
+//!
+//! `name` is used to identify the listener.
+//!
 //! # Example
 //! ```rust
 //! use binggan::*;

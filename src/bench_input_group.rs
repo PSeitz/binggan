@@ -1,9 +1,9 @@
 use std::{alloc::GlobalAlloc, mem};
 
 use crate::output_value::OutputValue;
+use crate::plugins::EventManager;
 use crate::{
-    bench::NamedBench, bench_id::BenchId, bench_runner::BenchRunner, parse_args, report::Reporter,
-    BenchGroup, Config,
+    bench::NamedBench, bench_id::BenchId, bench_runner::BenchRunner, parse_args, BenchGroup, Config,
 };
 use peakmem_alloc::*;
 
@@ -152,9 +152,10 @@ impl<I: 'static, O: OutputValue + 'static> InputGroup<I, O> {
         &mut self.runner.config
     }
 
-    /// Set the reporter to be used for the benchmarks. See [Reporter] for more information.
-    pub fn set_reporter<R: Reporter + 'static>(&mut self, reporter: R) {
-        self.runner.set_reporter(reporter);
+    /// Returns the event manager, which can be used to add listeners to the benchmarks.
+    /// See [crate::plugins::EventManager] for more information.
+    pub fn get_event_manager(&mut self) -> &mut EventManager {
+        self.runner.get_event_manager()
     }
 }
 

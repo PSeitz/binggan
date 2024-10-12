@@ -1,8 +1,10 @@
 //!
 //! Module for reporting
 //!
-//! The `report` module contains the [report::Reporter] trait and the [report::PlainReporter] struct.
-//! You can set the reporter with the [BenchRunner::set_reporter] method.
+//! The `report` module contains reporters that use the plugin system via the [EventListener](crate::plugins::EventListener)
+//! trait.
+//! You can set the reporter by registering at [BenchRunner::get_event_manager] .
+//! Use [REPORTER_PLUGIN_NAME](crate::report::REPORTER_PLUGIN_NAME) as the name of a reporter, to overwrite the existing
 //!
 
 /// Helper methods to format benchmark results
@@ -21,23 +23,20 @@ use yansi::Paint;
 use format::{bytes_to_string, format_duration_or_throughput};
 
 use crate::{
-    bench::{Bench, BenchResult},
+    bench::Bench,
     plugins::{BingganEvents, EventManager},
     stats::compute_diff,
     write_results::fetch_previous_run_and_write_results_to_disk,
 };
 
-/// The trait for reporting the results of a benchmark run.
-pub trait Reporter {
-    /// Report the results from a group (can be a single bench)
-    fn report_results(&self, results: Vec<BenchResult>, output_value_column_title: &'static str);
-}
+/// The default reporter name. Choose this in `EventListener` to make sure there's only one
+/// reporter.
+pub const REPORTER_PLUGIN_NAME: &str = "reporter";
 
 pub(crate) fn report_group<'a>(
     runner_name: Option<&str>,
     group_name: Option<&str>,
     benches: &mut [Box<dyn Bench<'a> + 'a>],
-    reporter: &dyn Reporter,
     output_value_column_title: &'static str,
     events: &mut EventManager,
 ) {
@@ -57,7 +56,6 @@ pub(crate) fn report_group<'a>(
         results: &results,
         output_value_column_title,
     });
-    reporter.report_results(results, output_value_column_title);
 }
 
 pub(crate) fn avg_median_str(
@@ -68,7 +66,7 @@ pub(crate) fn avg_median_str(
     let avg_ns_diff = compute_diff(stats, input_size_in_bytes, other, |stats| stats.average_ns);
     let median_ns_diff = compute_diff(stats, input_size_in_bytes, other, |stats| stats.median_ns);
 
-    // if input_size_in_bytes is set report the throughput, otherwise just use format_duration
+    // if input_size_in_bytes is set, report the throughput, otherwise just use format_duration
     let avg_str = format!(
         "{} {}",
         format_duration_or_throughput(stats.average_ns, input_size_in_bytes),
@@ -114,4 +112,76 @@ pub(crate) fn memory_str(
             .bold(),
         mem_diff,
     )
+}
+
+use std::{
+    ops::Deref,
+    sync::{Arc, Once},
+};
+
+/// The bench runners name is like a header and should only be printed if there are tests to be
+/// run. Since this information is available at the time of creation, it will be handled when
+/// executing the benches instead.
+#[derive(Clone)]
+pub struct PrintOnce {
+    inner: Arc<PrintOnceInner>,
+}
+
+impl Deref for PrintOnce {
+    type Target = str;
+    fn deref(&self) -> &Self::Target {
+        &self.inner.name
+    }
+}
+struct PrintOnceInner {
+    name: String,
+    print_once: Once,
+}
+
+/// Check and print the name. This will only print the name once.
+/// If the past named differs (include None), sets the new name to be printed once
+pub fn check_and_print(print_once: &mut Option<PrintOnce>, name: &str) {
+    if let Some(print_once) = print_once {
+        print_once.check_print(name);
+        return;
+    }
+    // set and print
+    *print_once = Some(PrintOnce::new(name.to_owned()));
+    print_once.as_ref().unwrap().print_name();
+}
+
+impl PrintOnce {
+    /// Create a new PrintOnce instance
+    pub fn new(name: String) -> Self {
+        PrintOnce {
+            inner: Arc::new(PrintOnceInner {
+                name,
+                print_once: Once::new(),
+            }),
+        }
+    }
+
+    /// Check and print the name. This will only print the name once.
+    ///
+    /// If the past named differs, sets the new name to be printed once
+    pub fn check_print(&mut self, name: &str) {
+        if self.get_name() != name {
+            self.inner = Arc::new(PrintOnceInner {
+                name: name.to_owned(),
+                print_once: Once::new(),
+            });
+        }
+        self.print_name();
+    }
+
+    /// Print the name. This will only print the name once.
+    pub fn print_name(&self) {
+        self.inner.print_once.call_once(|| {
+            println!("{}", self.get_name().black().on_red().invert().bold());
+        });
+    }
+    /// Get the name
+    pub fn get_name(&self) -> &str {
+        &self.inner.name
+    }
 }

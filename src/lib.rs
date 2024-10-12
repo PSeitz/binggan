@@ -33,8 +33,7 @@
 //! See the [plugins] module for more information on how to register custom plugins.
 //!
 //! ## Reporting
-//! See the [report] module for more information on how to customize the output.
-//! Notice: This may be replaced by [plugins] later on.
+//! See the [report] module for more information on how to customize the benchmark result reporting.
 //!
 //! # Perf Integration
 //! Binggan can integrate with perf to report hardware performance counters.

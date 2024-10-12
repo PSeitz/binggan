@@ -4,16 +4,16 @@ use std::{alloc::GlobalAlloc, cmp::Ordering};
 use crate::output_value::OutputValue;
 use crate::plugins::alloc::AllocPerBench;
 use crate::plugins::{BingganEvents, EventManager};
+use crate::report::PlainReporter;
 use crate::{
     bench::{Bench, InputWithBenchmark, NamedBench},
-    bench_id::{BenchId, PrintOnce},
+    bench_id::BenchId,
     black_box, parse_args,
-    report::{report_group, Reporter},
+    report::report_group,
     BenchGroup, Config,
 };
 use core::mem::size_of;
 use peakmem_alloc::*;
-use yansi::Paint;
 
 /// The main struct to run benchmarks.
 ///
@@ -25,9 +25,8 @@ pub struct BenchRunner {
     input_size_in_bytes: Option<usize>,
 
     /// Name of the test
-    pub(crate) name: Option<PrintOnce>,
+    pub(crate) name: Option<String>,
 
-    reporter: Box<dyn Reporter>,
     listeners: EventManager,
 }
 
@@ -63,14 +62,15 @@ impl BenchRunner {
         use yansi::Condition;
         yansi::whenever(Condition::TTY_AND_COLOR);
 
+        let mut event_manager = EventManager::new();
+        event_manager.add_listener_if_absent(PlainReporter::new());
+
         BenchRunner {
             cache_trasher: CacheTrasher::new(1024 * 1024 * 16),
             config: options,
             input_size_in_bytes: None,
             name: None,
-            //reporter: Box::new(crate::report::TableReporter {}),
-            reporter: Box::new(crate::report::PlainReporter::new()),
-            listeners: EventManager::new(),
+            listeners: event_manager,
         }
     }
 
@@ -84,7 +84,7 @@ impl BenchRunner {
     /// runner.
     /// It is also used to distinguish when writing the results to disk.
     pub fn set_name<S: AsRef<str>>(&mut self, name: S) {
-        self.name = Some(PrintOnce::new(name.as_ref().to_string()));
+        self.name = Some(name.as_ref().to_string());
     }
 
     /// Set the peak mem allocator to be used for the benchmarks.
@@ -92,11 +92,6 @@ impl BenchRunner {
     pub fn set_alloc<A: GlobalAlloc + 'static>(&mut self, alloc: &'static PeakMemAlloc<A>) {
         let alloc = AllocPerBench::new(alloc);
         self.listeners.add_listener_if_absent(alloc);
-    }
-
-    /// Set the reporter to be used for the benchmarks. See [Reporter] for more information.
-    pub fn set_reporter<R: Reporter + 'static>(&mut self, reporter: R) {
-        self.reporter = Box::new(reporter);
     }
 
     /// Enables throughput reporting. The throughput will be valid for all inputs that are
@@ -147,9 +142,6 @@ impl BenchRunner {
         if group.is_empty() {
             return;
         }
-        if let Some(runner_name) = &self.name {
-            runner_name.print_name();
-        }
         #[cfg(target_os = "linux")]
         {
             use crate::plugins::profiler::PerfCounterPerBench;
@@ -164,9 +156,6 @@ impl BenchRunner {
             group_name,
             output_value_column_title,
         });
-        if let Some(name) = &group_name {
-            println!("{}", name.black().on_yellow().invert().bold());
-        }
 
         const MAX_GROUP_SIZE: usize = 5;
         if self.config.verbose && group.len() > MAX_GROUP_SIZE {
@@ -180,7 +169,7 @@ impl BenchRunner {
         // If the group is quite big, we don't want to create too big chunks, which causes
         // slow tests, therefore a chunk is at most 5 elements large.
         for group in group.chunks_mut(MAX_GROUP_SIZE) {
-            Self::detect_and_set_num_iter(group, self.config.verbose);
+            Self::detect_and_set_num_iter(group, self.config.verbose, &mut self.listeners);
 
             if self.config.interleave {
                 Self::run_interleaved(
@@ -198,7 +187,6 @@ impl BenchRunner {
             self.name.as_deref(),
             group_name,
             group,
-            &*self.reporter,
             output_value_column_title,
             &mut self.listeners,
         );
@@ -271,7 +259,11 @@ impl BenchRunner {
     }
 
     /// Detect how often each bench should be run if it is not set manually.
-    fn detect_and_set_num_iter<'b>(benches: &mut [Box<dyn Bench<'b> + 'b>], verbose: bool) {
+    fn detect_and_set_num_iter<'b>(
+        benches: &mut [Box<dyn Bench<'b> + 'b>],
+        verbose: bool,
+        events: &mut EventManager,
+    ) {
         if let Some(num_iter) = env::var("NUM_ITER_BENCH")
             .ok()
             .and_then(|val| val.parse::<usize>().ok())
@@ -305,6 +297,9 @@ impl BenchRunner {
         let max_num_iter = max_num_iter.min(min_num_iter * 10);
         // We round up, so that we may get the same number of iterations between runs
         let max_num_iter = round_up(max_num_iter as u64) as usize;
+        events.emit(BingganEvents::GroupNumIters {
+            num_iter: max_num_iter,
+        });
         if verbose {
             println!("Set common iterations of {} for group", max_num_iter);
         }

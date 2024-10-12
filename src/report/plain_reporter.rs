@@ -1,9 +1,13 @@
+use std::any::Any;
+
 use yansi::Paint;
 
-use super::{avg_median_str, memory_str, min_max_str, BenchStats, Reporter};
-use crate::bench::BenchResult;
+use super::{avg_median_str, memory_str, min_max_str, BenchStats, REPORTER_PLUGIN_NAME};
+use crate::{
+    plugins::{BingganEvents, EventListener},
+    report::{check_and_print, PrintOnce},
+};
 
-#[derive(Clone, Copy)]
 /// The PlainReporter prints the results in a plain text table.
 /// This is the default reporter.
 ///
@@ -12,48 +16,80 @@ use crate::bench::BenchResult;
 /// factorial 100    Avg: 33ns     Median: 32ns     [32ns .. 45ns]    
 /// factorial 400    Avg: 107ns    Median: 107ns    [107ns .. 109ns]    
 /// ```
-pub struct PlainReporter {}
+#[derive(Clone)]
+pub struct PlainReporter {
+    print_runner_name_once: Option<PrintOnce>,
+}
 
-impl Reporter for PlainReporter {
-    fn report_results(&self, results: Vec<BenchResult>, output_value_column_title: &'static str) {
-        let mut table_data: Vec<Vec<String>> = Vec::new();
-
-        for result in results {
-            let perf_counter = &result.perf_counter;
-
-            let mut stats_columns = self.to_columns(
-                result.stats,
-                result.old_stats,
-                result.input_size_in_bytes,
-                result.output_value,
-                result.tracked_memory,
-                output_value_column_title,
-            );
-            stats_columns.insert(0, result.bench_id.bench_name.to_string());
-            table_data.push(stats_columns);
-
-            if let Some(perf_counter) = perf_counter.as_ref() {
-                let mut columns = perf_counter.to_columns(result.old_perf_counter);
-                columns.insert(0, "".to_string());
-                table_data.push(columns);
+impl EventListener for PlainReporter {
+    fn as_any(&mut self) -> &mut dyn Any {
+        self
+    }
+    fn name(&self) -> &'static str {
+        REPORTER_PLUGIN_NAME
+    }
+    fn on_event(&mut self, event: BingganEvents) {
+        match event {
+            BingganEvents::BenchStart { bench_id: _ } => {}
+            BingganEvents::GroupStart {
+                runner_name,
+                group_name: Some(group_name),
+                output_value_column_title: _,
+            } => {
+                if let Some(runner_name) = runner_name {
+                    check_and_print(&mut self.print_runner_name_once, runner_name);
+                }
+                println!("{}", group_name.black().on_yellow().invert().bold());
             }
+            BingganEvents::GroupStop {
+                runner_name: _,
+                group_name: _,
+                results,
+                output_value_column_title,
+            } => {
+                let mut table_data: Vec<Vec<String>> = Vec::new();
+
+                for result in results {
+                    let perf_counter = &result.perf_counter;
+
+                    let mut stats_columns = self.to_columns(
+                        result.stats,
+                        result.old_stats,
+                        result.input_size_in_bytes,
+                        &result.output_value,
+                        result.tracked_memory,
+                        output_value_column_title,
+                    );
+                    stats_columns.insert(0, result.bench_id.bench_name.to_string());
+                    table_data.push(stats_columns);
+
+                    if let Some(perf_counter) = perf_counter.as_ref() {
+                        let mut columns = perf_counter.to_columns(result.old_perf_counter);
+                        columns.insert(0, "".to_string());
+                        table_data.push(columns);
+                    }
+                }
+                self.print_table(&table_data);
+            }
+            _ => {}
         }
-        self.print_table(&table_data);
     }
 }
 
 impl PlainReporter {
     /// Create a new PlainReporter
     pub fn new() -> Self {
-        Self {}
+        Self {
+            print_runner_name_once: None,
+        }
     }
 
     pub(crate) fn to_columns(
-        self,
+        &self,
         stats: BenchStats,
         other: Option<BenchStats>,
         input_size_in_bytes: Option<usize>,
-        output_value: Option<String>,
+        output_value: &Option<String>,
         report_memory: bool,
         output_value_column_title: &'static str,
     ) -> Vec<String> {

@@ -13,6 +13,13 @@ use std::any::Any;
 /// Events that can be emitted by the benchmark runner.
 #[derive(Debug, Clone, Copy)]
 pub enum BingganEvents<'a> {
+    /// The number of iterations for a group has been set.
+    GroupNumIters {
+        /// The number of iterations for each bench in the group. The whole group has the same
+        /// number of iterations to be a fair comparison between the benches in the group.
+        /// The previous event was `GroupStart`.
+        num_iter: usize,
+    },
     /// Profiling of the group started
     GroupStart {
         /// The name of the runner
@@ -77,6 +84,13 @@ impl EventManager {
         Self {
             listeners: Vec::new(),
         }
+    }
+
+    /// Removes any listeners with the same name and sets the new listener.
+    pub fn replace_listener<L: EventListener + 'static>(&mut self, listener: L) {
+        self.remove_listener_by_name(listener.name());
+        self.listeners
+            .push((listener.name().to_owned(), Box::new(listener)));
     }
 
     /// Add a new listener to the event manager if it is not already present by name.
