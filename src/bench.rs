@@ -83,7 +83,7 @@ impl<'a, I, O> InputWithBenchmark<'a, I, O> {
     }
 }
 
-impl<'a, I, O: OutputValue> InputWithBenchmark<'a, I, O> {
+impl<I, O: OutputValue> InputWithBenchmark<'_, I, O> {
     fn get_num_iter_or_fail(&self) -> usize {
         self.num_iter
             .expect("Number of iterations not set. Call set_num_iter before running the benchmark.")
