@@ -12,10 +12,14 @@ pub mod format;
 /// The plain_reporter
 mod plain_reporter;
 /// The table_reporter
+#[cfg(feature = "table_reporter")]
 mod table_reporter;
 
 pub use crate::stats::BenchStats;
 pub use plain_reporter::PlainReporter;
+
+#[cfg_attr(docsrs, doc(cfg(feature = "table_reporter")))]
+#[cfg(feature = "table_reporter")]
 pub use table_reporter::TableReporter;
 
 use yansi::Paint;

@@ -41,6 +41,9 @@ impl EventListener for PlainReporter {
                 }
                 println!("{}", group_name.black().on_yellow().invert().bold());
             }
+            BingganEvents::GroupNumIters { num_iter } => {
+                println!("Num Iter {}", num_iter.bold());
+            }
             BingganEvents::GroupStop {
                 runner_name: _,
                 group_name: _,

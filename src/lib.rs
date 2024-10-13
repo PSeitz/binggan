@@ -158,6 +158,7 @@
 //! }
 //! ```
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(feature = "real_blackbox", feature(test))]
 
 #[cfg(feature = "real_blackbox")]

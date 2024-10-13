@@ -35,6 +35,13 @@ impl<'a, 'runner> BenchGroup<'a, 'runner> {
         self
     }
 
+    /// Set the name of the group.
+    /// The name is printed before the benchmarks are run.
+    /// It is also used to distinguish when writing the results to disk.
+    pub fn set_name<S: AsRef<str>>(&mut self, name: S) {
+        self.group_name = Some(name.as_ref().into());
+    }
+
     /// Enables throughput reporting. The `input_size` will be used for all benchmarks that are
     /// registered afterwards.
     pub fn set_input_size(&mut self, input_size: usize) {
@@ -106,13 +113,6 @@ impl<'a, 'runner> BenchGroup<'a, 'runner> {
         );
 
         self.benches.push(Box::new(bundle));
-    }
-
-    /// Set the name of the group.
-    /// The name is printed before the benchmarks are run.
-    /// It is also used to distinguish when writing the results to disk.
-    pub fn set_name<S: AsRef<str>>(&mut self, name: S) {
-        self.group_name = Some(name.as_ref().into());
     }
 
     /// Run the benchmarks and report the results.

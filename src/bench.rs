@@ -179,7 +179,7 @@ impl<'a, I, O> NamedBench<'a, I, O> {
     /// Each group has its own number of iterations. This is not the final num_iter
     pub fn sample_and_get_iter(&mut self, input: &'a I) -> usize {
         // We want to run the benchmark for 500ms
-        const TARGET_MS_PER_BENCH: u64 = 500;
+        const TARGET_MS_PER_BENCH: u64 = 1000;
         const TARGET_NS_PER_BENCH: u128 = TARGET_MS_PER_BENCH as u128 * 1_000_000;
         {
             // Preliminary test if function is very slow

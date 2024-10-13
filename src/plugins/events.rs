@@ -14,10 +14,10 @@ use std::any::Any;
 #[derive(Debug, Clone, Copy)]
 pub enum BingganEvents<'a> {
     /// The number of iterations for a group has been set.
+    /// The previous event was `GroupStart`.
     GroupNumIters {
         /// The number of iterations for each bench in the group. The whole group has the same
         /// number of iterations to be a fair comparison between the benches in the group.
-        /// The previous event was `GroupStart`.
         num_iter: usize,
     },
     /// Profiling of the group started
