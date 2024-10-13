@@ -107,7 +107,7 @@ impl Config {
     /// ```
     ///
     /// # Note:
-    /// This is only available on Linux. On other OSs this uses `dummy_profiler`, which does nothing.
+    /// This is only available on Linux. On other OSs this does nothing.
     ///
     /// Perf may run into limitations where all counters are reported as zero. <https://github.com/jimblandy/perf-event/issues/2>.
     /// Disabling the NMI watchdog should help:

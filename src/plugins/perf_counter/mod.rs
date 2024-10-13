@@ -1,16 +1,24 @@
+#[cfg(target_os = "linux")]
+pub(crate) mod linux;
+
+#[cfg(target_os = "linux")]
+pub use linux::*;
+
 use crate::stats::*;
-use miniserde::*;
-
-#[cfg(target_os = "linux")]
-pub(crate) mod perf_profiler;
-
-#[cfg(target_os = "linux")]
-pub(crate) use perf_profiler::*;
+use miniserde::Deserialize;
+use miniserde::Serialize;
 
 use yansi::Paint;
 
+/// Counter values from perf.
+///
+/// This struct is used to store the counter values from perf.
 #[derive(Serialize, Deserialize, Debug, Default, Clone, Copy)]
 pub struct CounterValues {
+    /// Number of branches
+    pub branches_count: f64,
+    /// Number of missed branches
+    pub missed_branches_count: f64,
     /// Level 1 Data Cache Accesses
     pub l1d_access_count: f64,
     /// Level 1 Data Cache Misses
@@ -19,8 +27,6 @@ pub struct CounterValues {
     pub tlbd_access_count: f64,
     /// TLB Data Cache Misses
     pub tlbd_miss_count: f64,
-    pub branches_count: f64,
-    pub missed_branches_count: f64,
 }
 
 /// Print Counter value
@@ -63,6 +69,7 @@ fn format_number(n: f64) -> String {
 
 impl CounterValues {
     #[allow(dead_code)]
+    /// Print the legend for the counter values
     pub fn print_legend() {
         println!(
             "{:16} {:16} {:16} {:16}",
@@ -73,30 +80,16 @@ impl CounterValues {
         );
     }
 
-    // Method to compare two `CounterValues` instances and return columns
+    /// Method to compare two `CounterValues` instances and return formatted columns
     pub fn to_columns(self, other: Option<CounterValues>) -> Vec<String> {
         vec![
-            print_counter_value("L1dA", &self, other, |stats| stats.l1d_access_count)
-                .red()
-                .to_string(),
-            print_counter_value("L1dM", &self, other, |stats| stats.l1d_miss_count)
-                .green()
-                .to_string(),
-            print_counter_value("TLBdA", &self, other, |stats| stats.tlbd_access_count)
-                .red()
-                .to_string(),
-            print_counter_value("TLBdM", &self, other, |stats| stats.tlbd_miss_count)
-                .red()
-                .to_string(),
-            print_counter_value("L1dA", &self, other, |stats| stats.l1d_access_count)
-                .red()
-                .to_string(),
-            print_counter_value("Br", &self, other, |stats| stats.branches_count)
-                .blue()
-                .to_string(),
-            print_counter_value("MBr", &self, other, |stats| stats.missed_branches_count)
-                .red()
-                .to_string(),
+            print_counter_value("Br", &self, other, |stats| stats.branches_count),
+            print_counter_value("MBr", &self, other, |stats| stats.missed_branches_count),
+            print_counter_value("L1dA", &self, other, |stats| stats.l1d_access_count),
+            print_counter_value("L1dM", &self, other, |stats| stats.l1d_miss_count),
+            print_counter_value("TLBdA", &self, other, |stats| stats.tlbd_access_count),
+            print_counter_value("TLBdM", &self, other, |stats| stats.tlbd_miss_count),
+            print_counter_value("L1dA", &self, other, |stats| stats.l1d_access_count),
         ]
     }
 }

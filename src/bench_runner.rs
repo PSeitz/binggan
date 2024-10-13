@@ -144,7 +144,7 @@ impl BenchRunner {
         }
         #[cfg(target_os = "linux")]
         {
-            use crate::plugins::profiler::PerfCounterPerBench;
+            use crate::plugins::perf_counter::PerfCounterPerBench;
             if self.config().enable_perf {
                 self.listeners
                     .add_listener_if_absent(PerfCounterPerBench::default());

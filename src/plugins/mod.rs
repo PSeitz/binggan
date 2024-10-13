@@ -40,5 +40,10 @@
 
 pub(crate) mod alloc;
 pub mod events;
-pub(crate) mod profiler;
+
+pub(crate) mod perf_counter;
+
+#[cfg(target_os = "linux")]
+pub use perf_counter::*;
+
 pub use events::*;

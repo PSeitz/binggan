@@ -1,12 +1,14 @@
+/// Linux specific code for perf counter integration.
 use std::error::Error;
 
 use crate::bench_id::BenchId;
-use crate::plugins::profiler::CounterValues;
 use crate::plugins::{BingganEvents, EventListener, PerBenchData};
 use perf_event::events::{Cache, CacheOp, CacheResult, Hardware, WhichCache};
 use perf_event::Counter;
 use perf_event::{Builder, Group};
 use std::any::Any;
+
+use super::CounterValues;
 
 pub(crate) struct PerfCounters {
     group: Group,
@@ -95,7 +97,7 @@ impl PerfCounters {
     }
 }
 
-// Plugin
+/// Name of the event listener
 pub static PERF_CNT_EVENT_LISTENER_NAME: &str = "_binggan_perf";
 
 /// Integration via EventListener
@@ -106,7 +108,8 @@ pub struct PerfCounterPerBench {
 }
 
 impl PerfCounterPerBench {
-    pub fn get_by_bench_id_mut(&mut self, bench_id: &BenchId) -> Option<&mut PerfCounters> {
+    /// Get the perf counter for a bench id
+    pub(crate) fn get_by_bench_id_mut(&mut self, bench_id: &BenchId) -> Option<&mut PerfCounters> {
         self.perf_per_bench
             .get_mut(bench_id)
             .and_then(Option::as_mut)

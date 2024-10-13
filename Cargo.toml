@@ -20,6 +20,11 @@ perf         = { priority = -1, level = "deny" }
 style        = { priority = -1, level = "deny" }
 suspicious   = { priority = -1, level = "deny" }
 
+# docs.rs-specific configuration
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [dependencies]
 alloca = "0.4.0"
 miniserde = "0.1.38"
@@ -54,7 +59,3 @@ harness = false
 name = "test_throughput"
 harness = false
 
-# docs.rs-specific configuration
-[package.metadata.docs.rs]
-all-features = true
-rustdoc-args = ["--cfg", "docsrs"]

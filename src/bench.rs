@@ -2,7 +2,7 @@ use crate::{
     bench_id::BenchId,
     black_box,
     output_value::OutputValue,
-    plugins::{alloc::*, profiler::*, BingganEvents, EventManager},
+    plugins::{alloc::*, *},
     stats::*,
 };
 

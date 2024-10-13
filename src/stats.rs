@@ -64,23 +64,24 @@ pub fn compute_percentage_diff(a: f64, b: f64) -> f64 {
     (a / b - 1.0) * 100.0
 }
 pub fn format_percentage(diff: f64, smaller_is_better: bool) -> String {
+    const COLOR_THRESHOLD: f64 = 2.0;
     let diff_str = if diff >= 0.0 {
         format!("(+{:.2}%)", diff)
     } else {
         format!("({:.2}%)", diff)
     };
-    if smaller_is_better {
-        if diff > 2.0 {
+    if diff > COLOR_THRESHOLD {
+        if smaller_is_better {
             diff_str.red().to_string()
-        } else if diff < -2.0 {
+        } else {
+            diff_str.green().to_string()
+        }
+    } else if diff < -COLOR_THRESHOLD {
+        if smaller_is_better {
             diff_str.green().to_string()
         } else {
-            diff_str.resetting().to_string()
+            diff_str.red().to_string()
         }
-    } else if diff > 2.0 {
-        diff_str.green().to_string()
-    } else if diff < -2.0 {
-        diff_str.red().to_string()
     } else {
         diff_str.resetting().to_string()
     }
