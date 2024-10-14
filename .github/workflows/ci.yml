@@ -10,6 +10,12 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+    strategy:
+      matrix:
+        features: [
+            { label: "all", flags: "table_reporter" },
+            { label: "default", flags: "default" }
+        ]
         os:
           - ubuntu-latest
           - macos-latest
@@ -19,6 +25,7 @@ jobs:
           - beta
           - nightly
           - 1.77.0  # MSRV
+    name: test-${{ matrix.features.label}}
 
     steps:
       - uses: actions/checkout@v2
@@ -29,9 +36,9 @@ jobs:
           toolchain: ${{ matrix.rust }}
           override: true
 
-      - run: cargo build
-      - run: cargo test
-      - run: cargo bench 
+      - run: cargo build --features ${{ matrix.features.flags }}
+      - run: cargo test --features ${{ matrix.features.flags }}
+      - run: cargo bench --features ${{ matrix.features.flags }}
       - name: Test filter parameter for cargo bench (Unix)
         if: runner.os != 'Windows'
         run: "[ $(cargo bench | wc -l) -gt $(cargo bench 15 | wc -l) ]"
