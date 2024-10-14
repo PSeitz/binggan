@@ -4,7 +4,7 @@ use peakmem_alloc::PeakMemAllocTrait;
 
 use crate::{
     bench_id::BenchId,
-    plugins::{BingganEvents, EventListener, PerBenchData},
+    plugins::{EventListener, PerBenchData, PluginEvents},
 };
 
 /// Integration via EventListener
@@ -37,13 +37,13 @@ impl EventListener for AllocPerBench {
     fn name(&self) -> &'static str {
         ALLOC_EVENT_LISTENER_NAME
     }
-    fn on_event(&mut self, event: BingganEvents) {
+    fn on_event(&mut self, event: PluginEvents) {
         match event {
-            BingganEvents::BenchStart { bench_id } => {
+            PluginEvents::BenchStart { bench_id } => {
                 self.alloc_per_bench.insert_if_absent(bench_id, Vec::new);
                 self.alloc.reset_peak_memory();
             }
-            BingganEvents::BenchStop { bench_id, .. } => {
+            PluginEvents::BenchStop { bench_id, .. } => {
                 let perf = self.alloc_per_bench.get_mut(bench_id).unwrap();
                 perf.push(self.alloc.get_peak_memory());
             }

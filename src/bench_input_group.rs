@@ -1,7 +1,7 @@
 use std::{alloc::GlobalAlloc, mem};
 
 use crate::output_value::OutputValue;
-use crate::plugins::EventManager;
+use crate::plugins::PluginManager;
 use crate::{
     bench::NamedBench, bench_id::BenchId, bench_runner::BenchRunner, parse_args, BenchGroup, Config,
 };
@@ -152,10 +152,10 @@ impl<I: 'static, O: OutputValue + 'static> InputGroup<I, O> {
         &mut self.runner.config
     }
 
-    /// Returns the event manager, which can be used to add listeners to the benchmarks.
-    /// See [crate::plugins::EventManager] for more information.
-    pub fn get_event_manager(&mut self) -> &mut EventManager {
-        self.runner.get_event_manager()
+    /// Returns the plugin manager, which can be used to add plugins.
+    /// See [crate::plugins::PluginManager] for more information.
+    pub fn get_plugin_manager(&mut self) -> &mut PluginManager {
+        self.runner.get_plugin_manager()
     }
 }
 

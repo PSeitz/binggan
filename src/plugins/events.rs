@@ -1,9 +1,9 @@
-//! Event manager for Binggan.
-//! The event manager is responsible for managing event listeners and emitting events.
-//! It is used to notify listeners about events that occur during the benchmark run.
+//! [PluginManager] for Binggan.
+//! The plugin manager is responsible for managing plugins and emitting events to them
+//! that occur during the benchmark run.
 //!
-//! See the `BingganEvents` enum for the list of events that can be emitted.
-//! Any type that implements the `EventListener` trait can be added to the event manager.
+//! See the `PluginEvents` enum for the list of events that can be emitted.
+//! Any type that implements the `EventListener` trait can be added to [PluginManager].
 //!
 
 use crate::{bench::BenchResult, bench_id::BenchId};
@@ -12,7 +12,7 @@ use std::any::Any;
 
 /// Events that can be emitted by the benchmark runner.
 #[derive(Debug, Clone, Copy)]
-pub enum BingganEvents<'a> {
+pub enum PluginEvents<'a> {
     /// The number of iterations for a group has been set.
     /// The previous event was `GroupStart`.
     GroupNumIters {
@@ -64,71 +64,80 @@ pub trait EventListener: Any {
     /// The name of the event listener.
     fn name(&self) -> &'static str;
     /// Handle an event.
-    /// See the [BingganEvents] enum for the list of events that can be emitted.
-    fn on_event(&mut self, event: BingganEvents);
+    /// See the [PluginEvents] enum for the list of events that can be emitted.
+    fn on_event(&mut self, event: PluginEvents);
     /// Downcast the listener to `Any`.
     fn as_any(&mut self) -> &mut dyn Any;
 }
 
-/// The event manager is responsible for managing event listeners and emitting events.
-/// It is used to notify listeners about events that occur during the benchmark run.
+/// [PluginManager] is responsible for managing plugins and emitting events.
 ///
-/// See the `BingganEvents` enum for the list of events that can be emitted.
-/// Any type that implements the `EventListener` trait can be added to the event manager.
-pub struct EventManager {
+/// See the [PluginEvents] enum for the list of events that can be emitted.
+/// Any type that implements the `EventListener` trait can be added to the plugin manager.
+pub struct PluginManager {
     listeners: Vec<(String, Box<dyn EventListener>)>,
 }
-impl EventManager {
-    /// Create a new instance of `EventManager`.
+impl PluginManager {
+    /// Create a new instance of [PluginManager].
     pub fn new() -> Self {
         Self {
             listeners: Vec::new(),
         }
     }
 
-    /// Removes any listeners with the same name and sets the new listener.
-    pub fn replace_listener<L: EventListener + 'static>(&mut self, listener: L) {
-        self.remove_listener_by_name(listener.name());
+    /// Removes any plugins with the same name and sets the new listener.
+    pub fn replace_plugin<L: EventListener + 'static>(&mut self, listener: L) -> &mut Self {
+        self.remove_plugin_by_name(listener.name());
         self.listeners
             .push((listener.name().to_owned(), Box::new(listener)));
+        self
     }
 
-    /// Add a new listener to the event manager if it is not already present by name.
-    pub fn add_listener_if_absent<L: EventListener + 'static>(&mut self, listener: L) {
-        if self.get_listener(listener.name()).is_some() {
-            return;
+    /// Add a new plugin. Note that this will not remove listeners with the
+    /// same name.
+    pub fn add_plugin<L: EventListener + 'static>(&mut self, listener: L) -> &mut Self {
+        self.listeners
+            .push((listener.name().to_owned(), Box::new(listener)));
+        self
+    }
+
+    /// Add a new plugin to the plugin manager if it is not already present by name.
+    pub fn add_plugin_if_absent<L: EventListener + 'static>(&mut self, listener: L) -> &mut Self {
+        if self.get_plugins(listener.name()).is_some() {
+            return self;
         }
         self.listeners
             .push((listener.name().to_owned(), Box::new(listener)));
+        self
     }
 
-    /// Get a listener by name.
-    pub fn get_listener(&mut self, name: &str) -> Option<&mut Box<dyn EventListener>> {
+    /// Get the first plugin that matches the name.
+    pub fn get_plugins(&mut self, name: &str) -> Option<&mut Box<dyn EventListener>> {
         self.listeners
             .iter_mut()
             .find(|(n, _)| n == name)
             .map(|(_, l)| l)
     }
 
-    /// Downcast a listener to a specific type.
-    pub fn downcast_listener<T: 'static>(&mut self, name: &str) -> Option<&mut T> {
-        self.get_listener(name)?.as_any().downcast_mut::<T>()
+    /// Downcast a plugin to a specific type.
+    pub fn downcast_plugin<T: 'static>(&mut self, name: &str) -> Option<&mut T> {
+        self.get_plugins(name)?.as_any().downcast_mut::<T>()
     }
 
-    /// Remove a listener by name.
-    pub fn remove_listener_by_name(&mut self, name: &str) {
+    /// Remove a plugin by name.
+    pub fn remove_plugin_by_name(&mut self, name: &str) {
         self.listeners.retain(|(n, _)| n != name);
     }
 
-    /// Emit an event to all listeners.
-    pub fn emit(&mut self, event: BingganEvents) {
+    /// Emit an event to all plugin.
+    pub fn emit(&mut self, event: PluginEvents) {
         for (_, listener) in self.listeners.iter_mut() {
             listener.on_event(event);
         }
     }
 }
 
-impl Default for EventManager {
+impl Default for PluginManager {
     fn default() -> Self {
         Self::new()
     }

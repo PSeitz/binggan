@@ -27,7 +27,7 @@ It is designed to be simple to use and to provide a good overview of the perform
 ### Example
 
 ```rust
-use binggan::{black_box, InputGroup, PeakMemAlloc, INSTRUMENTED_SYSTEM};
+use binggan::{black_box, plugins::CacheTrasher, InputGroup, PeakMemAlloc, INSTRUMENTED_SYSTEM};
 
 #[global_allocator]
 pub static GLOBAL: &PeakMemAlloc<std::alloc::System> = &INSTRUMENTED_SYSTEM;
@@ -46,7 +46,9 @@ fn bench_group(mut runner: InputGroup<Vec<usize>>) {
     // Enables the perf integration. Only on Linux, noop on other OS.
     runner.config().enable_perf();
     // Trashes the CPU cache between runs
-    runner.config().set_cache_trasher(true);
+    runner
+        .get_plugin_manager()
+        .add_plugin(CacheTrasher::default());
     // Enables throughput reporting
     runner.throughput(|input| input.len() * std::mem::size_of::<usize>());
     runner.register("vec", |data| {

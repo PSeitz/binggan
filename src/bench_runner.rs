@@ -3,7 +3,7 @@ use std::{alloc::GlobalAlloc, cmp::Ordering};
 
 use crate::output_value::OutputValue;
 use crate::plugins::alloc::AllocPerBench;
-use crate::plugins::{BingganEvents, EventManager};
+use crate::plugins::{PluginEvents, PluginManager};
 use crate::report::PlainReporter;
 use crate::{
     bench::{Bench, InputWithBenchmark, NamedBench},
@@ -12,13 +12,11 @@ use crate::{
     report::report_group,
     BenchGroup, Config,
 };
-use core::mem::size_of;
 use peakmem_alloc::*;
 
 /// The main struct to run benchmarks.
 ///
 pub struct BenchRunner {
-    cache_trasher: CacheTrasher,
     pub(crate) config: Config,
     /// The size of the input.
     /// Enables throughput reporting.
@@ -27,7 +25,7 @@ pub struct BenchRunner {
     /// Name of the test
     pub(crate) name: Option<String>,
 
-    listeners: EventManager,
+    listeners: PluginManager,
 }
 
 pub const EMPTY_INPUT: &() = &();
@@ -51,9 +49,9 @@ impl BenchRunner {
         new
     }
 
-    /// Returns the event manager, which can be used to add listeners to the benchmarks.
-    /// See [crate::plugins::EventManager] for more information.
-    pub fn get_event_manager(&mut self) -> &mut EventManager {
+    /// Returns the plugin manager, which can be used to add plugins.
+    /// See [crate::plugins::PluginManager] for more information.
+    pub fn get_plugin_manager(&mut self) -> &mut PluginManager {
         &mut self.listeners
     }
 
@@ -62,11 +60,10 @@ impl BenchRunner {
         use yansi::Condition;
         yansi::whenever(Condition::TTY_AND_COLOR);
 
-        let mut event_manager = EventManager::new();
-        event_manager.add_listener_if_absent(PlainReporter::new());
+        let mut event_manager = PluginManager::new();
+        event_manager.add_plugin_if_absent(PlainReporter::new());
 
         BenchRunner {
-            cache_trasher: CacheTrasher::new(1024 * 1024 * 16),
             config: options,
             input_size_in_bytes: None,
             name: None,
@@ -91,7 +88,7 @@ impl BenchRunner {
     /// This will report the peak memory consumption of the benchmarks.
     pub fn set_alloc<A: GlobalAlloc + 'static>(&mut self, alloc: &'static PeakMemAlloc<A>) {
         let alloc = AllocPerBench::new(alloc);
-        self.listeners.add_listener_if_absent(alloc);
+        self.listeners.add_plugin_if_absent(alloc);
     }
 
     /// Enables throughput reporting. The throughput will be valid for all inputs that are
@@ -147,11 +144,11 @@ impl BenchRunner {
             use crate::plugins::perf_counter::PerfCounterPerBench;
             if self.config().enable_perf {
                 self.listeners
-                    .add_listener_if_absent(PerfCounterPerBench::default());
+                    .add_plugin_if_absent(PerfCounterPerBench::default());
             }
         }
 
-        self.listeners.emit(BingganEvents::GroupStart {
+        self.listeners.emit(PluginEvents::GroupStart {
             runner_name: self.name.as_deref(),
             group_name,
             output_value_column_title,
@@ -172,12 +169,7 @@ impl BenchRunner {
             Self::detect_and_set_num_iter(group, self.config.verbose, &mut self.listeners);
 
             if self.config.interleave {
-                Self::run_interleaved(
-                    group,
-                    self.config.cache_trasher.then_some(&self.cache_trasher),
-                    num_group_iter,
-                    &mut self.listeners,
-                );
+                Self::run_interleaved(group, num_group_iter, &mut self.listeners);
             } else {
                 Self::run_sequential(group, num_group_iter, &mut self.listeners);
             }
@@ -200,7 +192,7 @@ impl BenchRunner {
     fn run_sequential<'a>(
         benches: &mut [Box<dyn Bench<'a> + 'a>],
         num_group_iter: usize,
-        events: &mut EventManager,
+        events: &mut PluginManager,
     ) {
         for bench in benches {
             for iteration in 0..num_group_iter {
@@ -217,9 +209,8 @@ impl BenchRunner {
 
     fn run_interleaved<'a>(
         benches: &mut [Box<dyn Bench<'a> + 'a>],
-        cache_trasher: Option<&CacheTrasher>,
         num_group_iter: usize,
-        events: &mut EventManager,
+        events: &mut PluginManager,
     ) {
         let mut bench_indices: Vec<usize> = (0..benches.len()).collect();
         for iteration in 0..num_group_iter {
@@ -229,9 +220,6 @@ impl BenchRunner {
             shuffle(&mut bench_indices, iteration as u64);
 
             for bench_idx in bench_indices.iter() {
-                if let Some(cache_trasher) = cache_trasher {
-                    cache_trasher.issue_read();
-                }
                 let bench = &mut benches[*bench_idx];
                 // We use alloca to address memory layout randomness issues
                 // So the whole stack moves down by 1 byte for each iteration
@@ -262,7 +250,7 @@ impl BenchRunner {
     fn detect_and_set_num_iter<'b>(
         benches: &mut [Box<dyn Bench<'b> + 'b>],
         verbose: bool,
-        events: &mut EventManager,
+        events: &mut PluginManager,
     ) {
         if let Some(num_iter) = env::var("NUM_ITER_BENCH")
             .ok()
@@ -297,7 +285,7 @@ impl BenchRunner {
         let max_num_iter = max_num_iter.min(min_num_iter * 10);
         // We round up, so that we may get the same number of iterations between runs
         let max_num_iter = round_up(max_num_iter as u64) as usize;
-        events.emit(BingganEvents::GroupNumIters {
+        events.emit(PluginEvents::GroupNumIters {
             num_iter: max_num_iter,
         });
         if verbose {
@@ -352,40 +340,6 @@ where
     }
     Some((min_so_far, max_so_far))
 }
-
-/// Performs a dummy reads from memory to spoil given amount of CPU cache
-///
-/// Uses cache aligned data arrays to perform minimum amount of reads possible to spoil the cache
-#[derive(Clone)]
-struct CacheTrasher {
-    cache_lines: Vec<CacheLine>,
-}
-impl Default for CacheTrasher {
-    fn default() -> Self {
-        Self::new(1024 * 1024 * 16) // 16MB
-    }
-}
-
-impl CacheTrasher {
-    fn new(bytes: usize) -> Self {
-        let n = bytes / size_of::<CacheLine>();
-        let cache_lines = vec![CacheLine::default(); n];
-        Self { cache_lines }
-    }
-
-    fn issue_read(&self) {
-        for line in &self.cache_lines {
-            // Because CacheLine is aligned on 64 bytes it is enough to read single element from the array
-            // to spoil the whole cache line
-            unsafe { std::ptr::read_volatile(&line.0[0]) };
-        }
-    }
-}
-
-#[repr(C)]
-#[repr(align(64))]
-#[derive(Default, Clone, Copy)]
-struct CacheLine([u16; 32]);
 
 fn shuffle(indices: &mut [usize], seed: u64) {
     let mut rng = SimpleRng::new(seed);

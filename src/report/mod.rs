@@ -3,7 +3,7 @@
 //!
 //! The `report` module contains reporters that use the plugin system via the [EventListener](crate::plugins::EventListener)
 //! trait.
-//! You can set the reporter by registering at [BenchRunner::get_event_manager] .
+//! You can set the reporter by registering at [BenchRunner::get_plugin_manager] .
 //! Use [REPORTER_PLUGIN_NAME](crate::report::REPORTER_PLUGIN_NAME) as the name of a reporter, to overwrite the existing
 //!
 
@@ -28,7 +28,7 @@ use format::{bytes_to_string, format_duration_or_throughput};
 
 use crate::{
     bench::Bench,
-    plugins::{BingganEvents, EventManager},
+    plugins::{PluginEvents, PluginManager},
     stats::compute_diff,
     write_results::fetch_previous_run_and_write_results_to_disk,
 };
@@ -42,7 +42,7 @@ pub(crate) fn report_group<'a>(
     group_name: Option<&str>,
     benches: &mut [Box<dyn Bench<'a> + 'a>],
     output_value_column_title: &'static str,
-    events: &mut EventManager,
+    events: &mut PluginManager,
 ) {
     if benches.is_empty() {
         return;
@@ -54,7 +54,7 @@ pub(crate) fn report_group<'a>(
         fetch_previous_run_and_write_results_to_disk(&mut result);
         results.push(result);
     }
-    events.emit(BingganEvents::GroupStop {
+    events.emit(PluginEvents::GroupStop {
         runner_name,
         group_name,
         results: &results,

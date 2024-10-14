@@ -4,7 +4,7 @@ use yansi::Paint;
 
 use super::{avg_median_str, memory_str, min_max_str, REPORTER_PLUGIN_NAME};
 use crate::{
-    plugins::{BingganEvents, EventListener},
+    plugins::{EventListener, PluginEvents},
     report::{check_and_print, PrintOnce},
 };
 
@@ -47,10 +47,10 @@ impl EventListener for TableReporter {
     fn name(&self) -> &'static str {
         REPORTER_PLUGIN_NAME
     }
-    fn on_event(&mut self, event: BingganEvents) {
+    fn on_event(&mut self, event: PluginEvents) {
         match event {
-            BingganEvents::BenchStart { bench_id: _ } => {}
-            BingganEvents::GroupStart {
+            PluginEvents::BenchStart { bench_id: _ } => {}
+            PluginEvents::GroupStart {
                 runner_name,
                 group_name,
                 output_value_column_title: _,
@@ -62,7 +62,7 @@ impl EventListener for TableReporter {
                     println!("{}", group_name.black().on_yellow().invert().bold());
                 }
             }
-            BingganEvents::GroupStop {
+            PluginEvents::GroupStop {
                 runner_name: _,
                 group_name: _,
                 results,

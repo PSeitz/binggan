@@ -1,9 +1,9 @@
 //! The plugin system works by registering to events.
 //!
-//! The `BingganEvents` enum contains all the events that can be emitted.
+//! The `PluginEvents` enum contains all the events that can be emitted.
 //! The `EventListener` trait is used to listen to these events.
 //!
-//! The `BenchRunner` has an `EventManager` which can be used to add listeners.
+//! The `BenchRunner` has an `PluginManager` which can be used to add plugins.
 //! The listeners can be used to track memory consumption, report results, etc.
 //!
 //! `name` is used to identify the listener.
@@ -19,9 +19,9 @@
 //!     fn name(&self) -> &'static str {
 //!         "my_listener"
 //!     }
-//!     fn on_event(&mut self, event: BingganEvents) {
+//!     fn on_event(&mut self, event: PluginEvents) {
 //!         match event {
-//!             BingganEvents::GroupStart{runner_name, ..} => {
+//!             PluginEvents::GroupStart{runner_name, ..} => {
 //!                 println!("Starting: {:?}", runner_name);
 //!             }
 //!             _ => {}
@@ -32,13 +32,13 @@
 //!     }
 //! }
 //! let mut runner = BenchRunner::new();
-//! let events = runner.get_event_manager();
-//! events.add_listener_if_absent(MyListener);
+//! runner.get_plugin_manager().add_plugin(MyListener);
 //!
 //! ```
 //!
 
 pub(crate) mod alloc;
+mod cache_trasher;
 pub mod events;
 
 pub(crate) mod perf_counter;
@@ -46,4 +46,5 @@ pub(crate) mod perf_counter;
 #[cfg(target_os = "linux")]
 pub use perf_counter::*;
 
+pub use cache_trasher::*;
 pub use events::*;

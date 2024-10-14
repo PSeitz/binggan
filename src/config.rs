@@ -10,8 +10,6 @@ pub struct Config {
     pub filter: Option<String>,
     /// Enable/disable perf integration
     pub enable_perf: bool,
-    /// Trash CPU cache between bench runs.
-    pub cache_trasher: bool,
     /// Verbose output of binggan. Prints the number of iterations.
     pub verbose: bool,
     /// Manually set the number of iterations the benchmarks registered afterwards are called.
@@ -29,7 +27,6 @@ impl Default for Config {
             interleave: true,
             filter: None,
             enable_perf: false,
-            cache_trasher: false,
             verbose: false,
             num_iter_bench: None,
             num_iter_group: None,
@@ -115,12 +112,6 @@ impl Config {
     /// `sudo sh -c "echo '0' > /proc/sys/kernel/nmi_watchdog"`
     pub fn enable_perf(&mut self) -> &mut Self {
         self.enable_perf = true;
-        self
-    }
-
-    /// Trash CPU cache between bench runs. Defaults to false.
-    pub fn set_cache_trasher(&mut self, enable: bool) -> &mut Self {
-        self.cache_trasher = enable;
         self
     }
 }

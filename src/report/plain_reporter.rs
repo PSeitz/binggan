@@ -4,7 +4,7 @@ use yansi::Paint;
 
 use super::{avg_median_str, memory_str, min_max_str, BenchStats, REPORTER_PLUGIN_NAME};
 use crate::{
-    plugins::{BingganEvents, EventListener},
+    plugins::{EventListener, PluginEvents},
     report::{check_and_print, PrintOnce},
 };
 
@@ -19,6 +19,7 @@ use crate::{
 #[derive(Clone)]
 pub struct PlainReporter {
     print_runner_name_once: Option<PrintOnce>,
+    print_num_iter: bool,
 }
 
 impl EventListener for PlainReporter {
@@ -28,10 +29,10 @@ impl EventListener for PlainReporter {
     fn name(&self) -> &'static str {
         REPORTER_PLUGIN_NAME
     }
-    fn on_event(&mut self, event: BingganEvents) {
+    fn on_event(&mut self, event: PluginEvents) {
         match event {
-            BingganEvents::BenchStart { bench_id: _ } => {}
-            BingganEvents::GroupStart {
+            PluginEvents::BenchStart { bench_id: _ } => {}
+            PluginEvents::GroupStart {
                 runner_name,
                 group_name: Some(group_name),
                 output_value_column_title: _,
@@ -41,10 +42,12 @@ impl EventListener for PlainReporter {
                 }
                 println!("{}", group_name.black().on_yellow().invert().bold());
             }
-            BingganEvents::GroupNumIters { num_iter } => {
-                println!("Num Iter {}", num_iter.bold());
+            PluginEvents::GroupNumIters { num_iter } => {
+                if self.print_num_iter {
+                    println!("Num Iter {}", num_iter.bold());
+                }
             }
-            BingganEvents::GroupStop {
+            PluginEvents::GroupStop {
                 runner_name: _,
                 group_name: _,
                 results,
@@ -84,7 +87,13 @@ impl PlainReporter {
     pub fn new() -> Self {
         Self {
             print_runner_name_once: None,
+            print_num_iter: false,
         }
+    }
+    /// Print the number of iterations for each benchmark group
+    pub fn print_num_iter(mut self, print: bool) -> Self {
+        self.print_num_iter = print;
+        self
     }
 
     pub(crate) fn to_columns(

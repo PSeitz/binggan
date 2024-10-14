@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use binggan::{black_box, InputGroup, PeakMemAlloc, INSTRUMENTED_SYSTEM};
+use binggan::{black_box, plugins::CacheTrasher, InputGroup, PeakMemAlloc, INSTRUMENTED_SYSTEM};
 
 #[global_allocator]
 pub static GLOBAL: &PeakMemAlloc<std::alloc::System> = &INSTRUMENTED_SYSTEM;
@@ -29,7 +29,9 @@ fn bench_group(mut runner: InputGroup<Vec<usize>, u64>) {
     // Enables the perf integration. Only on Linux, noop on other OS.
     runner.config().enable_perf();
     // Trashes the CPU cache between runs
-    runner.config().set_cache_trasher(true);
+    runner
+        .get_plugin_manager()
+        .add_plugin(CacheTrasher::default());
     // Enables throughput reporting
     runner.throughput(|input| input.len() * std::mem::size_of::<usize>());
     runner.register("vec", |data| {

@@ -13,8 +13,8 @@ pub trait Bench<'a> {
     fn set_num_iter(&mut self, num_iter: usize);
     /// Sample the number of iterations the benchmark should do
     fn sample_num_iter(&mut self) -> usize;
-    fn exec_bench(&mut self, events: &mut EventManager);
-    fn get_results(&mut self, events: &mut EventManager) -> BenchResult;
+    fn exec_bench(&mut self, events: &mut PluginManager);
+    fn get_results(&mut self, events: &mut PluginManager) -> BenchResult;
     fn clear_results(&mut self);
 }
 
@@ -102,17 +102,17 @@ impl<'a, I, O: OutputValue> Bench<'a> for InputWithBenchmark<'a, I, O> {
     }
 
     #[inline]
-    fn exec_bench(&mut self, events: &mut EventManager) {
+    fn exec_bench(&mut self, events: &mut PluginManager) {
         let num_iter = self.get_num_iter_or_fail();
         let res = self.bench.exec_bench(self.input, num_iter, events);
         self.results.push(res);
     }
 
-    fn get_results(&mut self, events: &mut EventManager) -> BenchResult {
+    fn get_results(&mut self, events: &mut PluginManager) -> BenchResult {
         let num_iter = self.get_num_iter_or_fail();
         let total_num_iter = self.bench.num_group_iter as u64 * num_iter as u64;
         let memory_consumption: Option<&Vec<usize>> = events
-            .downcast_listener::<AllocPerBench>(ALLOC_EVENT_LISTENER_NAME)
+            .downcast_plugin::<AllocPerBench>(ALLOC_EVENT_LISTENER_NAME)
             .and_then(|counters| counters.get_by_bench_id(&self.bench.bench_id));
         let stats = compute_stats(&self.results, memory_consumption);
         let tracked_memory = memory_consumption.is_some();
@@ -137,14 +137,14 @@ impl<'a, I, O: OutputValue> Bench<'a> for InputWithBenchmark<'a, I, O> {
 }
 
 fn get_perf_counter(
-    _events: &mut EventManager,
+    _events: &mut PluginManager,
     _bench_id: &BenchId,
     _total_num_iter: u64,
 ) -> Option<CounterValues> {
     #[cfg(target_os = "linux")]
     {
         _events
-            .downcast_listener::<PerfCounterPerBench>(PERF_CNT_EVENT_LISTENER_NAME)
+            .downcast_plugin::<PerfCounterPerBench>(PERF_CNT_EVENT_LISTENER_NAME)
             .and_then(|counters| {
                 counters
                     .get_by_bench_id_mut(_bench_id)
@@ -211,9 +211,9 @@ impl<'a, I, O> NamedBench<'a, I, O> {
         &mut self,
         input: &'a I,
         num_iter: usize,
-        events: &mut EventManager,
+        events: &mut PluginManager,
     ) -> RunResult<O> {
-        events.emit(BingganEvents::BenchStart {
+        events.emit(PluginEvents::BenchStart {
             bench_id: &self.bench_id,
         });
         let start = std::time::Instant::now();
@@ -224,7 +224,7 @@ impl<'a, I, O> NamedBench<'a, I, O> {
         let elapsed = start.elapsed();
 
         let run_result = RunResult::new(elapsed.as_nanos() as u64 / num_iter as u64, res);
-        events.emit(BingganEvents::BenchStop {
+        events.emit(PluginEvents::BenchStop {
             bench_id: &self.bench_id,
             duration: run_result.duration_ns,
         });
