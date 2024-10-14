@@ -103,11 +103,11 @@ pub static PERF_CNT_EVENT_LISTENER_NAME: &str = "_binggan_perf";
 /// Integration via EventListener
 /// One counter per bench id.
 #[derive(Default)]
-pub struct PerfCounterPerBench {
+pub struct PerfCounterPlugin {
     perf_per_bench: PerBenchData<Option<PerfCounters>>,
 }
 
-impl PerfCounterPerBench {
+impl PerfCounterPlugin {
     /// Get the perf counter for a bench id
     pub(crate) fn get_by_bench_id_mut(&mut self, bench_id: &BenchId) -> Option<&mut PerfCounters> {
         self.perf_per_bench
@@ -116,7 +116,7 @@ impl PerfCounterPerBench {
     }
 }
 
-impl EventListener for PerfCounterPerBench {
+impl EventListener for PerfCounterPlugin {
     fn as_any(&mut self) -> &mut dyn Any {
         self
     }

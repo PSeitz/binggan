@@ -43,7 +43,6 @@ pub mod events;
 
 pub(crate) mod perf_counter;
 
-#[cfg(target_os = "linux")]
 pub use perf_counter::*;
 
 pub use cache_trasher::*;

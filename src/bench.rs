@@ -144,7 +144,7 @@ fn get_perf_counter(
     #[cfg(target_os = "linux")]
     {
         _events
-            .downcast_plugin::<PerfCounterPerBench>(PERF_CNT_EVENT_LISTENER_NAME)
+            .downcast_plugin::<PerfCounterPlugin>(PERF_CNT_EVENT_LISTENER_NAME)
             .and_then(|counters| {
                 counters
                     .get_by_bench_id_mut(_bench_id)
