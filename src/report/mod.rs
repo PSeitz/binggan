@@ -8,15 +8,14 @@
 //! Use [REPORTER_PLUGIN_NAME](crate::report::REPORTER_PLUGIN_NAME) as the name of a reporter, so
 //! they can be easily replaced by name.
 //!
-//! ## Example Using TableReporter as Reporter
+//! ## Example Set a new Reporter
 //! We need to use `replace_plugin` to replace the existing reporter.
 //! ```rust
-//! # #[cfg(feature="table_reporter")]
-//! # mod wrapper_module {
-//! use binggan::{*, plugins::*};
+//! use binggan::*;
+//! use binggan::plugins::*;
+//! use binggan::report::*;
 //! let mut runner = BenchRunner::new();
-//! runner.get_plugin_manager().replace_plugin(TableReporter::default());
-//! # }
+//! runner.get_plugin_manager().replace_plugin(PlainReporter::default().print_num_iter(true));
 //! ```
 
 /// Helper methods to format benchmark results
