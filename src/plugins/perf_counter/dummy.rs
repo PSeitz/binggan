@@ -7,6 +7,7 @@ use std::any::Any;
 ///
 /// Stores one counter group per bench id.
 #[derive(Default)]
+#[allow(missing_copy_implementations)]
 pub struct PerfCounterPlugin {}
 
 impl EventListener for PerfCounterPlugin {
@@ -16,5 +17,5 @@ impl EventListener for PerfCounterPlugin {
     fn name(&self) -> &'static str {
         PERF_CNT_EVENT_LISTENER_NAME
     }
-    fn on_event(&mut self, event: PluginEvents) {}
+    fn on_event(&mut self, _event: PluginEvents) {}
 }
