@@ -112,7 +112,7 @@ impl<'a, I, O: OutputValue> Bench<'a> for InputWithBenchmark<'a, I, O> {
         let num_iter = self.get_num_iter_or_fail();
         let total_num_iter = self.bench.num_group_iter as u64 * num_iter as u64;
         let memory_consumption: Option<&Vec<usize>> = plugins
-            .downcast_plugin::<PeakAllocPlugin>(ALLOC_EVENT_LISTENER_NAME)
+            .downcast_plugin::<PeakMemAllocPlugin>(ALLOC_EVENT_LISTENER_NAME)
             .and_then(|counters| counters.get_by_bench_id(&self.bench.bench_id));
         let stats = compute_stats(&self.results, memory_consumption);
         let tracked_memory = memory_consumption.is_some();
@@ -179,7 +179,7 @@ impl<'a, I, O> NamedBench<'a, I, O> {
     /// Each group has its own number of iterations. This is not the final num_iter
     pub fn sample_and_get_iter(&mut self, input: &'a I) -> usize {
         // We want to run the benchmark for 500ms
-        const TARGET_MS_PER_BENCH: u64 = 1000;
+        const TARGET_MS_PER_BENCH: u64 = 500;
         const TARGET_NS_PER_BENCH: u128 = TARGET_MS_PER_BENCH as u128 * 1_000_000;
         {
             // Preliminary test if function is very slow

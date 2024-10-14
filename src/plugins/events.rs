@@ -8,7 +8,6 @@
 //!
 
 use crate::{bench::BenchResult, bench_id::BenchId};
-use rustc_hash::FxHashMap;
 use std::any::Any;
 
 /// Events that can be emitted by the benchmark runner.
@@ -141,37 +140,5 @@ impl PluginManager {
 impl Default for PluginManager {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-/// Helper struct to store data per bench id
-pub struct PerBenchData<T> {
-    per_bench_data: FxHashMap<BenchId, T>,
-}
-impl<T> Default for PerBenchData<T> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-impl<T> PerBenchData<T> {
-    /// Create a new instance of `PerBenchData`.
-    pub fn new() -> Self {
-        Self {
-            per_bench_data: FxHashMap::default(),
-        }
-    }
-    /// Get a mutable reference to the data for a specific bench id.
-    pub fn get_mut(&mut self, bench_id: &BenchId) -> Option<&mut T> {
-        self.per_bench_data.get_mut(bench_id)
-    }
-    /// Get a reference to the data for a specific bench id.
-    pub fn get(&self, bench_id: &BenchId) -> Option<&T> {
-        self.per_bench_data.get(bench_id)
-    }
-    /// Insert data for a specific bench id if it is not already present.
-    pub fn insert_if_absent<F: FnOnce() -> T>(&mut self, bench_id: &BenchId, data: F) {
-        if !self.per_bench_data.contains_key(bench_id) {
-            self.per_bench_data.insert(bench_id.clone(), data());
-        }
     }
 }

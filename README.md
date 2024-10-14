@@ -41,12 +41,12 @@ fn test_hashmap(data: &Vec<usize>) {
 }
 
 fn bench_group(mut runner: InputGroup<Vec<usize>>) {
-    runner.set_alloc(GLOBAL); // Set the peak mem allocator. This will enable peak memory reporting.
-
     runner
         .get_plugin_manager()
         // Trashes the CPU cache between runs
         .add_plugin(CacheTrasher::default())
+        // Set the peak mem allocator. This will enable peak memory reporting.
+        .add_plugin(PeakAllocPlugin::new(GLOBAL))
         // Enables the perf integration. Only on Linux, noop on other OS.
         .add_plugin(PerfCounterPlugin::default());
     // Enables throughput reporting
@@ -95,7 +95,7 @@ FxHashMap              Memory: 28.3 MB      Avg: 403.52 MiB/s (+0.00%)    Median
 ```
 
 ### Peak Memory
-To activate peak memory reporting, you need to wrap your allocator with the PeakMemAlloc and call `set_alloc` in the group.
+To activate peak memory reporting, you need to wrap your allocator with the PeakMemAlloc and enable the PeakMemAllocPlugin (see example above).
 
 While number of allocations are also interesting for performance analysis, peak memory will determine the memory requirements of the code.
 

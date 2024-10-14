@@ -1,10 +1,6 @@
 use std::collections::HashMap;
 
-use binggan::{
-    black_box,
-    plugins::{CacheTrasher, PerfCounterPlugin},
-    InputGroup, PeakMemAlloc, INSTRUMENTED_SYSTEM,
-};
+use binggan::{black_box, plugins::*, InputGroup, PeakMemAlloc, INSTRUMENTED_SYSTEM};
 
 #[global_allocator]
 pub static GLOBAL: &PeakMemAlloc<std::alloc::System> = &INSTRUMENTED_SYSTEM;
@@ -28,12 +24,12 @@ fn test_hashmap(data: &Vec<usize>) -> HashMap<usize, i32> {
 }
 
 fn bench_group(mut runner: InputGroup<Vec<usize>, u64>) {
-    runner.set_alloc(GLOBAL); // Set the peak mem allocator. This will enable peak memory reporting.
-
     runner
         .get_plugin_manager()
         // Trashes the CPU cache between runs
         .add_plugin(CacheTrasher::default())
+        // Set the peak mem allocator. This will enable peak memory reporting.
+        .add_plugin(PeakMemAllocPlugin::new(GLOBAL))
         // Enables the perf integration. Only on Linux, noop on other OS.
         .add_plugin(PerfCounterPlugin::default());
     // Enables throughput reporting

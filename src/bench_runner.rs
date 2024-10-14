@@ -1,8 +1,7 @@
+use std::cmp::Ordering;
 use std::env;
-use std::{alloc::GlobalAlloc, cmp::Ordering};
 
 use crate::output_value::OutputValue;
-use crate::plugins::alloc::PeakAllocPlugin;
 use crate::plugins::{PluginEvents, PluginManager};
 use crate::report::PlainReporter;
 use crate::{
@@ -12,7 +11,6 @@ use crate::{
     report::report_group,
     BenchGroup, Config,
 };
-use peakmem_alloc::*;
 
 /// The main struct to run benchmarks.
 ///
@@ -82,13 +80,6 @@ impl BenchRunner {
     /// It is also used to distinguish when writing the results to disk.
     pub fn set_name<S: AsRef<str>>(&mut self, name: S) {
         self.name = Some(name.as_ref().to_string());
-    }
-
-    /// Set the peak mem allocator to be used for the benchmarks.
-    /// This will report the peak memory consumption of the benchmarks.
-    pub fn set_alloc<A: GlobalAlloc + 'static>(&mut self, alloc: &'static PeakMemAlloc<A>) {
-        let alloc = PeakAllocPlugin::new(alloc);
-        self.plugins.add_plugin_if_absent(alloc);
     }
 
     /// Enables throughput reporting. The throughput will be valid for all inputs that are

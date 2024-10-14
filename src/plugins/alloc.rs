@@ -8,11 +8,11 @@ use crate::{
 };
 
 /// Plugin to track peak memory consumption.
-pub(crate) struct PeakAllocPlugin {
+pub struct PeakMemAllocPlugin {
     alloc_per_bench: PerBenchData<Vec<usize>>,
     alloc: &'static dyn PeakMemAllocTrait,
 }
-impl PeakAllocPlugin {
+impl PeakMemAllocPlugin {
     /// Creates a new instance of `AllocPerBench`.
     /// The `alloc` parameter is the allocator that will be used to track memory consumption.
     ///
@@ -22,14 +22,16 @@ impl PeakAllocPlugin {
             alloc,
         }
     }
+    /// Returns the peak memory consumptions for each group run for the given bench id.
     pub fn get_by_bench_id(&self, bench_id: &BenchId) -> Option<&Vec<usize>> {
         self.alloc_per_bench.get(bench_id)
     }
 }
 
+/// The plugin name for PeakAllocPlugin.
 pub static ALLOC_EVENT_LISTENER_NAME: &str = "_binggan_alloc";
 
-impl EventListener for PeakAllocPlugin {
+impl EventListener for PeakMemAllocPlugin {
     fn as_any(&mut self) -> &mut dyn Any {
         self
     }

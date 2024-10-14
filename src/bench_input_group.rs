@@ -1,11 +1,10 @@
-use std::{alloc::GlobalAlloc, mem};
+use std::mem;
 
 use crate::output_value::OutputValue;
 use crate::plugins::PluginManager;
 use crate::{
     bench::NamedBench, bench_id::BenchId, bench_runner::BenchRunner, parse_args, BenchGroup, Config,
 };
-use peakmem_alloc::*;
 
 /// `InputGroup<Input, OutputValue>` is a collection of benchmarks that are run with the same inputs.
 ///
@@ -129,13 +128,6 @@ impl<I: 'static, O: OutputValue + 'static> InputGroup<I, O> {
             }
             group.run();
         }
-    }
-
-    // Expose runner methods
-    /// Set the peak mem allocator to be used for the benchmarks.
-    /// This will report the peak memory consumption of the benchmarks.
-    pub fn set_alloc<A: GlobalAlloc + 'static>(&mut self, alloc: &'static PeakMemAlloc<A>) {
-        self.runner.set_alloc(alloc);
     }
 
     /// Set the name of the group.

@@ -1,4 +1,4 @@
-use binggan::{black_box, BenchRunner, PeakMemAlloc, INSTRUMENTED_SYSTEM};
+use binggan::{black_box, plugins::*, BenchRunner, PeakMemAlloc, INSTRUMENTED_SYSTEM};
 
 #[global_allocator]
 pub static GLOBAL: &PeakMemAlloc<std::alloc::System> = &INSTRUMENTED_SYSTEM;
@@ -14,7 +14,10 @@ pub fn factorial(mut n: usize) -> usize {
 
 fn bench_factorial() {
     let mut runner = BenchRunner::new();
-    runner.set_alloc(GLOBAL); // Set the peak mem allocator. This will enable peak memory reporting.
+    // Set the peak mem allocator. This will enable peak memory reporting.
+    runner
+        .get_plugin_manager()
+        .add_plugin(PeakMemAllocPlugin::new(GLOBAL));
 
     for val in [100, 400] {
         runner.bench_function(format!("factorial {}", val), move |_| {
