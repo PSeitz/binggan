@@ -8,7 +8,7 @@ use perf_event::Counter;
 use perf_event::{Builder, Group};
 use std::any::Any;
 
-use super::CounterValues;
+use super::{CounterValues, PERF_CNT_EVENT_LISTENER_NAME};
 
 pub(crate) struct PerfCounters {
     branches: Counter,
@@ -97,11 +97,9 @@ impl PerfCounters {
     }
 }
 
-/// Name of the event listener
-pub static PERF_CNT_EVENT_LISTENER_NAME: &str = "_binggan_perf";
-
-/// Integration via EventListener
-/// One counter per bench id.
+/// Perf Counter Plugin.
+///
+/// Stores one counter group per bench id.
 #[derive(Default)]
 pub struct PerfCounterPlugin {
     perf_per_bench: PerBenchData<Option<PerfCounters>>,

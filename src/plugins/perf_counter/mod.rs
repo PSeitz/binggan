@@ -10,6 +10,9 @@ use miniserde::Serialize;
 
 use yansi::Paint;
 
+/// Name of the event listener
+pub static PERF_CNT_EVENT_LISTENER_NAME: &str = "_binggan_perf";
+
 /// Counter values from perf.
 ///
 /// This struct is used to store the counter values from perf.

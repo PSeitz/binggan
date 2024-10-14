@@ -7,13 +7,12 @@ use crate::{
     plugins::{EventListener, PerBenchData, PluginEvents},
 };
 
-/// Integration via EventListener
-/// tracks the max memory consumption per bench
-pub(crate) struct AllocPerBench {
+/// Plugin to track peak memory consumption.
+pub(crate) struct PeakAllocPlugin {
     alloc_per_bench: PerBenchData<Vec<usize>>,
     alloc: &'static dyn PeakMemAllocTrait,
 }
-impl AllocPerBench {
+impl PeakAllocPlugin {
     /// Creates a new instance of `AllocPerBench`.
     /// The `alloc` parameter is the allocator that will be used to track memory consumption.
     ///
@@ -30,7 +29,7 @@ impl AllocPerBench {
 
 pub static ALLOC_EVENT_LISTENER_NAME: &str = "_binggan_alloc";
 
-impl EventListener for AllocPerBench {
+impl EventListener for PeakAllocPlugin {
     fn as_any(&mut self) -> &mut dyn Any {
         self
     }

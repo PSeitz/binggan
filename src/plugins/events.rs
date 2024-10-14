@@ -1,9 +1,10 @@
 //! [PluginManager] for Binggan.
+//!
 //! The plugin manager is responsible for managing plugins and emitting events to them
 //! that occur during the benchmark run.
 //!
-//! See the `PluginEvents` enum for the list of events that can be emitted.
-//! Any type that implements the `EventListener` trait can be added to [PluginManager].
+//! See the [PluginEvents] enum for the list of events that can be emitted.
+//! Any type that implements the [EventListener] trait can be added to [PluginManager].
 //!
 
 use crate::{bench::BenchResult, bench_id::BenchId};

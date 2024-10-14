@@ -13,8 +13,8 @@ pub trait Bench<'a> {
     fn set_num_iter(&mut self, num_iter: usize);
     /// Sample the number of iterations the benchmark should do
     fn sample_num_iter(&mut self) -> usize;
-    fn exec_bench(&mut self, events: &mut PluginManager);
-    fn get_results(&mut self, events: &mut PluginManager) -> BenchResult;
+    fn exec_bench(&mut self, plugins: &mut PluginManager);
+    fn get_results(&mut self, plugins: &mut PluginManager) -> BenchResult;
     fn clear_results(&mut self);
 }
 
@@ -102,22 +102,22 @@ impl<'a, I, O: OutputValue> Bench<'a> for InputWithBenchmark<'a, I, O> {
     }
 
     #[inline]
-    fn exec_bench(&mut self, events: &mut PluginManager) {
+    fn exec_bench(&mut self, plugins: &mut PluginManager) {
         let num_iter = self.get_num_iter_or_fail();
-        let res = self.bench.exec_bench(self.input, num_iter, events);
+        let res = self.bench.exec_bench(self.input, num_iter, plugins);
         self.results.push(res);
     }
 
-    fn get_results(&mut self, events: &mut PluginManager) -> BenchResult {
+    fn get_results(&mut self, plugins: &mut PluginManager) -> BenchResult {
         let num_iter = self.get_num_iter_or_fail();
         let total_num_iter = self.bench.num_group_iter as u64 * num_iter as u64;
-        let memory_consumption: Option<&Vec<usize>> = events
-            .downcast_plugin::<AllocPerBench>(ALLOC_EVENT_LISTENER_NAME)
+        let memory_consumption: Option<&Vec<usize>> = plugins
+            .downcast_plugin::<PeakAllocPlugin>(ALLOC_EVENT_LISTENER_NAME)
             .and_then(|counters| counters.get_by_bench_id(&self.bench.bench_id));
         let stats = compute_stats(&self.results, memory_consumption);
         let tracked_memory = memory_consumption.is_some();
 
-        let perf_counter = get_perf_counter(events, &self.bench.bench_id, total_num_iter);
+        let perf_counter = get_perf_counter(plugins, &self.bench.bench_id, total_num_iter);
         let output_value = (self.bench.fun)(self.input);
         BenchResult {
             bench_id: self.bench.bench_id.clone(),
@@ -211,9 +211,9 @@ impl<'a, I, O> NamedBench<'a, I, O> {
         &mut self,
         input: &'a I,
         num_iter: usize,
-        events: &mut PluginManager,
+        plugins: &mut PluginManager,
     ) -> RunResult<O> {
-        events.emit(PluginEvents::BenchStart {
+        plugins.emit(PluginEvents::BenchStart {
             bench_id: &self.bench_id,
         });
         let start = std::time::Instant::now();
@@ -224,7 +224,7 @@ impl<'a, I, O> NamedBench<'a, I, O> {
         let elapsed = start.elapsed();
 
         let run_result = RunResult::new(elapsed.as_nanos() as u64 / num_iter as u64, res);
-        events.emit(PluginEvents::BenchStop {
+        plugins.emit(PluginEvents::BenchStop {
             bench_id: &self.bench_id,
             duration: run_result.duration_ns,
         });

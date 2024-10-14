@@ -2,7 +2,7 @@ use std::env;
 use std::{alloc::GlobalAlloc, cmp::Ordering};
 
 use crate::output_value::OutputValue;
-use crate::plugins::alloc::AllocPerBench;
+use crate::plugins::alloc::PeakAllocPlugin;
 use crate::plugins::{PluginEvents, PluginManager};
 use crate::report::PlainReporter;
 use crate::{
@@ -25,7 +25,7 @@ pub struct BenchRunner {
     /// Name of the test
     pub(crate) name: Option<String>,
 
-    listeners: PluginManager,
+    plugins: PluginManager,
 }
 
 pub const EMPTY_INPUT: &() = &();
@@ -52,7 +52,7 @@ impl BenchRunner {
     /// Returns the plugin manager, which can be used to add plugins.
     /// See [crate::plugins::PluginManager] for more information.
     pub fn get_plugin_manager(&mut self) -> &mut PluginManager {
-        &mut self.listeners
+        &mut self.plugins
     }
 
     /// Creates a new `BenchRunner` with custom options set.
@@ -60,14 +60,14 @@ impl BenchRunner {
         use yansi::Condition;
         yansi::whenever(Condition::TTY_AND_COLOR);
 
-        let mut event_manager = PluginManager::new();
-        event_manager.add_plugin_if_absent(PlainReporter::new());
+        let mut plugins = PluginManager::new();
+        plugins.add_plugin_if_absent(PlainReporter::new());
 
         BenchRunner {
             config: options,
             input_size_in_bytes: None,
             name: None,
-            listeners: event_manager,
+            plugins,
         }
     }
 
@@ -87,8 +87,8 @@ impl BenchRunner {
     /// Set the peak mem allocator to be used for the benchmarks.
     /// This will report the peak memory consumption of the benchmarks.
     pub fn set_alloc<A: GlobalAlloc + 'static>(&mut self, alloc: &'static PeakMemAlloc<A>) {
-        let alloc = AllocPerBench::new(alloc);
-        self.listeners.add_plugin_if_absent(alloc);
+        let alloc = PeakAllocPlugin::new(alloc);
+        self.plugins.add_plugin_if_absent(alloc);
     }
 
     /// Enables throughput reporting. The throughput will be valid for all inputs that are
@@ -143,12 +143,12 @@ impl BenchRunner {
         {
             use crate::plugins::perf_counter::PerfCounterPlugin;
             if self.config().enable_perf {
-                self.listeners
+                self.plugins
                     .add_plugin_if_absent(PerfCounterPlugin::default());
             }
         }
 
-        self.listeners.emit(PluginEvents::GroupStart {
+        self.plugins.emit(PluginEvents::GroupStart {
             runner_name: self.name.as_deref(),
             group_name,
             output_value_column_title,
@@ -166,12 +166,12 @@ impl BenchRunner {
         // If the group is quite big, we don't want to create too big chunks, which causes
         // slow tests, therefore a chunk is at most 5 elements large.
         for group in group.chunks_mut(MAX_GROUP_SIZE) {
-            Self::detect_and_set_num_iter(group, self.config.verbose, &mut self.listeners);
+            Self::detect_and_set_num_iter(group, self.config.verbose, &mut self.plugins);
 
             if self.config.interleave {
-                Self::run_interleaved(group, num_group_iter, &mut self.listeners);
+                Self::run_interleaved(group, num_group_iter, &mut self.plugins);
             } else {
-                Self::run_sequential(group, num_group_iter, &mut self.listeners);
+                Self::run_sequential(group, num_group_iter, &mut self.plugins);
             }
         }
 
@@ -180,7 +180,7 @@ impl BenchRunner {
             group_name,
             group,
             output_value_column_title,
-            &mut self.listeners,
+            &mut self.plugins,
         );
 
         // TODO: clearing should be optional, to check the results yourself, e.g. in CI
@@ -192,14 +192,14 @@ impl BenchRunner {
     fn run_sequential<'a>(
         benches: &mut [Box<dyn Bench<'a> + 'a>],
         num_group_iter: usize,
-        events: &mut PluginManager,
+        plugins: &mut PluginManager,
     ) {
         for bench in benches {
             for iteration in 0..num_group_iter {
                 alloca::with_alloca(
                     iteration, // we increase the byte offset by 1 for each iteration
                     |_memory: &mut [core::mem::MaybeUninit<u8>]| {
-                        bench.exec_bench(events);
+                        bench.exec_bench(plugins);
                         black_box(());
                     },
                 );
@@ -210,7 +210,7 @@ impl BenchRunner {
     fn run_interleaved<'a>(
         benches: &mut [Box<dyn Bench<'a> + 'a>],
         num_group_iter: usize,
-        events: &mut PluginManager,
+        plugins: &mut PluginManager,
     ) {
         let mut bench_indices: Vec<usize> = (0..benches.len()).collect();
         for iteration in 0..num_group_iter {
@@ -233,14 +233,14 @@ impl BenchRunner {
                     alloca::with_alloca(
                         iteration, // we increase the byte offset by 1 for each iteration
                         |_memory: &mut [core::mem::MaybeUninit<u8>]| {
-                            bench.exec_bench(events);
+                            bench.exec_bench(plugins);
                             black_box(());
                         },
                     );
                 }
                 #[cfg(not(any(target_family = "unix", target_family = "windows")))]
                 {
-                    black_box(bench.exec_bench(events));
+                    black_box(bench.exec_bench(plugins));
                 }
             }
         }
@@ -250,7 +250,7 @@ impl BenchRunner {
     fn detect_and_set_num_iter<'b>(
         benches: &mut [Box<dyn Bench<'b> + 'b>],
         verbose: bool,
-        events: &mut PluginManager,
+        plugins: &mut PluginManager,
     ) {
         if let Some(num_iter) = env::var("NUM_ITER_BENCH")
             .ok()
@@ -285,7 +285,7 @@ impl BenchRunner {
         let max_num_iter = max_num_iter.min(min_num_iter * 10);
         // We round up, so that we may get the same number of iterations between runs
         let max_num_iter = round_up(max_num_iter as u64) as usize;
-        events.emit(PluginEvents::GroupNumIters {
+        plugins.emit(PluginEvents::GroupNumIters {
             num_iter: max_num_iter,
         });
         if verbose {
