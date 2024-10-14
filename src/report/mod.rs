@@ -3,9 +3,21 @@
 //!
 //! The `report` module contains reporters that use the plugin system via the [EventListener](crate::plugins::EventListener)
 //! trait.
-//! You can set the reporter by registering at [BenchRunner::get_plugin_manager] .
-//! Use [REPORTER_PLUGIN_NAME](crate::report::REPORTER_PLUGIN_NAME) as the name of a reporter, to overwrite the existing
+//! By default the [PlainReporter](crate::report::PlainReporter) is used.
 //!
+//! Use [REPORTER_PLUGIN_NAME](crate::report::REPORTER_PLUGIN_NAME) as the name of a reporter, so
+//! they can be easily replaced by name.
+//!
+//! ## Example Using TableReporter as Reporter
+//! We need to use `replace_plugin` to replace the existing reporter.
+//! ```rust
+//! # #[cfg(feature="table_reporter")]
+//! # mod wrapper_module {
+//! use binggan::{*, plugins::*};
+//! let mut runner = BenchRunner::new();
+//! runner.get_plugin_manager().replace_plugin(TableReporter::default());
+//! # }
+//! ```
 
 /// Helper methods to format benchmark results
 pub mod format;
