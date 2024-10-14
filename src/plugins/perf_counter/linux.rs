@@ -127,7 +127,7 @@ impl PerfCounters {
 ///
 /// ## Usage Example
 /// ```rust
-/// use binggan::{*, plugins::*}
+/// use binggan::{*, plugins::*};
 ///
 /// let mut runner = BenchRunner::new();
 /// runner
