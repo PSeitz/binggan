@@ -8,8 +8,6 @@ pub struct Config {
     /// The filter for the benchmarks
     /// This is read from the command line by default.
     pub filter: Option<String>,
-    /// Enable/disable perf integration
-    pub enable_perf: bool,
     /// Verbose output of binggan. Prints the number of iterations.
     pub verbose: bool,
     /// Manually set the number of iterations the benchmarks registered afterwards are called.
@@ -26,7 +24,6 @@ impl Default for Config {
         Config {
             interleave: true,
             filter: None,
-            enable_perf: false,
             verbose: false,
             num_iter_bench: None,
             num_iter_group: None,
@@ -83,35 +80,6 @@ impl Config {
     /// Interleaving may help to get more stable comparisons between benchmarks.
     pub fn set_interleave(&mut self, interleave: bool) -> &mut Self {
         self.interleave = interleave;
-        self
-    }
-
-    /// Enable perf profiling + report
-    ///
-    /// The numbers are reported with the following legend:
-    /// ```bash
-    /// L1dA: L1 data access
-    /// L1dM: L1 data misses
-    /// Br: branches
-    /// BrM: missed branches
-    /// ```
-    /// e.g.
-    /// ```bash
-    /// fibonacci    Memory: 0 B       Avg: 135ns      Median: 136ns     132ns          140ns    
-    ///              L1dA: 809.310     L1dM: 0.002     Br: 685.059       BrM: 0.010     
-    /// baseline     Memory: 0 B       Avg: 1ns        Median: 1ns       1ns            1ns      
-    ///              L1dA: 2.001       L1dM: 0.000     Br: 6.001         BrM: 0.000     
-    /// ```
-    ///
-    /// # Note:
-    /// This is only available on Linux. On other OSs this does nothing.
-    ///
-    /// Perf may run into limitations where all counters are reported as zero. <https://github.com/jimblandy/perf-event/issues/2>.
-    /// Disabling the NMI watchdog should help:
-    ///
-    /// `sudo sh -c "echo '0' > /proc/sys/kernel/nmi_watchdog"`
-    pub fn enable_perf(&mut self) -> &mut Self {
-        self.enable_perf = true;
         self
     }
 }

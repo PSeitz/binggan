@@ -4,6 +4,12 @@ pub(crate) mod linux;
 #[cfg(target_os = "linux")]
 pub use linux::*;
 
+#[cfg(not(target_os = "linux"))]
+pub(crate) mod dummy;
+
+#[cfg(not(target_os = "linux"))]
+pub use dummy::*;
+
 use crate::stats::*;
 use miniserde::Deserialize;
 use miniserde::Serialize;
@@ -92,7 +98,6 @@ impl CounterValues {
             print_counter_value("L1dM", &self, other, |stats| stats.l1d_miss_count),
             print_counter_value("TLBdA", &self, other, |stats| stats.tlbd_access_count),
             print_counter_value("TLBdM", &self, other, |stats| stats.tlbd_miss_count),
-            print_counter_value("L1dA", &self, other, |stats| stats.l1d_access_count),
         ]
     }
 }

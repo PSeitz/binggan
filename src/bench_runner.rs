@@ -139,14 +139,6 @@ impl BenchRunner {
         if group.is_empty() {
             return;
         }
-        #[cfg(target_os = "linux")]
-        {
-            use crate::plugins::perf_counter::PerfCounterPlugin;
-            if self.config().enable_perf {
-                self.plugins
-                    .add_plugin_if_absent(PerfCounterPlugin::default());
-            }
-        }
 
         self.plugins.emit(PluginEvents::GroupStart {
             runner_name: self.name.as_deref(),

@@ -1,6 +1,10 @@
 use std::collections::HashMap;
 
-use binggan::{black_box, plugins::CacheTrasher, BenchRunner, PeakMemAlloc, INSTRUMENTED_SYSTEM};
+use binggan::{
+    black_box,
+    plugins::{CacheTrasher, PerfCounterPlugin},
+    BenchRunner, PeakMemAlloc, INSTRUMENTED_SYSTEM,
+};
 
 #[global_allocator]
 pub static GLOBAL: &PeakMemAlloc<std::alloc::System> = &INSTRUMENTED_SYSTEM;
@@ -34,10 +38,10 @@ fn run_bench() {
     let mut runner: BenchRunner = BenchRunner::new();
     runner.set_alloc(GLOBAL); // Set the peak mem allocator. This will enable peak memory reporting.
 
-    runner.config().enable_perf();
     runner
         .get_plugin_manager()
-        .add_plugin(CacheTrasher::default());
+        .add_plugin(CacheTrasher::default())
+        .add_plugin(PerfCounterPlugin::default());
 
     for (input_name, data) in inputs.iter() {
         let mut group = runner.new_group();

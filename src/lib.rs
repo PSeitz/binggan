@@ -37,11 +37,11 @@
 //!
 //! # Perf Integration
 //! Binggan can integrate with perf to report hardware performance counters.
-//! See [Config::enable_perf](crate::Config::enable_perf) for more information.
+//! See [PerfCounterPlugin](crate::plugins::PerfCounterPlugin) for more information.
 //!
 //! # Example for InputGroup
 //! ```rust
-//! use binggan::{black_box, InputGroup, PeakMemAlloc, INSTRUMENTED_SYSTEM};
+//! use binggan::{black_box, InputGroup, PeakMemAlloc, INSTRUMENTED_SYSTEM, plugins::*};
 //!
 //! #[global_allocator]
 //! pub static GLOBAL: &PeakMemAlloc<std::alloc::System> = &INSTRUMENTED_SYSTEM;
@@ -64,7 +64,9 @@
 //! // Run the benchmark for the group with input `Vec<usize>`
 //! fn bench_group(mut runner: InputGroup<Vec<usize>, u64>) {
 //!     runner.set_alloc(GLOBAL); // Set the peak mem allocator. This will enable peak memory reporting.
-//!     runner.config().enable_perf(); // Enable perf integration. This only works on linux.
+//!     runner
+//!        .get_plugin_manager()
+//!        .add_plugin(PerfCounterPlugin::default());
 //!     runner.register("vec", move |data| {
 //!         let vec = test_vec(data);
 //!         Some(vec.len() as u64)
@@ -135,7 +137,6 @@
 //!     let mut runner: BenchRunner = BenchRunner::new();
 //!     runner.set_alloc(GLOBAL); // Set the peak mem allocator. This will enable peak memory reporting.
 //!
-//!     runner.config().enable_perf();
 //!     runner
 //!        .get_plugin_manager()
 //!        .add_plugin(CacheTrasher::default());

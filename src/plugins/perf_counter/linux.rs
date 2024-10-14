@@ -97,9 +97,44 @@ impl PerfCounters {
     }
 }
 
-/// Perf Counter Plugin.
 ///
-/// Stores one counter group per bench id.
+/// Plugin to report perf counters.
+///
+/// The numbers are reported with the following legend:
+/// ```bash
+/// Br: Branches
+/// MBr: Missed Branches
+/// L1dA: L1 Data Access
+/// L1dM: L1 Data Access Misses
+/// TLBdA: Translation Lookaside Buffer Data Access
+/// TLBdM: Translation Lookaside Buffer Data Access Misses
+/// ```
+/// e.g.
+/// ```bash
+/// fibonacci    Memory: 0 B       Avg: 135ns      Median: 136ns     132ns          140ns    
+///              L1dA: 809.310     L1dM: 0.002     Br: 685.059       MBr: 0.010     
+/// baseline     Memory: 0 B       Avg: 1ns        Median: 1ns       1ns            1ns      
+///              L1dA: 2.001       L1dM: 0.000     Br: 6.001         MBr: 0.000     
+/// ```
+///
+/// # Note:
+/// This is only available on Linux. On other OSs this does nothing.
+///
+/// Perf may run into limitations where all counters are reported as zero. <https://github.com/jimblandy/perf-event/issues/2>.
+/// Disabling the NMI watchdog should help:
+///
+/// `sudo sh -c "echo '0' > /proc/sys/kernel/nmi_watchdog"`
+///
+/// ## Usage Example
+/// ```rust
+/// use binggan::{*, plugins::*}
+///
+/// let mut runner = BenchRunner::new();
+/// runner
+///    .get_plugin_manager()
+///    .add_plugin(PerfCounterPlugin::default());
+/// ```
+
 #[derive(Default)]
 pub struct PerfCounterPlugin {
     perf_per_bench: PerBenchData<Option<PerfCounters>>,
