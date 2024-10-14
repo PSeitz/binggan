@@ -10,8 +10,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-    strategy:
-      matrix:
         features: [
             { label: "all", flags: "table_reporter" },
             { label: "default", flags: "default" }
