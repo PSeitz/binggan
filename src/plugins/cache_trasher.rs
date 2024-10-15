@@ -17,8 +17,9 @@ impl CacheTrasher {
     /// Creates a new instance of `CacheTrasher`.
     ///
     /// The `bytes` parameter is the amount of memory to read to spoil the cache.
+    #[allow(unused_qualifications)]
     pub fn new(bytes: usize) -> Self {
-        let n = bytes / size_of::<CacheLine>();
+        let n = bytes / std::mem::size_of::<CacheLine>();
         let cache_lines = vec![CacheLine::default(); n];
         Self { cache_lines }
     }
