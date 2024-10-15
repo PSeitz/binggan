@@ -11,7 +11,7 @@ keywords = ["perf", "profiler", "benchmark", "memory"]
 categories = ["development-tools::profiling"]
 license = "MIT"
 exclude = ["*logo*"]
-rust-version = "1.81"
+rust-version = "1.77"
 
 [lints.clippy]
 cargo        = { priority = -1, level = "deny" }
