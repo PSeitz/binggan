@@ -130,9 +130,7 @@ impl PerfCounters {
 /// use binggan::{*, plugins::*};
 ///
 /// let mut runner = BenchRunner::new();
-/// runner
-///    .get_plugin_manager()
-///    .add_plugin(PerfCounterPlugin::default());
+/// runner.add_plugin(PerfCounterPlugin::default());
 /// ```
 
 #[derive(Default)]

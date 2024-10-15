@@ -15,10 +15,10 @@ fn test_vec(data: &Vec<usize>) -> Vec<i32> {
     }
     vec
 }
-fn test_hashmap(data: &Vec<usize>) -> HashMap<&usize, i32> {
+fn test_hashmap(data: &Vec<usize>) -> HashMap<usize, i32> {
     let mut map = std::collections::HashMap::new();
     for idx in data {
-        *map.entry(idx).or_insert(0) += 1;
+        *map.entry(*idx).or_insert(0) += 1;
     }
     map
 }
@@ -34,7 +34,6 @@ fn run_bench() {
     let mut runner: BenchRunner = BenchRunner::new();
 
     runner
-        .get_plugin_manager()
         .add_plugin(CacheTrasher::default())
         .add_plugin(PeakMemAllocPlugin::new(GLOBAL))
         .add_plugin(PerfCounterPlugin::default());

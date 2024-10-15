@@ -1,7 +1,7 @@
 use std::mem;
 
 use crate::output_value::OutputValue;
-use crate::plugins::PluginManager;
+use crate::plugins::{EventListener, PluginManager};
 use crate::{
     bench::NamedBench, bench_id::BenchId, bench_runner::BenchRunner, parse_args, BenchGroup, Config,
 };
@@ -144,10 +144,15 @@ impl<I: 'static, O: OutputValue + 'static> InputGroup<I, O> {
         &mut self.runner.config
     }
 
-    /// Returns the plugin manager, which can be used to add plugins.
+    /// Returns the plugin manager, which can be used to add and remove plugins.
     /// See [crate::plugins::PluginManager] for more information.
     pub fn get_plugin_manager(&mut self) -> &mut PluginManager {
         self.runner.get_plugin_manager()
+    }
+
+    /// Add a new plugin and returns the PluginManager for chaining.
+    pub fn add_plugin<L: EventListener + 'static>(&mut self, listener: L) -> &mut PluginManager {
+        self.get_plugin_manager().add_plugin(listener)
     }
 }
 

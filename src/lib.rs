@@ -64,7 +64,6 @@
 //! // Run the benchmark for the group with input `Vec<usize>`
 //! fn bench_group(mut runner: InputGroup<Vec<usize>, u64>) {
 //!     runner
-//!        .get_plugin_manager()
 //!        // Set the peak mem allocator. This will enable peak memory reporting.
 //!        .add_plugin(PeakMemAllocPlugin::new(GLOBAL))
 //!        .add_plugin(PerfCounterPlugin::default());
@@ -138,7 +137,6 @@
 //!     let mut runner: BenchRunner = BenchRunner::new();
 //!
 //!     runner
-//!        .get_plugin_manager()
 //!        // Set the peak mem allocator. This will enable peak memory reporting.
 //!        .add_plugin(PeakMemAllocPlugin::new(GLOBAL))
 //!        .add_plugin(CacheTrasher::default());

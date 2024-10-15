@@ -12,7 +12,6 @@ fn run_bench() {
     let mut runner: BenchRunner = BenchRunner::new();
 
     runner
-        .get_plugin_manager()
         .add_plugin(CacheTrasher::default())
         // Enable the peak mem allocator. This will enable peak memory reporting.
         .add_plugin(PeakMemAllocPlugin::new(GLOBAL))

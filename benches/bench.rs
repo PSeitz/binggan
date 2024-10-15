@@ -15,9 +15,7 @@ pub fn factorial(mut n: usize) -> usize {
 fn bench_factorial() {
     let mut runner = BenchRunner::new();
     // Set the peak mem allocator. This will enable peak memory reporting.
-    runner
-        .get_plugin_manager()
-        .add_plugin(PeakMemAllocPlugin::new(GLOBAL));
+    runner.add_plugin(PeakMemAllocPlugin::new(GLOBAL));
 
     for val in [100, 400] {
         runner.bench_function(format!("factorial {}", val), move |_| {

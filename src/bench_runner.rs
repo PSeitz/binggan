@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::env;
 
 use crate::output_value::OutputValue;
-use crate::plugins::{PluginEvents, PluginManager};
+use crate::plugins::{EventListener, PluginEvents, PluginManager};
 use crate::report::PlainReporter;
 use crate::{
     bench::{Bench, InputWithBenchmark, NamedBench},
@@ -47,10 +47,15 @@ impl BenchRunner {
         new
     }
 
-    /// Returns the plugin manager, which can be used to add plugins.
+    /// Returns the plugin manager, which can be used to add and remove plugins.
     /// See [crate::plugins::PluginManager] for more information.
     pub fn get_plugin_manager(&mut self) -> &mut PluginManager {
         &mut self.plugins
+    }
+
+    /// Add a new plugin and returns the PluginManager for chaining.
+    pub fn add_plugin<L: EventListener + 'static>(&mut self, listener: L) -> &mut PluginManager {
+        self.get_plugin_manager().add_plugin(listener)
     }
 
     /// Creates a new `BenchRunner` with custom options set.

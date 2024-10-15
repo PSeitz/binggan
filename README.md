@@ -42,7 +42,6 @@ fn test_hashmap(data: &Vec<usize>) {
 
 fn bench_group(mut runner: InputGroup<Vec<usize>>) {
     runner
-        .get_plugin_manager()
         // Trashes the CPU cache between runs
         .add_plugin(CacheTrasher::default())
         // Set the peak mem allocator. This will enable peak memory reporting.
