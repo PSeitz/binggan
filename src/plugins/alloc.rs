@@ -32,6 +32,10 @@ impl PeakMemAllocPlugin {
 pub static ALLOC_EVENT_LISTENER_NAME: &str = "_binggan_alloc";
 
 impl EventListener for PeakMemAllocPlugin {
+    fn prio(&self) -> u32 {
+        1
+    }
+
     fn as_any(&mut self) -> &mut dyn Any {
         self
     }

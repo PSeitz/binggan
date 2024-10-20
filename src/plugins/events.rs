@@ -61,6 +61,13 @@ pub enum PluginEvents<'a> {
 
 /// The trait for listening to events emitted by the benchmark runner.
 pub trait EventListener: Any {
+    /// The priority of the event listener.
+    /// If the event listener has a higher priority, it will be called first.
+    /// E.g. perf counter plugin should be called before the cache trasher.
+    fn prio(&self) -> u32 {
+        u32::MAX
+    }
+
     /// The name of the event listener.
     fn name(&self) -> &'static str;
     /// Handle an event.
@@ -88,8 +95,7 @@ impl PluginManager {
     /// Removes any plugins with the same name and sets the new listener.
     pub fn replace_plugin<L: EventListener + 'static>(&mut self, listener: L) -> &mut Self {
         self.remove_plugin_by_name(listener.name());
-        self.listeners
-            .push((listener.name().to_owned(), Box::new(listener)));
+        self.add_plugin(listener);
         self
     }
 
@@ -98,6 +104,7 @@ impl PluginManager {
     pub fn add_plugin<L: EventListener + 'static>(&mut self, listener: L) -> &mut Self {
         self.listeners
             .push((listener.name().to_owned(), Box::new(listener)));
+        self.listeners.sort_by_key(|(_, l)| l.prio());
         self
     }
 
@@ -106,8 +113,7 @@ impl PluginManager {
         if self.get_plugins(listener.name()).is_some() {
             return self;
         }
-        self.listeners
-            .push((listener.name().to_owned(), Box::new(listener)));
+        self.add_plugin(listener);
         self
     }
 

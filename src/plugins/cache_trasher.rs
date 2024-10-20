@@ -6,10 +6,11 @@ use super::{EventListener, PluginEvents};
 #[derive(Clone)]
 pub struct CacheTrasher {
     cache_lines: Vec<CacheLine>,
+    seed: u64, // Seed for pseudo-random number generation
 }
 impl Default for CacheTrasher {
     fn default() -> Self {
-        Self::new(1024 * 1024 * 16) // 16MB
+        Self::new(1024 * 1024 * 32) // 32MB
     }
 }
 
@@ -21,14 +22,30 @@ impl CacheTrasher {
     pub fn new(bytes: usize) -> Self {
         let n = bytes / std::mem::size_of::<CacheLine>();
         let cache_lines = vec![CacheLine::default(); n];
-        Self { cache_lines }
+        Self {
+            cache_lines,
+            seed: 0,
+        }
     }
 
-    fn issue_read(&self) {
-        for line in &self.cache_lines {
+    /// Linear Congruential Generator (LCG) for pseudo-random numbers
+    fn lcg_rand(&mut self) -> usize {
+        const A: u64 = 1664525;
+        const C: u64 = 1013904223;
+
+        // Update the seed
+        self.seed = A.wrapping_mul(self.seed).wrapping_add(C);
+        (self.seed % (self.cache_lines.len() as u64)) as usize
+    }
+
+    fn issue_read(&mut self) {
+        let num_reads = self.cache_lines.len();
+        for _ in 0..num_reads {
+            // Use the LCG to generate a random index
+            let idx = self.lcg_rand();
             // Because CacheLine is aligned on 64 bytes it is enough to read single element from the array
             // to spoil the whole cache line
-            unsafe { std::ptr::read_volatile(&line.0[0]) };
+            unsafe { std::ptr::read_volatile(&self.cache_lines[idx].0[0]) }; // Access a random cache line
         }
     }
 }
