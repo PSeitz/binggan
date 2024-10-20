@@ -13,11 +13,18 @@ use std::any::Any;
 /// Events that can be emitted by the benchmark runner.
 #[derive(Debug, Clone, Copy)]
 pub enum PluginEvents<'a> {
-    /// The number of iterations for a group has been set.
+    /// The number of iterations for the benches in a group has been set.
     /// The previous event was `GroupStart`.
-    GroupNumIters {
+    GroupBenchNumIters {
         /// The number of iterations for each bench in the group. The whole group has the same
         /// number of iterations to be a fair comparison between the benches in the group.
+        num_iter: usize,
+    },
+    /// The number of iterations for the bench group.
+    /// The previous event was `GroupStart`.
+    GroupNumIters {
+        /// Unlike GroupBenchNumIters, this is the number of iterations for the group.
+        /// So each bench is run `num_iter` * `num_group_iter` times.
         num_iter: usize,
     },
     /// Profiling of the group started
@@ -63,9 +70,15 @@ pub enum PluginEvents<'a> {
 pub trait EventListener: Any {
     /// The priority of the event listener.
     /// If the event listener has a higher priority, it will be called first.
-    /// E.g. perf counter plugin should be called before the cache trasher.
+    /// E.g. perf counter plugin should be called after the cache trasher in the [PluginEvents::BenchStart] event,
+    /// so that the cache trashing is not included in the perf counter.
+    ///
+    /// The default priority is `u32::MAX / 2`.
+    ///
+    /// Note: In the [PluginEvents::BenchStop] event, the order is reversed. The listener with the highest priority
+    /// is called last. This is to endure symmetry.
     fn prio(&self) -> u32 {
-        u32::MAX
+        u32::MAX / 2
     }
 
     /// The name of the event listener.
@@ -137,8 +150,14 @@ impl PluginManager {
 
     /// Emit an event to all plugin.
     pub fn emit(&mut self, event: PluginEvents) {
-        for (_, listener) in self.listeners.iter_mut() {
-            listener.on_event(event);
+        if matches!(event, PluginEvents::BenchStop { .. }) {
+            for (_, listener) in self.listeners.iter_mut().rev() {
+                listener.on_event(event);
+            }
+        } else {
+            for (_, listener) in self.listeners.iter_mut() {
+                listener.on_event(event);
+            }
         }
     }
 }

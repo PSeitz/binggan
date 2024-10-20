@@ -151,6 +151,9 @@ impl BenchRunner {
         }
 
         let num_group_iter = self.config.get_num_iter_for_group();
+        self.get_plugin_manager().emit(PluginEvents::GroupNumIters {
+            num_iter: num_group_iter,
+        });
         // If the group is quite big, we don't want to create too big chunks, which causes
         // slow tests, therefore a chunk is at most 5 elements large.
         for group in group.chunks_mut(MAX_GROUP_SIZE) {
@@ -245,18 +248,28 @@ impl BenchRunner {
             .and_then(|val| val.parse::<usize>().ok())
         {
             for input_and_bench in benches {
-                input_and_bench.set_num_iter(num_iter);
+                input_and_bench.set_num_iter(num_iter, plugins);
             }
+            plugins.emit(PluginEvents::GroupBenchNumIters { num_iter });
+
             return;
         }
+
         // Filter benches that already have num_iter set
-        let mut benches: Vec<_> = benches
-            .iter_mut()
-            .filter(|b| b.get_num_iter().is_none())
-            .collect::<Vec<_>>();
-        if benches.is_empty() {
-            return;
-        }
+        let mut benches = {
+            let filtered: Vec<_> = benches
+                .iter_mut()
+                .filter(|b| b.get_num_iter().is_none())
+                .collect::<Vec<_>>();
+            if filtered.is_empty() {
+                plugins.emit(PluginEvents::GroupBenchNumIters {
+                    num_iter: benches[0].get_num_iter().unwrap(),
+                });
+                return;
+            }
+            filtered
+        };
+
         // In order to make the benchmarks in a group comparable, it is imperative to call them
         // the same numer of times
         let (min_num_iter, max_num_iter) =
@@ -273,7 +286,7 @@ impl BenchRunner {
         let max_num_iter = max_num_iter.min(min_num_iter * 10);
         // We round up, so that we may get the same number of iterations between runs
         let max_num_iter = round_up(max_num_iter as u64) as usize;
-        plugins.emit(PluginEvents::GroupNumIters {
+        plugins.emit(PluginEvents::GroupBenchNumIters {
             num_iter: max_num_iter,
         });
         if verbose {
@@ -281,7 +294,7 @@ impl BenchRunner {
         }
 
         for input_and_bench in benches {
-            input_and_bench.set_num_iter(max_num_iter);
+            input_and_bench.set_num_iter(max_num_iter, plugins);
         }
     }
 }

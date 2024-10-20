@@ -1,3 +1,6 @@
+use core::fmt;
+use std::fmt::{Display, Formatter};
+
 /// BenchId is a unique identifier for a benchmark.
 /// It has three components:
 /// - runner_name: The name of the runner that executed the benchmark.
@@ -12,6 +15,11 @@ pub struct BenchId {
     pub group_name: Option<String>,
     /// The name of the benchmark.
     pub bench_name: String,
+}
+impl Display for BenchId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.get_full_name())
+    }
 }
 
 impl BenchId {

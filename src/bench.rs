@@ -10,7 +10,7 @@ use crate::{
 pub trait Bench<'a> {
     /// Returns the number of iterations the benchmark should do
     fn get_num_iter(&self) -> Option<usize>;
-    fn set_num_iter(&mut self, num_iter: usize);
+    fn set_num_iter(&mut self, num_iter: usize, plugins: &mut PluginManager);
     /// Sample the number of iterations the benchmark should do
     fn sample_num_iter(&mut self) -> usize;
     fn exec_bench(&mut self, plugins: &mut PluginManager);
@@ -97,7 +97,7 @@ impl<'a, I, O: OutputValue> Bench<'a> for InputWithBenchmark<'a, I, O> {
     fn get_num_iter(&self) -> Option<usize> {
         self.num_iter
     }
-    fn set_num_iter(&mut self, num_iter: usize) {
+    fn set_num_iter(&mut self, num_iter: usize, _plugins: &mut PluginManager) {
         self.num_iter = Some(num_iter);
     }
 

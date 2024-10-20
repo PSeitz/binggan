@@ -42,9 +42,14 @@ impl EventListener for PlainReporter {
                 }
                 println!("{}", group_name.black().on_yellow().invert().bold());
             }
+            PluginEvents::GroupBenchNumIters { num_iter } => {
+                if self.print_num_iter {
+                    println!("Num Iter Benches in Group {}", num_iter.bold());
+                }
+            }
             PluginEvents::GroupNumIters { num_iter } => {
                 if self.print_num_iter {
-                    println!("Num Iter {}", num_iter.bold());
+                    println!("Num Iter Group {}", num_iter.bold());
                 }
             }
             PluginEvents::GroupStop {

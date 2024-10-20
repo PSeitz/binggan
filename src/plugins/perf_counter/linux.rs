@@ -177,7 +177,7 @@ impl PerfCounterPlugin {
 
 impl EventListener for PerfCounterPlugin {
     fn prio(&self) -> u32 {
-        0
+        u32::MAX
     }
 
     fn as_any(&mut self) -> &mut dyn Any {
