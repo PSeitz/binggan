@@ -46,9 +46,9 @@ pub struct BenchResult {
     /// The aggregated statistics of the previous run.
     pub old_stats: Option<BenchStats>,
     /// The performance counter values of the benchmark run. (Linux only)
-    pub perf_counter: Option<CounterValues>,
+    pub perf_counter: Option<PerfCounterValues>,
     /// The performance counter values of the previous benchmark run. (Linux only)
-    pub old_perf_counter: Option<CounterValues>,
+    pub old_perf_counter: Option<PerfCounterValues>,
     /// The size of the input in bytes if available.
     pub input_size_in_bytes: Option<usize>,
     /// The size of the output returned by the bench. Enables reporting.
@@ -140,7 +140,7 @@ fn get_perf_counter(
     _events: &mut PluginManager,
     _bench_id: &BenchId,
     _total_num_iter: u64,
-) -> Option<CounterValues> {
+) -> Option<PerfCounterValues> {
     #[cfg(target_os = "linux")]
     {
         _events

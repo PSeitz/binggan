@@ -38,6 +38,9 @@
 //!
 
 pub(crate) mod alloc;
+
+#[cfg(feature = "branch_predictor")]
+mod bpu_trasher;
 mod cache_trasher;
 mod perf_counter;
 
@@ -49,6 +52,9 @@ pub use alloc::*;
 pub use cache_trasher::*;
 pub use events::*;
 pub use perf_counter::*;
+
+#[cfg(feature = "branch_predictor")]
+pub use bpu_trasher::*;
 
 use crate::BenchId;
 

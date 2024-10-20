@@ -47,6 +47,52 @@ pub fn format_with_underscores(number: u64) -> String {
     result.chars().rev().collect()
 }
 
+/// Formats a number by adding underscores to separate thousands for better readability.
+///
+/// # Parameters
+/// - `number`: The number to format.
+///
+/// # Returns
+/// A string representation of the number, where underscores are inserted every three digits for readability.
+/// For example, `1000000.23` becomes `1_000_000.23`.
+pub fn format_with_underscores_f64(n: f64) -> String {
+    let integer_part = n.trunc() as u64;
+    let decimal_part = n.fract();
+
+    // Format the integer part with underscores
+    let mut int_with_underscores = integer_part
+        .to_string()
+        .chars()
+        .rev()
+        .collect::<Vec<_>>()
+        .chunks(3)
+        .map(|chunk| chunk.iter().collect::<String>())
+        .collect::<Vec<_>>()
+        .join("_")
+        .chars()
+        .rev()
+        .collect::<String>();
+
+    if n >= 1000.0 {
+        // If the number is greater than or equal to 1000, drop the decimal part
+        return int_with_underscores;
+    }
+
+    // If the number is smaller than 1000, retain the decimal part with different precision
+    let formatted_decimal = if n < 0.01 {
+        format!("{:.5}", decimal_part)
+    } else {
+        format!("{:.2}", decimal_part)
+    };
+
+    // Combine the integer part with the formatted decimal part
+    if decimal_part != 0.0 {
+        int_with_underscores.push_str(&formatted_decimal[1..]);
+    }
+
+    int_with_underscores
+}
+
 /// bytes size for 1 kilobyte
 pub const KB: u64 = 1_000;
 
@@ -171,5 +217,42 @@ mod tests {
             format_duration_or_throughput(1e9 as u64, Some(1000000)),
             "1.0000 MB/s"
         );
+    }
+
+    #[test]
+    fn test_format_with_underscores() {
+        // Test for a number with both integer and decimal parts
+        let num = 123456.78;
+        let formatted = format_with_underscores_f64(num);
+        assert_eq!(formatted, "123_456.78");
+
+        // Test for a number with only an integer part
+        let num = 987654321.0;
+        let formatted = format_with_underscores_f64(num);
+        assert_eq!(formatted, "987_654_321");
+
+        // Test for a small number with a decimal part
+        let num = 1234.56;
+        let formatted = format_with_underscores_f64(num);
+        assert_eq!(formatted, "1_234.56");
+
+        // Test for a large number with many digits
+        let num = 12345678901234.56;
+        let formatted = format_with_underscores_f64(num);
+        assert_eq!(formatted, "12_345_678_901_234.56");
+
+        // Test for a number with only decimal part
+        let num = 0.78;
+        let formatted = format_with_underscores_f64(num);
+        assert_eq!(formatted, "0.78");
+
+        // Test for zero
+        let num = 0.0;
+        let formatted = format_with_underscores_f64(num);
+        assert_eq!(formatted, "0");
+
+        let num = 1000.0;
+        let formatted = format_with_underscores_f64(num);
+        assert_eq!(formatted, "1_000");
     }
 }

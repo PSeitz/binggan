@@ -1,99 +1,107 @@
 /// Linux specific code for perf counter integration.
 use std::error::Error;
+use std::io;
 
 use crate::bench_id::BenchId;
 use crate::plugins::{EventListener, PerBenchData, PluginEvents};
-use perf_event::events::{Cache, CacheOp, CacheResult, Hardware, WhichCache};
+use perf_event::events::{Cache, CacheOp, CacheResult, Hardware, Software, WhichCache};
 use perf_event::Counter;
 use perf_event::{Builder, Group};
 use std::any::Any;
+use yansi::Paint;
 
-use super::{CounterValues, PERF_CNT_EVENT_LISTENER_NAME};
+use super::{default_perf_counters, PerfCounter, PerfCounterValues, PERF_CNT_EVENT_LISTENER_NAME};
 
-pub(crate) struct PerfCounters {
-    branches: Counter,
-    branches_missed: Counter,
-    group: Group,
-    // translation lookaside buffer
-    tlbd_access_counter: Counter,
-    tlbd_miss_counter: Counter,
-    l1d_access_counter: Counter,
-    l1d_miss_counter: Counter,
-}
-impl PerfCounters {
-    pub fn new() -> Result<Self, Box<dyn Error>> {
-        let mut group = Group::new()?;
-        const L1D_ACCESS: Cache = Cache {
-            which: WhichCache::L1D,
-            operation: CacheOp::READ,
-            result: CacheResult::ACCESS,
-        };
-        const L1D_MISS: Cache = Cache {
-            result: CacheResult::MISS,
-            ..L1D_ACCESS
-        };
-        let l1d_access_counter = Builder::new().group(&mut group).kind(L1D_ACCESS).build()?;
-        let l1d_miss_counter = Builder::new().group(&mut group).kind(L1D_MISS).build()?;
-
-        // TLB
-        const TLBD_ACCESS: Cache = Cache {
-            which: WhichCache::DTLB,
-            operation: CacheOp::READ,
-            result: CacheResult::ACCESS,
-        };
-        const TLBD_MISS: Cache = Cache {
-            result: CacheResult::MISS,
-            ..TLBD_ACCESS
-        };
-        let tlbd_access_counter = Builder::new().group(&mut group).kind(TLBD_ACCESS).build()?;
-        let tlbd_miss_counter = Builder::new().group(&mut group).kind(TLBD_MISS).build()?;
-
-        let branches = Builder::new()
-            .group(&mut group)
-            .kind(Hardware::BRANCH_INSTRUCTIONS)
-            .build()?;
-        let missed_branches = Builder::new()
-            .group(&mut group)
-            .kind(Hardware::BRANCH_MISSES)
-            .build()?;
-        group.disable()?;
-
-        Ok(PerfCounters {
-            group,
-            tlbd_access_counter,
-            tlbd_miss_counter,
-            l1d_access_counter,
-            l1d_miss_counter,
-            branches,
-            branches_missed: missed_branches,
-        })
+impl PerfCounter {
+    /// Maps each enum variant to the appropriate `Hardware` or `Cache` type
+    fn build(self, group: &mut Group) -> io::Result<Counter> {
+        let builder = Builder::new().group(group);
+        match self {
+            PerfCounter::CpuCycles => builder.kind(Hardware::CPU_CYCLES).build(),
+            PerfCounter::PageFaultsMinor => builder.kind(Software::PAGE_FAULTS_MIN).build(),
+            PerfCounter::PageFaultsMajor => builder.kind(Software::PAGE_FAULTS_MAJ).build(),
+            PerfCounter::PageFaults => builder.kind(Software::PAGE_FAULTS).build(),
+            PerfCounter::Branches => builder.kind(Hardware::BRANCH_INSTRUCTIONS).build(),
+            PerfCounter::MissedBranches => builder.kind(Hardware::BRANCH_MISSES).build(),
+            PerfCounter::L1DCacheAccess => builder
+                .kind(Cache {
+                    which: WhichCache::L1D,
+                    operation: CacheOp::READ,
+                    result: CacheResult::ACCESS,
+                })
+                .build(),
+            PerfCounter::L1DCacheMiss => builder
+                .kind(Cache {
+                    which: WhichCache::L1D,
+                    operation: CacheOp::READ,
+                    result: CacheResult::MISS,
+                })
+                .build(),
+            PerfCounter::TLBDataAccess => builder
+                .kind(Cache {
+                    which: WhichCache::DTLB,
+                    operation: CacheOp::READ,
+                    result: CacheResult::ACCESS,
+                })
+                .build(),
+            PerfCounter::TLBDataMiss => builder
+                .kind(Cache {
+                    which: WhichCache::DTLB,
+                    operation: CacheOp::READ,
+                    result: CacheResult::MISS,
+                })
+                .build(),
+            PerfCounter::InstructionsRetired => builder.kind(Hardware::INSTRUCTIONS).build(),
+        }
     }
 }
 
-impl PerfCounters {
+pub(crate) struct PerfCounterGroup {
+    group: Group,
+    counters: Vec<(PerfCounter, Counter)>, // Store enum and corresponding counter
+}
+
+impl PerfCounterGroup {
+    pub fn new(counters_enum: &[PerfCounter]) -> Result<Self, Box<dyn Error>> {
+        let mut group = Group::new()?;
+
+        let mut counters: Vec<_> = Vec::new();
+        for counter in counters_enum {
+            match counter.build(&mut group) {
+                Ok(built_counter) => counters.push((*counter, built_counter)),
+                Err(e) => {
+                    let warn = "Some counter combinations are incompatible".bold().red();
+                    println!(
+                        "{}. Disabling PerfCounter: {} \nError: {:?}",
+                        warn, counter, e
+                    );
+                }
+            }
+        }
+
+        group.disable()?;
+
+        Ok(PerfCounterGroup { group, counters })
+    }
+}
+
+impl PerfCounterGroup {
     pub fn enable(&mut self) {
         self.group.enable().unwrap();
     }
     pub fn disable(&mut self) {
         self.group.disable().unwrap();
     }
-    pub fn finish(&mut self, num_iter: u64) -> std::io::Result<CounterValues> {
+    pub fn finish(&mut self, num_iter: u64) -> io::Result<PerfCounterValues> {
         let num_iter = num_iter as f64;
-        let l1d_access_count = self.l1d_access_counter.read()? as f64 / num_iter;
-        let tlbd_access_count = self.tlbd_access_counter.read()? as f64 / num_iter;
-        let tlbd_miss_count = self.tlbd_miss_counter.read()? as f64 / num_iter;
-        let miss_count = self.l1d_miss_counter.read()? as f64 / num_iter;
-        let branches_count = self.branches.read()? as f64 / num_iter;
-        let missed_branches_count = self.branches_missed.read()? as f64 / num_iter;
+        let mut values = Vec::new();
 
-        Ok(CounterValues {
-            l1d_access_count,
-            tlbd_access_count,
-            tlbd_miss_count,
-            l1d_miss_count: miss_count,
-            branches_count,
-            missed_branches_count,
-        })
+        for (counter_enum, counter) in &mut self.counters {
+            let count = counter.read().unwrap() as f64 / num_iter;
+            values.push((*counter_enum, count)); // Store in HashMap
+        }
+
+        Ok(PerfCounterValues { values })
     }
 }
 
@@ -133,14 +141,34 @@ impl PerfCounters {
 /// runner.add_plugin(PerfCounterPlugin::default());
 /// ```
 
-#[derive(Default)]
 pub struct PerfCounterPlugin {
-    perf_per_bench: PerBenchData<Option<PerfCounters>>,
+    perf_per_bench: PerBenchData<Option<PerfCounterGroup>>,
+    enabled_perf_counters: Vec<PerfCounter>,
+}
+
+impl Default for PerfCounterPlugin {
+    fn default() -> Self {
+        PerfCounterPlugin {
+            perf_per_bench: PerBenchData::default(),
+            enabled_perf_counters: default_perf_counters().to_vec(),
+        }
+    }
 }
 
 impl PerfCounterPlugin {
+    /// Create a new instance of the plugin with the specified counters
+    ///
+    pub fn new(perf_counters: Vec<PerfCounter>) -> Self {
+        PerfCounterPlugin {
+            perf_per_bench: PerBenchData::default(),
+            enabled_perf_counters: perf_counters,
+        }
+    }
     /// Get the perf counter for a bench id
-    pub(crate) fn get_by_bench_id_mut(&mut self, bench_id: &BenchId) -> Option<&mut PerfCounters> {
+    pub(crate) fn get_by_bench_id_mut(
+        &mut self,
+        bench_id: &BenchId,
+    ) -> Option<&mut PerfCounterGroup> {
         self.perf_per_bench
             .get_mut(bench_id)
             .and_then(Option::as_mut)
@@ -157,8 +185,9 @@ impl EventListener for PerfCounterPlugin {
     fn on_event(&mut self, event: PluginEvents) {
         match event {
             PluginEvents::BenchStart { bench_id } => {
-                self.perf_per_bench
-                    .insert_if_absent(bench_id, || PerfCounters::new().ok());
+                self.perf_per_bench.insert_if_absent(bench_id, || {
+                    PerfCounterGroup::new(&self.enabled_perf_counters).ok()
+                });
                 let perf = self.perf_per_bench.get_mut(bench_id).unwrap();
                 if let Some(perf) = perf {
                     perf.enable();

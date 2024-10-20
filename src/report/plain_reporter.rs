@@ -70,7 +70,7 @@ impl EventListener for PlainReporter {
                     table_data.push(stats_columns);
 
                     if let Some(perf_counter) = perf_counter.as_ref() {
-                        let mut columns = perf_counter.to_columns(result.old_perf_counter);
+                        let mut columns = perf_counter.to_columns(result.old_perf_counter.as_ref());
                         columns.insert(0, "".to_string());
                         table_data.push(columns);
                     }
