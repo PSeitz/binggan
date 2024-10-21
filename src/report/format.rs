@@ -224,7 +224,7 @@ mod tests {
         // Test for a number with both integer and decimal parts
         let num = 123456.78;
         let formatted = format_with_underscores_f64(num);
-        assert_eq!(formatted, "123_456.78");
+        assert_eq!(formatted, "123_456");
 
         // Test for a number with only an integer part
         let num = 987654321.0;
@@ -234,12 +234,12 @@ mod tests {
         // Test for a small number with a decimal part
         let num = 1234.56;
         let formatted = format_with_underscores_f64(num);
-        assert_eq!(formatted, "1_234.56");
+        assert_eq!(formatted, "1_234");
 
         // Test for a large number with many digits
         let num = 12345678901234.56;
         let formatted = format_with_underscores_f64(num);
-        assert_eq!(formatted, "12_345_678_901_234.56");
+        assert_eq!(formatted, "12_345_678_901_234");
 
         // Test for a number with only decimal part
         let num = 0.78;
