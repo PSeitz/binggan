@@ -140,7 +140,6 @@ impl PerfCounterGroup {
 /// let mut runner = BenchRunner::new();
 /// runner.add_plugin(PerfCounterPlugin::default());
 /// ```
-
 pub struct PerfCounterPlugin {
     perf_per_bench: PerBenchData<Option<PerfCounterGroup>>,
     enabled_perf_counters: Vec<PerfCounter>,
