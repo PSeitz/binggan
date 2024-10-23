@@ -35,7 +35,7 @@ unicode-width = "0.1.11"
 yansi = { version = "1.0.1", features = ["detect-env", "detect-tty"] }
 rustop = "=1.1.4"
 rustc-hash = "2.0.0"
-bpu_trasher = { version = "0.1.0", optional = true }
+bpu_trasher = { version = "0.2.0", optional = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 perf-event = { version = "0.4.8" }
