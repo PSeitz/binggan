@@ -43,7 +43,7 @@ perf-event = { version = "0.4.8" }
 [features]
 real_blackbox = []
 table_reporter = ["prettytable-rs"]
-# branch_predictor trasher plugin
+# branch_predictor plugin to trash the branch predictor
 branch_predictor = ["bpu_trasher"]
 default = ["branch_predictor"]
 

@@ -12,6 +12,7 @@ It is designed to be simple to use and to provide a good overview of the perform
 
 * 📊 Peak Memory Usage
 * 💎 Stack Offset Randomization
+* 🔌 Plugin System
 * 💖 Perf Integration (Linux)
 * 🔄 Delta Comparison
 * ⚡ Fast Execution
@@ -19,9 +20,8 @@ It is designed to be simple to use and to provide a good overview of the perform
 * 🏷️ Named Runs, Groups and Benchmarks
 * 🧙 No Macros, No Magic (Just a regular API)
 * 🦀 Runs on Stable Rust
-* 📈 Custom reporter
-* 🧩 Report output of benchmarks
-* 🔌 Plugin System
+* 📈 Custom Reporter
+* 🧩 Report Output of Benchmarks
 * 🎨 NOW with colored output!
 
 ### Example
