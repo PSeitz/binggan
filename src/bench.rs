@@ -18,7 +18,7 @@ pub trait Bench<'a> {
     fn clear_results(&mut self);
 }
 
-pub(crate) type CallBench<'a, I, O> = Box<dyn FnMut(&'a I) -> Option<O>>;
+pub(crate) type CallBench<'a, I, O> = Box<dyn FnMut(&'a I) -> Option<O> + 'a>;
 
 pub(crate) struct NamedBench<'a, I, O> {
     pub bench_id: BenchId,

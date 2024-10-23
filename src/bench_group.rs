@@ -57,7 +57,7 @@ impl<'a, 'runner> BenchGroup<'a, 'runner> {
         input: &'a I,
         fun: F,
     ) where
-        F: Fn(&'a I) -> Option<O> + 'static,
+        F: Fn(&'a I) -> Option<O> + 'a,
     {
         let bench = NamedBench::new(
             self.get_bench_id(bench_name.into()),

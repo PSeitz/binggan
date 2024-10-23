@@ -43,6 +43,7 @@ perf-event = { version = "0.4.8" }
 [features]
 real_blackbox = []
 table_reporter = ["prettytable-rs"]
+# branch_predictor trasher plugin
 branch_predictor = ["bpu_trasher"]
 default = ["branch_predictor"]
 
@@ -59,6 +60,6 @@ name = "bench_input"
 harness = false
 
 [[bench]]
-name = "test_throughput"
+name = "test_bench"
 harness = false
 

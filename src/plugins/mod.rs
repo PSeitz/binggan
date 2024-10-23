@@ -39,6 +39,7 @@
 
 pub(crate) mod alloc;
 
+#[cfg_attr(docsrs, doc(cfg(feature = "branch_predictor")))]
 #[cfg(feature = "branch_predictor")]
 mod bpu_trasher;
 mod cache_trasher;
@@ -53,6 +54,7 @@ pub use cache_trasher::*;
 pub use events::*;
 pub use perf_counter::*;
 
+#[cfg_attr(docsrs, doc(cfg(feature = "branch_predictor")))]
 #[cfg(feature = "branch_predictor")]
 pub use bpu_trasher::*;
 
