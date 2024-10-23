@@ -69,11 +69,11 @@
 //!        .add_plugin(PerfCounterPlugin::default());
 //!     runner.register("vec", move |data| {
 //!         let vec = test_vec(data);
-//!         Some(vec.len() as u64)
+//!         vec.len() as u64
 //!     });
 //!     runner.register("hashmap", move |data| {
 //!         let map = test_hashmap(data);
-//!         Some(map.len() as u64)
+//!         map.len() as u64
 //!     });
 //!    runner.run();
 //! }
@@ -146,11 +146,9 @@
 //!         group.set_input_size(data.len() * std::mem::size_of::<usize>());
 //!         group.register_with_input("vec", data, move |data| {
 //!             black_box(test_vec(data));
-//!             Some(())
 //!         });
 //!         group.register_with_input("hashmap", data, move |data| {
 //!             black_box(test_hashmap(data));
-//!             Some(())
 //!         });
 //!     }
 //!     group.run();

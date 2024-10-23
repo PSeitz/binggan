@@ -28,6 +28,11 @@ impl OutputValue for () {
         None
     }
 }
+impl OutputValue for Option<u64> {
+    fn format(&self) -> Option<String> {
+        self.map(format_with_underscores)
+    }
+}
 impl OutputValue for u64 {
     fn format(&self) -> Option<String> {
         Some(format_with_underscores(*self))

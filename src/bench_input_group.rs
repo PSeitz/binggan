@@ -88,10 +88,10 @@ impl<I: 'static, O: OutputValue + 'static> InputGroup<I, O> {
 
     /// Register a benchmark with the given name and function.
     ///
-    /// The return value of the function will be reported as the `OutputValue` if it is `Some`.
+    /// The return value of the function will be reported as the `OutputValue`
     pub fn register<F, S: Into<String>>(&mut self, name: S, fun: F)
     where
-        F: Fn(&I) -> Option<O> + 'static + Clone,
+        F: Fn(&I) -> O + 'static + Clone,
     {
         let name = name.into();
 

@@ -133,7 +133,7 @@ mod tests {
 
     fn create_res(duration_ns: u64) -> RunResult<u64> {
         RunResult {
-            output: None,
+            output: 0,
             duration_ns,
         }
     }

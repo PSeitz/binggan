@@ -20,14 +20,12 @@ fn bench_factorial() {
     for val in [100, 400] {
         runner.bench_function(format!("factorial {}", val), move |_| {
             factorial(black_box(val));
-            Some(())
         });
     }
 
     let mut group = runner.new_group();
     group.register("factorial 100", |()| {
         factorial(black_box(100));
-        Some(())
     });
     group.run();
 }

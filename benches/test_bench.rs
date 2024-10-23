@@ -26,7 +26,6 @@ fn run_bench_throughput() {
         let start = Instant::now();
         // Busy loop for approximately 10 milliseconds. This is more precise than sleep.
         while start.elapsed() < Duration::from_millis(10) {}
-        Some(())
     });
     group.run();
 }

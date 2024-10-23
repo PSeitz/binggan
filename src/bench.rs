@@ -18,7 +18,7 @@ pub trait Bench<'a> {
     fn clear_results(&mut self);
 }
 
-pub(crate) type CallBench<'a, I, O> = Box<dyn FnMut(&'a I) -> Option<O> + 'a>;
+pub(crate) type CallBench<'a, I, O> = Box<dyn FnMut(&'a I) -> O + 'a>;
 
 pub(crate) struct NamedBench<'a, I, O> {
     pub bench_id: BenchId,
@@ -125,7 +125,7 @@ impl<'a, I, O: OutputValue> Bench<'a> for InputWithBenchmark<'a, I, O> {
             perf_counter,
             input_size_in_bytes: self.input_size_in_bytes,
             tracked_memory,
-            output_value: output_value.and_then(|el| el.format()),
+            output_value: output_value.format(),
             old_stats: None,
             old_perf_counter: None,
         }
@@ -163,10 +163,10 @@ fn get_perf_counter(
 /// There are multiple runs in a group for each benchmark which will be collected to a vector
 pub struct RunResult<O> {
     pub duration_ns: u64,
-    pub output: Option<O>,
+    pub output: O,
 }
 impl<O> RunResult<O> {
-    fn new(duration_ns: u64, output: Option<O>) -> Self {
+    fn new(duration_ns: u64, output: O) -> Self {
         RunResult {
             duration_ns,
             output,
@@ -217,13 +217,13 @@ impl<'a, I, O> NamedBench<'a, I, O> {
             bench_id: &self.bench_id,
         });
         let start = std::time::Instant::now();
-        let mut res = None;
+        let mut res: Option<O> = None;
         for _ in 0..num_iter {
-            res = black_box((self.fun)(input));
+            res = Some(black_box((self.fun)(input)));
         }
         let elapsed = start.elapsed();
 
-        let run_result = RunResult::new(elapsed.as_nanos() as u64 / num_iter as u64, res);
+        let run_result = RunResult::new(elapsed.as_nanos() as u64 / num_iter as u64, res.unwrap());
         plugins.emit(PluginEvents::BenchStop {
             bench_id: &self.bench_id,
             duration: run_result.duration_ns,

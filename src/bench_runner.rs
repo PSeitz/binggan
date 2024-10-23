@@ -96,10 +96,10 @@ impl BenchRunner {
     /// Run a single function. This will directly execute and report the function and therefore does
     /// not support interleaved execution.
     ///
-    /// The return value of the function will be reported as the [OutputValue::column_title] if it is `Some`.
+    /// The return value of the function will be reported as the [OutputValue::column_title].
     pub fn bench_function<F, S: Into<String>, O: OutputValue>(&mut self, name: S, f: F) -> &mut Self
     where
-        F: Fn(&()) -> Option<O> + 'static,
+        F: Fn(&()) -> O + 'static,
     {
         let bench_id = BenchId::from_bench_name(name).runner_name(self.name.as_deref());
         let named_bench = NamedBench::new(
