@@ -72,7 +72,7 @@ impl<'a, 'runner> BenchGroup<'a, 'runner> {
     /// The return value of the function will be reported as the `OutputValue`.
     pub fn register<F, S: Into<String>, O: OutputValue + 'static>(&mut self, bench_name: S, fun: F)
     where
-        F: Fn(&'a ()) -> O + 'static,
+        F: Fn(&'a ()) -> O + 'a,
     {
         let bench_name = bench_name.into();
         let bench = NamedBench::new(
