@@ -45,7 +45,7 @@ fn bench_group(mut runner: InputGroup<Vec<usize>>) {
         // Trashes the CPU cache between runs
         .add_plugin(CacheTrasher::default())
         // Set the peak mem allocator. This will enable peak memory reporting.
-        .add_plugin(PeakAllocPlugin::new(GLOBAL))
+        .add_plugin(PeakMemAllocPlugin::new(GLOBAL))
         // Enables the perf integration. Only on Linux, noop on other OS.
         .add_plugin(PerfCounterPlugin::default());
     // Enables throughput reporting
