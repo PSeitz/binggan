@@ -15,7 +15,7 @@ It is designed to be simple to use and to provide a good overview of the perform
 * 🔌 Plugin System
 * 💖 Perf Integration (Linux)
 * 🔄 Delta Comparison
-* ⚡ Fast Execution
+* ⚡ BLAZINGLY Fast Execution
 * 🔀 Interleaving Test Runs (More accurate results)
 * 🏷️ Named Runs, Groups and Benchmarks
 * 🧙 No Macros, No Magic (Just a regular API)
