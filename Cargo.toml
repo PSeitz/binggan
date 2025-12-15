@@ -1,6 +1,6 @@
 [package]
 name = "binggan"
-version = "0.14.2"
+version = "0.15.0"
 authors = ["Pascal Seitz <pascal.seitz@gmail.com>"]
 edition = "2021"
 homepage = "https://github.com/pseitz/binggan"
@@ -21,7 +21,7 @@ perf         = { priority = -1, level = "deny" }
 style        = { priority = -1, level = "deny" }
 suspicious   = { priority = -1, level = "deny" }
 
-# docs.rs-specific configuration
+# docs.rs-specific configuratioasdasdsn
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
