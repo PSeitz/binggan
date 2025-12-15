@@ -13,7 +13,7 @@ pub struct PerfCounterPlugin {}
 impl PerfCounterPlugin {
     /// Create a new instance of the plugin with the specified counters
     ///
-    pub fn new(perf_counters: Vec<PerfCounter>) -> Self {
+    pub fn new(_perf_counters: Vec<PerfCounter>) -> Self {
         PerfCounterPlugin {}
     }
 }
