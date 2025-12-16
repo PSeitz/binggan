@@ -5,6 +5,7 @@ use crate::{
     plugins::{alloc::*, *},
     stats::*,
 };
+use quanta::Instant;
 
 /// The trait which typically wraps a InputWithBenchmark and allows to hide the generics.
 pub trait Bench<'a> {
@@ -183,7 +184,7 @@ impl<'a, I, O: OutputValue> NamedBench<'a, I, O> {
         const TARGET_NS_PER_BENCH: u128 = TARGET_MS_PER_BENCH as u128 * 1_000_000;
         {
             // Preliminary test if function is very slow
-            let start = std::time::Instant::now();
+            let start = Instant::now();
             #[allow(clippy::unit_arg)]
             black_box((self.fun)(input));
             let elapsed_ms = start.elapsed().as_millis() as u64;
@@ -192,7 +193,7 @@ impl<'a, I, O: OutputValue> NamedBench<'a, I, O> {
             }
         }
 
-        let start = std::time::Instant::now();
+        let start = Instant::now();
         for _ in 0..64 {
             #[allow(clippy::unit_arg)]
             black_box((self.fun)(input));
@@ -217,18 +218,24 @@ impl<'a, I, O: OutputValue> NamedBench<'a, I, O> {
             bench_id: &self.bench_id,
         });
         debug_assert!(num_iter > 0);
-        let start = std::time::Instant::now();
 
         // Defer dropping outputs so destructor cost is not part of the measured time.
         let run_result = if O::defer_drop() {
-            let mut outputs: Vec<O> = Vec::with_capacity(num_iter);
+            let mut sum_ns = 0u64;
+            let mut res: Option<O> = None;
+            // In this mode, we measure each iteration separately to avoid destructor cost.
+            // There may be some overhead, but it should be outweighed by benchmarks that allocate
             for _ in 0..num_iter {
-                outputs.push(black_box((self.fun)(input)));
+                res.take();
+                let start = Instant::now();
+                let val = black_box((self.fun)(input));
+                sum_ns += start.elapsed().as_nanos() as u64;
+                res = Some(val);
             }
-            let duration_ns = start.elapsed().as_nanos() as u64 / num_iter as u64;
-            let last_output = outputs.pop().expect("num_iter > 0");
-            RunResult::new(duration_ns, last_output)
+            let duration_ns = sum_ns / num_iter as u64;
+            RunResult::new(duration_ns, res.unwrap())
         } else {
+            let start = Instant::now();
             let mut res: Option<O> = None;
             for _ in 0..num_iter {
                 res = Some(black_box((self.fun)(input)));

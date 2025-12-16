@@ -1,12 +1,10 @@
-use std::{
-    collections::HashMap,
-    time::{Duration, Instant},
-};
+use std::{collections::HashMap, time::Duration};
 
 use binggan::{
     plugins::{CacheTrasher, PeakMemAllocPlugin, PerfCounterPlugin},
     BenchRunner, PeakMemAlloc, INSTRUMENTED_SYSTEM,
 };
+use quanta::Instant;
 
 #[global_allocator]
 pub static GLOBAL: &PeakMemAlloc<std::alloc::System> = &INSTRUMENTED_SYSTEM;

@@ -21,10 +21,12 @@ pub struct Config {
 
 impl Default for Config {
     fn default() -> Self {
+        // Check ENV for verbose
+        let verbose = std::env::var("BINGGAN_VERBOSE").is_ok();
         Config {
             interleave: true,
             filter: None,
-            verbose: false,
+            verbose,
             num_iter_bench: None,
             num_iter_group: None,
         }

@@ -272,6 +272,7 @@ impl BenchRunner {
 
         // In order to make the benchmarks in a group comparable, it is imperative to call them
         // the same numer of times
+        // Note: This doesn't work well for very large groups with very different benchmarks.
         let (min_num_iter, max_num_iter) =
             minmax(benches.iter_mut().map(|b| b.sample_num_iter())).unwrap();
 
