@@ -1,3 +1,5 @@
+use std::sync::atomic;
+
 use crate::{
     bench_id::BenchId,
     black_box,
@@ -5,7 +7,7 @@ use crate::{
     plugins::{alloc::*, *},
     stats::*,
 };
-use quanta::Instant;
+use quanta::Clock;
 
 /// The trait which typically wraps a InputWithBenchmark and allows to hide the generics.
 pub trait Bench<'a> {
@@ -25,6 +27,7 @@ pub(crate) struct NamedBench<'a, I, O> {
     pub bench_id: BenchId,
     pub fun: CallBench<'a, I, O>,
     pub num_group_iter: usize,
+    clock: Clock,
 }
 impl<'a, I, O: OutputValue> NamedBench<'a, I, O> {
     pub fn new(bench_id: BenchId, fun: CallBench<'a, I, O>, num_group_iter: usize) -> Self {
@@ -32,6 +35,7 @@ impl<'a, I, O: OutputValue> NamedBench<'a, I, O> {
             bench_id,
             fun,
             num_group_iter,
+            clock: Clock::new(),
         }
     }
 }
@@ -184,24 +188,33 @@ impl<'a, I, O: OutputValue> NamedBench<'a, I, O> {
         const TARGET_NS_PER_BENCH: u128 = TARGET_MS_PER_BENCH as u128 * 1_000_000;
         {
             // Preliminary test if function is very slow
-            let start = Instant::now();
+            let start = self.clock.raw();
             #[allow(clippy::unit_arg)]
             black_box((self.fun)(input));
-            let elapsed_ms = start.elapsed().as_millis() as u64;
+            let elapsed_ms = self.clock.delta_as_nanos(start, self.clock.raw()) / 1_000_000;
             if elapsed_ms > TARGET_MS_PER_BENCH {
                 return 1;
             }
         }
 
-        let start = Instant::now();
+        let start = self.clock.raw();
         for _ in 0..64 {
             #[allow(clippy::unit_arg)]
             black_box((self.fun)(input));
         }
-        let elapsed_ns = start.elapsed().as_nanos();
-        let per_iter_ns = elapsed_ns / 64;
+        let elapsed_ns = self.clock.delta_as_nanos(start, self.clock.raw());
+        if elapsed_ns == 0 {
+            return 1;
+        }
+        let per_iter_ns = u128::from(elapsed_ns) / 64;
+        if per_iter_ns == 0 {
+            return 1;
+        }
         // The test is run multiple times in the group.
         let per_iter_ns_group_run = self.num_group_iter as u128 * per_iter_ns;
+        if per_iter_ns_group_run == 0 {
+            return 1;
+        }
 
         let num_iter = TARGET_NS_PER_BENCH / per_iter_ns_group_run;
         // We want to run the benchmark for at least 1 iterations
@@ -221,26 +234,37 @@ impl<'a, I, O: OutputValue> NamedBench<'a, I, O> {
 
         // Defer dropping outputs so destructor cost is not part of the measured time.
         let run_result = if O::defer_drop() {
-            let mut sum_ns = 0u64;
+            // Accumulate raw deltas and scale once at the end.
+            // Scaling is linear, so `scale(sum(delta)) == sum(scale(delta))`.
+            let mut sum_raw = 0u64;
             let mut res: Option<O> = None;
             // In this mode, we measure each iteration separately to avoid destructor cost.
             // There may be some overhead, but it should be outweighed by benchmarks that allocate
             for _ in 0..num_iter {
-                res.take();
-                let start = Instant::now();
+                // We drop the value first to avoid measuring destructor time
+                // and to avoid keeping multiple outputs in memory.
+                atomic::compiler_fence(atomic::Ordering::SeqCst);
+                black_box(res.take());
+                atomic::compiler_fence(atomic::Ordering::SeqCst);
+                let start = self.clock.raw();
+                atomic::compiler_fence(atomic::Ordering::SeqCst);
                 let val = black_box((self.fun)(input));
-                sum_ns += start.elapsed().as_nanos() as u64;
+                atomic::compiler_fence(atomic::Ordering::SeqCst);
+                let end = self.clock.raw();
+                sum_raw = sum_raw.saturating_add(end.saturating_sub(start));
                 res = Some(val);
             }
+            let sum_ns = self.clock.delta_as_nanos(0, sum_raw);
             let duration_ns = sum_ns / num_iter as u64;
             RunResult::new(duration_ns, res.unwrap())
         } else {
-            let start = Instant::now();
+            let start = self.clock.raw();
             let mut res: Option<O> = None;
             for _ in 0..num_iter {
                 res = Some(black_box((self.fun)(input)));
             }
-            let duration_ns = start.elapsed().as_nanos() as u64 / num_iter as u64;
+            let elapsed_ns = self.clock.delta_as_nanos(start, self.clock.raw());
+            let duration_ns = elapsed_ns / num_iter as u64;
             RunResult::new(duration_ns, res.unwrap())
         };
 
