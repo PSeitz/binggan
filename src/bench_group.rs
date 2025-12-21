@@ -63,6 +63,7 @@ impl<'a, 'runner> BenchGroup<'a, 'runner> {
             self.get_bench_id(bench_name.into()),
             Box::new(fun),
             self.runner.config().get_num_iter_for_group(),
+            self.runner.config.adjust_for_single_threaded_cpu_scheduling,
         );
         self.register_named_with_input(bench, input);
     }
@@ -79,6 +80,7 @@ impl<'a, 'runner> BenchGroup<'a, 'runner> {
             self.get_bench_id(bench_name),
             Box::new(fun),
             self.runner.config().get_num_iter_for_group(),
+            self.runner.config.adjust_for_single_threaded_cpu_scheduling,
         );
 
         self.register_named_with_input(bench, &());

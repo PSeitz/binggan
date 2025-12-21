@@ -106,6 +106,7 @@ impl BenchRunner {
             bench_id,
             Box::new(f),
             self.config().get_num_iter_for_group(),
+            self.config.adjust_for_single_threaded_cpu_scheduling,
         );
         let bundle = InputWithBenchmark::new(
             EMPTY_INPUT,

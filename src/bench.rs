@@ -28,14 +28,21 @@ pub(crate) struct NamedBench<'a, I, O> {
     pub fun: CallBench<'a, I, O>,
     pub num_group_iter: usize,
     clock: Clock,
+    adjust_for_single_threaded_cpu_scheduling: bool,
 }
 impl<'a, I, O: OutputValue> NamedBench<'a, I, O> {
-    pub fn new(bench_id: BenchId, fun: CallBench<'a, I, O>, num_group_iter: usize) -> Self {
+    pub fn new(
+        bench_id: BenchId,
+        fun: CallBench<'a, I, O>,
+        num_group_iter: usize,
+        adjust_for_single_threaded_cpu_scheduling: bool,
+    ) -> Self {
         Self {
             bench_id,
             fun,
             num_group_iter,
             clock: Clock::new(),
+            adjust_for_single_threaded_cpu_scheduling,
         }
     }
 }
@@ -237,6 +244,11 @@ impl<'a, I, O: OutputValue> NamedBench<'a, I, O> {
             // Accumulate raw deltas and scale once at the end.
             // Scaling is linear, so `scale(sum(delta)) == sum(scale(delta))`.
             let mut sum_raw = 0u64;
+            let mut adjuster = if self.adjust_for_single_threaded_cpu_scheduling {
+                SingleThreadedCpuSchedulingAdjuster::start(&self.clock)
+            } else {
+                None
+            };
             let mut res: Option<O> = None;
             // In this mode, we measure each iteration separately to avoid destructor cost.
             // There may be some overhead, but it should be outweighed by benchmarks that allocate
@@ -255,16 +267,30 @@ impl<'a, I, O: OutputValue> NamedBench<'a, I, O> {
                 res = Some(val);
             }
             let sum_ns = self.clock.delta_as_nanos(0, sum_raw);
-            let duration_ns = sum_ns / num_iter as u64;
+            let adjusted_ns = adjuster
+                .as_mut()
+                .and_then(|adjuster| adjuster.finish(sum_ns, &self.clock))
+                .unwrap_or(sum_ns);
+            let duration_ns = adjusted_ns / num_iter as u64;
             RunResult::new(duration_ns, res.unwrap())
         } else {
             let start = self.clock.raw();
+            let mut adjuster = if self.adjust_for_single_threaded_cpu_scheduling {
+                SingleThreadedCpuSchedulingAdjuster::start_with_wall(start)
+            } else {
+                None
+            };
             let mut res: Option<O> = None;
             for _ in 0..num_iter {
                 res = Some(black_box((self.fun)(input)));
             }
-            let elapsed_ns = self.clock.delta_as_nanos(start, self.clock.raw());
-            let duration_ns = elapsed_ns / num_iter as u64;
+            let end = self.clock.raw();
+            let elapsed_ns = self.clock.delta_as_nanos(start, end);
+            let adjusted_ns = adjuster
+                .as_mut()
+                .and_then(|adjuster| adjuster.finish_with_wall(elapsed_ns, end, &self.clock))
+                .unwrap_or(elapsed_ns);
+            let duration_ns = adjusted_ns / num_iter as u64;
             RunResult::new(duration_ns, res.unwrap())
         };
 
@@ -274,4 +300,71 @@ impl<'a, I, O: OutputValue> NamedBench<'a, I, O> {
         });
         run_result
     }
+}
+
+/// Adjusts measured wall time by subtracting time the single thread was not scheduled.
+///
+/// Uses wall time from `quanta::Clock` and per-thread CPU time from
+/// `clock_gettime(CLOCK_THREAD_CPUTIME_ID)` on Linux. That clock reports
+/// CPU time consumed by the calling thread only (does not advance while
+/// the thread is off-CPU or blocked), so `wall - cpu` approximates time
+/// spent descheduled. This is subtracted from the measured duration and
+/// assumes a single-threaded benchmark.
+struct SingleThreadedCpuSchedulingAdjuster {
+    wall_start_raw: u64,
+    cpu_start_ns: u64,
+}
+
+impl SingleThreadedCpuSchedulingAdjuster {
+    fn start(clock: &Clock) -> Option<Self> {
+        Self::start_with_wall(clock.raw())
+    }
+
+    fn start_with_wall(wall_start_raw: u64) -> Option<Self> {
+        let cpu_start_ns = thread_cpu_time_ns()?;
+        Some(Self {
+            wall_start_raw,
+            cpu_start_ns,
+        })
+    }
+
+    fn finish(&mut self, elapsed_ns: u64, clock: &Clock) -> Option<u64> {
+        self.finish_with_wall(elapsed_ns, clock.raw(), clock)
+    }
+
+    fn finish_with_wall(
+        &mut self,
+        elapsed_ns: u64,
+        wall_end_raw: u64,
+        clock: &Clock,
+    ) -> Option<u64> {
+        let cpu_end_ns = thread_cpu_time_ns()?;
+        let wall_ns = clock.delta_as_nanos(self.wall_start_raw, wall_end_raw);
+        let cpu_ns = cpu_end_ns.saturating_sub(self.cpu_start_ns);
+        // The difference between wall time and thread CPU time is time not scheduled.
+        let unscheduled_ns = wall_ns.saturating_sub(cpu_ns);
+        // Subtract unscheduled time from the measured duration.
+        Some(elapsed_ns.saturating_sub(unscheduled_ns))
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn thread_cpu_time_ns() -> Option<u64> {
+    let mut ts = libc::timespec {
+        tv_sec: 0,
+        tv_nsec: 0,
+    };
+    let res = unsafe { libc::clock_gettime(libc::CLOCK_THREAD_CPUTIME_ID, &mut ts) };
+    if res == 0 {
+        let secs = ts.tv_sec as u64;
+        let nanos = ts.tv_nsec as u64;
+        Some(secs.saturating_mul(1_000_000_000).saturating_add(nanos))
+    } else {
+        None
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+fn thread_cpu_time_ns() -> Option<u64> {
+    None
 }

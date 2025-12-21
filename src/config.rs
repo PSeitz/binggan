@@ -17,6 +17,10 @@ pub struct Config {
     /// Manually set the number of iterations the benchmark group is run.
     ///
     pub num_iter_group: Option<usize>,
+    /// Adjust duration by subtracting time the thread was not scheduled (Linux only).
+    /// Intended for single-threaded, single-benchmark runs.
+    /// Assumes a single thread is doing work during the measurement.
+    pub adjust_for_single_threaded_cpu_scheduling: bool,
 }
 
 impl Default for Config {
@@ -29,6 +33,7 @@ impl Default for Config {
             verbose,
             num_iter_bench: None,
             num_iter_group: None,
+            adjust_for_single_threaded_cpu_scheduling: false,
         }
     }
 }
@@ -82,6 +87,14 @@ impl Config {
     /// Interleaving may help to get more stable comparisons between benchmarks.
     pub fn set_interleave(&mut self, interleave: bool) -> &mut Self {
         self.interleave = interleave;
+        self
+    }
+
+    /// Adjust duration by subtracting time the thread was not scheduled (Linux only).
+    /// Intended for single-threaded, single-benchmark runs.
+    /// Assumes a single thread is doing work during the measurement.
+    pub fn set_adjust_for_single_threaded_cpu_scheduling(&mut self, enabled: bool) -> &mut Self {
+        self.adjust_for_single_threaded_cpu_scheduling = enabled;
         self
     }
 }

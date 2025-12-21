@@ -100,8 +100,12 @@ impl<I: 'static, O: OutputValue + 'static> InputGroup<I, O> {
             let bench_id = BenchId::from_bench_name(name.clone())
                 .runner_name(self.runner.name.as_deref())
                 .group_name(Some(input.name.clone()));
-            let named_bench: NamedBench<'static, I, O> =
-                NamedBench::new(bench_id, Box::new(fun.clone()), num_iter_for_group);
+            let named_bench: NamedBench<'static, I, O> = NamedBench::new(
+                bench_id,
+                Box::new(fun.clone()),
+                num_iter_for_group,
+                self.runner.config.adjust_for_single_threaded_cpu_scheduling,
+            );
 
             self.benches_per_input[ord].push(named_bench);
         }
