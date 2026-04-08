@@ -16,6 +16,7 @@ use crate::{
 ///
 pub struct BenchRunner {
     pub(crate) config: Config,
+    pub(crate) filter_ast: Option<tantivy_query_grammar::UserInputAst>,
     /// The size of the input.
     /// Enables throughput reporting.
     input_size_in_bytes: Option<usize>,
@@ -66,8 +67,14 @@ impl BenchRunner {
         let mut plugins = PluginManager::new();
         plugins.add_plugin_if_absent(PlainReporter::new());
 
+        let filter_ast = options
+            .filter
+            .as_deref()
+            .and_then(|f| tantivy_query_grammar::parse_query(f).ok());
+
         BenchRunner {
             config: options,
+            filter_ast,
             input_size_in_bytes: None,
             name: None,
             plugins,

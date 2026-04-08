@@ -7,6 +7,7 @@ pub struct Config {
     pub interleave: bool,
     /// The filter for the benchmarks
     /// This is read from the command line by default.
+    /// Supports tantivy query grammar like `bench_name:my_bench AND group_name:my_group`
     pub filter: Option<String>,
     /// Verbose output of binggan. Prints the number of iterations.
     pub verbose: bool,
@@ -107,7 +108,7 @@ pub(crate) fn parse_args() -> Config {
                          This may lead to better results, it may also lead to worse results.
                          It very much depends on the benches and the environment you would like to simulate. ";
         opt exact:bool, desc:"Filter benchmarks by exact name rather than by pattern.";
-        param filter:Option<String>, desc:"run only bench containing name."; // an optional positional parameter
+        param filter:Option<String>, desc:"run only bench matching filter. Supports AND/OR and fields like runner_name, group_name, bench_name."; // an optional positional parameter
     }
     .parse();
     if let Ok((args, _rest)) = res {

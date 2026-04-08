@@ -23,6 +23,7 @@ It is designed to be simple to use and to provide a good overview of the perform
 * 📈 Custom Reporter
 * 🧩 Report Output of Benchmarks
 * 🎨 NOW with colored output!
+* 🔍 Advanced Filtering (AND/OR/NOT and fields like `bench_name:my_bench`)
 
 ### Example
 
@@ -98,6 +99,19 @@ FxHashMap              Memory: 28.3 MB      Avg: 403.52 MiB/s (+0.00%)    Median
 To activate peak memory reporting, you need to wrap your allocator with the PeakMemAlloc and enable the PeakMemAllocPlugin (see example above).
 
 While number of allocations are also interesting for performance analysis, peak memory will determine the memory requirements of the code.
+
+### Filtering
+
+Binggan has a powerful filtering system built in, powered by `tantivy-query-grammar`. You can run a subset of benchmarks by providing a query string to the CLI:
+
+```bash
+cargo bench -- "bench_name:my_bench AND group_name:my_group"
+cargo bench -- "my_bench OR other_bench"
+cargo bench -- "NOT other_bench"
+cargo bench -- "r:my_runner b:my_bench -g:my_group"
+```
+
+Available fields are `runner_name` (or `r`), `group_name` (or `g`), and `bench_name` (or `b`). If no field is specified, it will match against the full generated `BenchId`.
 
 ### Perf Integration
 Perf may run into limitations where all counters are reported as zero. https://github.com/jimblandy/perf-event/issues/2
