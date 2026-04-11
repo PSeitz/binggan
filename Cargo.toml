@@ -2,7 +2,7 @@
 name = "binggan"
 version = "0.15.3"
 authors = ["Pascal Seitz <pascal.seitz@gmail.com>"]
-edition = "2021"
+edition = "2024"
 homepage = "https://github.com/pseitz/binggan"
 repository = "https://github.com/pseitz/binggan"
 description = "Benchmarking library for stable Rust"
@@ -11,7 +11,7 @@ keywords = ["perf", "profiler", "benchmark", "memory"]
 categories = ["development-tools::profiling"]
 license = "MIT"
 exclude = ["*logo*"]
-rust-version = "1.76"
+rust-version = "1.85"
 
 [lints.clippy]
 cargo        = { priority = -1, level = "deny" }
