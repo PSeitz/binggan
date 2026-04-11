@@ -1,4 +1,4 @@
-use binggan::{black_box, plugins::*, BenchRunner, PeakMemAlloc, INSTRUMENTED_SYSTEM};
+use binggan::{BenchRunner, INSTRUMENTED_SYSTEM, PeakMemAlloc, black_box, plugins::*};
 
 #[global_allocator]
 pub static GLOBAL: &PeakMemAlloc<std::alloc::System> = &INSTRUMENTED_SYSTEM;

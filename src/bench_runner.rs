@@ -5,11 +5,11 @@ use crate::output_value::OutputValue;
 use crate::plugins::{EventListener, PluginEvents, PluginManager};
 use crate::report::PlainReporter;
 use crate::{
+    BenchGroup, Config,
     bench::{Bench, InputWithBenchmark, NamedBench},
     bench_id::BenchId,
     black_box, parse_args,
     report::report_group,
-    BenchGroup, Config,
 };
 
 /// The main struct to run benchmarks.

@@ -4,13 +4,13 @@ use std::io;
 
 use crate::bench_id::BenchId;
 use crate::plugins::{EventListener, PerBenchData, PluginEvents};
-use perf_event::events::{Cache, CacheOp, CacheResult, Hardware, Software, WhichCache};
 use perf_event::Counter;
+use perf_event::events::{Cache, CacheOp, CacheResult, Hardware, Software, WhichCache};
 use perf_event::{Builder, Group};
 use std::any::Any;
 use yansi::Paint;
 
-use super::{default_perf_counters, PerfCounter, PerfCounterValues, PERF_CNT_EVENT_LISTENER_NAME};
+use super::{PERF_CNT_EVENT_LISTENER_NAME, PerfCounter, PerfCounterValues, default_perf_counters};
 
 impl PerfCounter {
     /// Maps each enum variant to the appropriate `Hardware` or `Cache` type

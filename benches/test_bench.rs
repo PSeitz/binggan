@@ -1,8 +1,8 @@
 use std::{collections::HashMap, time::Duration};
 
 use binggan::{
+    BenchRunner, INSTRUMENTED_SYSTEM, PeakMemAlloc,
     plugins::{CacheTrasher, PeakMemAllocPlugin, PerfCounterPlugin},
-    BenchRunner, PeakMemAlloc, INSTRUMENTED_SYSTEM,
 };
 use quanta::Instant;
 

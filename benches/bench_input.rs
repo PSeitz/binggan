@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use binggan::{black_box, plugins::*, InputGroup, PeakMemAlloc, INSTRUMENTED_SYSTEM};
+use binggan::{INSTRUMENTED_SYSTEM, InputGroup, PeakMemAlloc, black_box, plugins::*};
 
 #[global_allocator]
 pub static GLOBAL: &PeakMemAlloc<std::alloc::System> = &INSTRUMENTED_SYSTEM;
