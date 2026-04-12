@@ -6,7 +6,7 @@ use yansi::Paint;
 /// including timing and memory usage.
 ///
 /// The data is already aggregated.
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct BenchStats {
     /// The minimum time taken for an operation, in nanoseconds.
     pub min_ns: u64,
@@ -20,19 +20,18 @@ pub struct BenchStats {
     /// The median time taken for an operation, in nanoseconds.
     pub median_ns: u64,
 
-    /// The average memory used during the operation, in bytes.
-    pub avg_memory: usize,
+    /// Custom metrics collected by plugins, e.g., "memory_consumption".
+    pub custom_metrics: Vec<(String, f64)>,
 }
 
 /// Compute diff from two values of BenchStats
 pub fn compute_diff<F: Fn(&BenchStats) -> u64>(
     stats: &BenchStats,
     input_size_in_bytes: Option<usize>,
-    other: Option<BenchStats>,
+    other: Option<&BenchStats>,
     f: F,
 ) -> String {
     other
-        .as_ref()
         .map(|other| {
             if f(other) == 0 || f(stats) == 0 || f(other) == f(stats) {
                 return "".to_string();
@@ -88,16 +87,8 @@ pub fn format_percentage(diff: f64, smaller_is_better: bool) -> String {
 }
 pub fn compute_stats<O>(
     results: &[RunResult<O>],
-    memory_consumption: Option<&Vec<usize>>,
+    custom_metrics: Vec<(&'static str, f64)>,
 ) -> BenchStats {
-    // Avg memory consumption
-    let avg_memory = memory_consumption
-        .map(|memory_consumption| {
-            let total_memory: usize = memory_consumption.iter().copied().sum();
-            total_memory / memory_consumption.len()
-        })
-        .unwrap_or(0);
-
     let mut sorted_results: Vec<u64> = results.iter().map(|res| res.duration_ns).collect();
     sorted_results.sort();
 
@@ -123,7 +114,7 @@ pub fn compute_stats<O>(
         max_ns,
         average_ns,
         median_ns,
-        avg_memory,
+        custom_metrics: custom_metrics.into_iter().map(|(k, v)| (k.to_string(), v)).collect(),
     }
 }
 
@@ -141,7 +132,7 @@ mod tests {
     #[test]
     fn test_compute_stats_median_odd() {
         let results = vec![create_res(10), create_res(20), create_res(30)];
-        let stats = compute_stats(&results, None);
+        let stats = compute_stats(&results, Default::default());
         assert_eq!(
             stats.median_ns, 20,
             "Median should be the middle element for odd count"
@@ -156,7 +147,7 @@ mod tests {
             create_res(30),
             create_res(40),
         ];
-        let stats = compute_stats(&results, None);
+        let stats = compute_stats(&results, Default::default());
         assert_eq!(
             stats.median_ns, 25,
             "Median should be the average of the two middle elements for even count"
@@ -170,7 +161,7 @@ mod tests {
             max_ns: 0,
             average_ns: 150,
             median_ns: 0,
-            avg_memory: 24,
+            custom_metrics: Default::default(),
         };
 
         let other_stats = BenchStats {
@@ -178,11 +169,11 @@ mod tests {
             max_ns: 0,
             average_ns: 100, // different average_ns to see the difference in the output
             median_ns: 0,
-            avg_memory: 0,
+            custom_metrics: Default::default(),
         };
 
         // Example usage: Using average_ns field for comparison.
-        let diff = compute_diff(&stats, Some(1000), Some(other_stats), |x| x.average_ns);
+        let diff = compute_diff(&stats, Some(1000), Some(&other_stats), |x| x.average_ns);
 
         // Check the output
         assert_eq!(diff, "(-33.33%)".red().to_string());

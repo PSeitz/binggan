@@ -35,7 +35,7 @@ pub use table_reporter::TableReporter;
 
 use yansi::Paint;
 
-use format::{bytes_to_string, format_duration_or_throughput};
+use format::format_duration_or_throughput;
 
 use crate::{
     bench::Bench,
@@ -65,6 +65,11 @@ pub(crate) fn report_group<'a>(
         fetch_previous_run_and_write_results_to_disk(&mut result);
         results.push(result);
     }
+
+    for result in results.iter_mut() {
+        result.formatted_custom_metrics = events.format_custom_metrics(&result.stats, result.old_stats.as_ref());
+    }
+
     events.emit(PluginEvents::GroupStop {
         runner_name,
         group_name,
@@ -76,7 +81,7 @@ pub(crate) fn report_group<'a>(
 pub(crate) fn avg_median_str(
     stats: &BenchStats,
     input_size_in_bytes: Option<usize>,
-    other: Option<BenchStats>,
+    other: Option<&BenchStats>,
 ) -> (String, String) {
     let avg_ns_diff = compute_diff(stats, input_size_in_bytes, other, |stats| stats.average_ns);
     let median_ns_diff = compute_diff(stats, input_size_in_bytes, other, |stats| stats.median_ns);
@@ -109,24 +114,6 @@ pub(crate) fn min_max_str(stats: &BenchStats, input_size_in_bytes: Option<usize>
             format_duration_or_throughput(stats.min_ns, input_size_in_bytes)
         )
     }
-}
-
-pub(crate) fn memory_str(
-    stats: &BenchStats,
-    other: Option<BenchStats>,
-    report_memory: bool,
-) -> String {
-    let mem_diff = compute_diff(stats, None, other, |stats| stats.avg_memory as u64);
-    if !report_memory {
-        return "".to_string();
-    }
-    format!(
-        "Memory: {} {}",
-        bytes_to_string(stats.avg_memory as u64)
-            .bright_cyan()
-            .bold(),
-        mem_diff,
-    )
 }
 
 use std::{

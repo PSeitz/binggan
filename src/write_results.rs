@@ -29,12 +29,15 @@ pub fn fetch_previous_run_and_write_results_to_disk(result: &mut BenchResult) {
     let filepath = get_bench_file(result);
     // Check if file exists and deserialize
     if filepath.exists() {
-        let content = std::fs::read_to_string(&filepath).unwrap();
-        let lines: Vec<_> = content.lines().collect();
-        result.old_stats = miniserde::json::from_str(lines[0]).unwrap();
-        result.old_perf_counter = lines
-            .get(1)
-            .and_then(|line| miniserde::json::from_str(line).ok());
+        if let Ok(content) = std::fs::read_to_string(&filepath) {
+            let lines: Vec<_> = content.lines().collect();
+            if !lines.is_empty() {
+                result.old_stats = miniserde::json::from_str(lines[0]).ok();
+                result.old_perf_counter = lines
+                    .get(1)
+                    .and_then(|line| miniserde::json::from_str(line).ok());
+            }
+        }
     }
 
     let perf_counter = &result.perf_counter;
