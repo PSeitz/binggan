@@ -173,6 +173,7 @@ pub mod report;
 pub(crate) mod bench;
 pub(crate) mod bench_id;
 pub(crate) mod bench_runner;
+pub(crate) mod filter;
 pub(crate) mod output_value;
 pub(crate) mod stats;
 pub(crate) mod write_results;

@@ -99,7 +99,11 @@ impl<'a, 'runner> BenchGroup<'a, 'runner> {
         input: &'a I,
     ) {
         self.output_value_column_title = O::column_title();
-        if let Some(filter) = &self.runner.config.filter {
+        if let Some(filter_ast) = &self.runner.filter_ast {
+            if !crate::filter::matches_filter(filter_ast, &bench.bench_id) {
+                return;
+            }
+        } else if let Some(filter) = &self.runner.config.filter {
             let bench_id = bench.bench_id.get_full_name();
 
             if !bench_id.contains(filter) {

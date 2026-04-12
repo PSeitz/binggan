@@ -23,6 +23,7 @@ It is designed to be simple to use and to provide a good overview of the perform
 * 📈 Custom Reporter
 * 🧩 Report Output of Benchmarks
 * 🎨 NOW with colored output!
+* 🔍 Advanced Filtering (AND/OR/NOT and fields like `bench_name:my_bench`)
 
 ### Example
 
@@ -84,20 +85,43 @@ cargo bench
 
 turbo_buckets_vs_fxhashmap_full_unique
 100k max id / 100k num elem
-TurboBuckets           Memory: 786.4 KB     Avg: 2.1107 GiB/s (+0.19%)    Median: 2.1288 GiB/s (+0.69%)    [1.9055 GiB/s .. 2.1464 GiB/s]    
-FxHashMap              Memory: 1.8 MB       Avg: 1.1116 GiB/s (-0.65%)    Median: 1.1179 GiB/s (-0.90%)    [1020.2 MiB/s .. 1.1363 GiB/s]    
+TurboBuckets         Memory: 786.4 KB     Avg: 1.6356 GB/s (+0.18%)    Median: 1.6397 GB/s (+0.83%)    [1.5530 GB/s .. 1.6740 GB/s]    Output: 100_000    
+FlushVec             Memory: 200.0 KB     Avg: 8.7891 GB/s (-1.16%)    Median: 8.8631 GB/s (-0.40%)    [8.0207 GB/s .. 8.9986 GB/s]    Output: 100_000    
+FlushVec With Val    Memory: 3.2 MB       Avg: 3.7802 GB/s (-0.31%)    Median: 3.7875 GB/s (-0.00%)    [3.5477 GB/s .. 3.9165 GB/s]    Output: 100_000    
+TurboFlexBuckets     Memory: 786.5 KB     Avg: 1.2632 GB/s (+0.28%)    Median: 1.2653 GB/s (+0.40%)    [1.2282 GB/s .. 1.2810 GB/s]    Output: 100_000    
+Vec with Val         Memory: 3.2 MB       Avg: 1.2488 GB/s (-1.16%)    Median: 1.2526 GB/s (-0.97%)    [1.1634 GB/s .. 1.3042 GB/s]    Output: 100_001    
 500k max id / 500k num elem
-TurboBuckets           Memory: 2.4 MB       Avg: 5.7073 GiB/s (-0.29%)    Median: 5.7633 GiB/s (-0.55%)    [5.1313 GiB/s .. 6.1104 GiB/s]    
-FxHashMap              Memory: 14.2 MB      Avg: 521.50 MiB/s (-1.81%)    Median: 523.42 MiB/s (-1.75%)    [465.28 MiB/s .. 562.83 MiB/s]    
-1m max id / 1m num elem
-TurboBuckets           Memory: 4.5 MB       Avg: 6.2922 GiB/s (+5.48%)    Median: 6.3850 GiB/s (+6.56%)    [4.9580 GiB/s .. 6.7989 GiB/s]    
-FxHashMap              Memory: 28.3 MB      Avg: 403.52 MiB/s (+0.00%)    Median: 396.74 MiB/s (+0.97%)    [355.83 MiB/s .. 473.37 MiB/s]    
+TurboBuckets         Memory: 2.4 MB        Avg: 4.1036 GB/s (+0.48%)    Median: 4.0994 GB/s (-0.02%)    [3.9879 GB/s .. 4.2272 GB/s]    Output: 500_000    
+FlushVec             Memory: 1000.0 KB     Avg: 8.8669 GB/s (+1.50%)    Median: 8.8787 GB/s (+0.67%)    [8.6667 GB/s .. 8.9674 GB/s]    Output: 500_000    
+FlushVec With Val    Memory: 16.0 MB       Avg: 1.8976 GB/s (-1.03%)    Median: 1.9574 GB/s (+1.46%)    [1.1587 GB/s .. 2.0764 GB/s]    Output: 500_000    
+TurboFlexBuckets     Memory: 2.4 MB        Avg: 2.1348 GB/s (+0.72%)    Median: 2.1412 GB/s (+0.55%)    [2.0800 GB/s .. 2.1732 GB/s]    Output: 500_000    
+Vec with Val         Memory: 16.0 MB       Avg: 4.3664 GB/s (-2.64%)    Median: 4.5571 GB/s (+0.19%)    [2.1844 GB/s .. 4.8527 GB/s]    Output: 500_001    
 ```
 
 ### Peak Memory
 To activate peak memory reporting, you need to wrap your allocator with the PeakMemAlloc and enable the PeakMemAllocPlugin (see example above).
 
 While number of allocations are also interesting for performance analysis, peak memory will determine the memory requirements of the code.
+
+### Filtering
+
+Binggan has a filtering system built in, powered by `tantivy-query-grammar`. You can run a subset of benchmarks by providing a query string to the CLI:
+
+```bash
+cargo bench -- "my_group"
+cargo bench -- "bench_name:my_bench AND group_name:my_group"
+cargo bench -- "my_bench OR other_bench"
+cargo bench -- "NOT other_bench"
+cargo bench -- "r:my_runner b:my_bench -g:my_group"
+```
+
+You can also use the `BINGGAN_FILTER` environment variable to set the filter:
+
+```bash
+BINGGAN_FILTER="my_bench OR other_bench" cargo bench
+```
+
+Available fields are `runner_name` (or `r`), `group_name` (or `g`), and `bench_name` (or `b`). If no field is specified, it will match against the full generated `BenchId`.
 
 ### Perf Integration
 Perf may run into limitations where all counters are reported as zero. https://github.com/jimblandy/perf-event/issues/2

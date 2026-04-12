@@ -22,8 +22,7 @@ jobs:
           - stable
           - beta
           - nightly
-          - 1.76.0  # MSRV
-          - 1.81.0  # MSRV
+          - 1.85.0  # MSRV
     name: test-${{ matrix.features.label}}
 
     steps:
@@ -71,4 +70,3 @@ jobs:
         uses: obi1kenobi/cargo-semver-checks-action@v2
         with:
           rust-toolchain: ${{ env.rust_stable }}
-          release-type: minor

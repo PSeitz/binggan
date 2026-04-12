@@ -2,10 +2,10 @@ use std::any::Any;
 
 use yansi::Paint;
 
-use super::{avg_median_str, memory_str, min_max_str, BenchStats, REPORTER_PLUGIN_NAME};
+use super::{BenchStats, REPORTER_PLUGIN_NAME, avg_median_str, memory_str, min_max_str};
 use crate::{
     plugins::{EventListener, PluginEvents},
-    report::{check_and_print, PrintOnce},
+    report::{PrintOnce, check_and_print},
 };
 
 /// The PlainReporter prints the results in a plain text table.
@@ -42,15 +42,11 @@ impl EventListener for PlainReporter {
                 }
                 println!("{}", group_name.black().on_yellow().invert().bold());
             }
-            PluginEvents::GroupBenchNumIters { num_iter } => {
-                if self.print_num_iter {
-                    println!("Num Iter Benches in Group {}", num_iter.bold());
-                }
+            PluginEvents::GroupBenchNumIters { num_iter } if self.print_num_iter => {
+                println!("Num Iter Benches in Group {}", num_iter.bold());
             }
-            PluginEvents::GroupNumIters { num_iter } => {
-                if self.print_num_iter {
-                    println!("Num Iter Group {}", num_iter.bold());
-                }
+            PluginEvents::GroupNumIters { num_iter } if self.print_num_iter => {
+                println!("Num Iter Group {}", num_iter.bold());
             }
             PluginEvents::GroupStop {
                 runner_name: _,

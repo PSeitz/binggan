@@ -2,10 +2,10 @@ use std::any::Any;
 
 use yansi::Paint;
 
-use super::{avg_median_str, memory_str, min_max_str, REPORTER_PLUGIN_NAME};
+use super::{REPORTER_PLUGIN_NAME, avg_median_str, memory_str, min_max_str};
 use crate::{
     plugins::{EventListener, PluginEvents},
-    report::{check_and_print, PrintOnce},
+    report::{PrintOnce, check_and_print},
 };
 
 /// The TableReporter prints the results using prettytable.

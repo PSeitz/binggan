@@ -1,8 +1,8 @@
 [package]
 name = "binggan"
-version = "0.15.3"
+version = "0.16.0"
 authors = ["Pascal Seitz <pascal.seitz@gmail.com>"]
-edition = "2021"
+edition = "2024"
 homepage = "https://github.com/pseitz/binggan"
 repository = "https://github.com/pseitz/binggan"
 description = "Benchmarking library for stable Rust"
@@ -11,7 +11,7 @@ keywords = ["perf", "profiler", "benchmark", "memory"]
 categories = ["development-tools::profiling"]
 license = "MIT"
 exclude = ["*logo*"]
-rust-version = "1.76"
+rust-version = "1.85"
 
 [lints.clippy]
 cargo        = { priority = -1, level = "deny" }
@@ -37,6 +37,7 @@ rustop = "=1.1.4"
 rustc-hash = "2.0.0"
 bpu_trasher = { version = "0.2.0", optional = true }
 quanta = "0.12"
+tantivy-query-grammar = "0.26.0"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 perf-event = { version = "0.4.8" }

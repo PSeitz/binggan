@@ -3,7 +3,7 @@ use std::mem;
 use crate::output_value::OutputValue;
 use crate::plugins::{EventListener, PluginManager};
 use crate::{
-    bench::NamedBench, bench_id::BenchId, bench_runner::BenchRunner, parse_args, BenchGroup, Config,
+    BenchGroup, Config, bench::NamedBench, bench_id::BenchId, bench_runner::BenchRunner, parse_args,
 };
 
 /// `InputGroup<Input, OutputValue>` is a collection of benchmarks that are run with the same inputs.
@@ -161,5 +161,5 @@ impl<I: 'static, O: OutputValue + 'static> InputGroup<I, O> {
 }
 
 unsafe fn transmute_lifetime<I>(input: &I) -> &'static I {
-    mem::transmute(input)
+    unsafe { mem::transmute(input) }
 }
