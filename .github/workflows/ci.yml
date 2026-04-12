@@ -70,4 +70,3 @@ jobs:
         uses: obi1kenobi/cargo-semver-checks-action@v2
         with:
           rust-toolchain: ${{ env.rust_stable }}
-          release-type: minor
