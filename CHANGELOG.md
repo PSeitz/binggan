@@ -3,7 +3,7 @@ Unreleased (2026-04-08)
 ### Features
 - Advanced filtering engine via `tantivy-query-grammar`
 ```
-Replaced basic substring filtering with a powerful querying engine using tantivy-query-grammar.
+Extended basic substring filtering with a powerful querying engine using tantivy-query-grammar.
 
 Supports logical operators: AND, OR, NOT (and their symbols like -).
 Supports field-based targeting:
