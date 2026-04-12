@@ -28,9 +28,10 @@ impl Default for Config {
     fn default() -> Self {
         // Check ENV for verbose
         let verbose = std::env::var("BINGGAN_VERBOSE").is_ok();
+        let filter = std::env::var("BINGGAN_FILTER").ok();
         Config {
             interleave: true,
-            filter: None,
+            filter,
             verbose,
             num_iter_bench: None,
             num_iter_group: None,
@@ -112,10 +113,11 @@ pub(crate) fn parse_args() -> Config {
     }
     .parse();
     if let Ok((args, _rest)) = res {
+        let default_config = Config::default();
         Config {
             interleave: args.interleave,
-            filter: args.filter,
-            ..Default::default()
+            filter: args.filter.or(default_config.filter),
+            ..default_config
         }
     } else if let Err(rustop::Error::Help(help)) = res {
         println!("{}", help);

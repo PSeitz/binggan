@@ -12,5 +12,6 @@ Supports field-based targeting:
 - bench_name (alias: b)
 
 Enables granular selections, e.g., cargo bench -- "bench_name:my_bench AND group_name:my_group".
+You can also use the `BINGGAN_FILTER` environment variable to apply a filter.
 Keeps backward compatibility: basic strings fallback to substring matches on the full bench ID.
 ```

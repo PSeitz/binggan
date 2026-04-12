@@ -111,6 +111,12 @@ cargo bench -- "NOT other_bench"
 cargo bench -- "r:my_runner b:my_bench -g:my_group"
 ```
 
+You can also use the `BINGGAN_FILTER` environment variable to set the filter:
+
+```bash
+BINGGAN_FILTER="my_bench OR other_bench" cargo bench
+```
+
 Available fields are `runner_name` (or `r`), `group_name` (or `g`), and `bench_name` (or `b`). If no field is specified, it will match against the full generated `BenchId`.
 
 ### Perf Integration
