@@ -161,5 +161,5 @@ impl<I: 'static, O: OutputValue + 'static> InputGroup<I, O> {
 }
 
 unsafe fn transmute_lifetime<I>(input: &I) -> &'static I {
-    mem::transmute(input)
+    unsafe { mem::transmute(input) }
 }
