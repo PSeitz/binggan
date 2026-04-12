@@ -108,6 +108,7 @@ While number of allocations are also interesting for performance analysis, peak 
 Binggan has a filtering system built in, powered by `tantivy-query-grammar`. You can run a subset of benchmarks by providing a query string to the CLI:
 
 ```bash
+cargo bench -- "my_group"
 cargo bench -- "bench_name:my_bench AND group_name:my_group"
 cargo bench -- "my_bench OR other_bench"
 cargo bench -- "NOT other_bench"
