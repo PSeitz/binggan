@@ -111,7 +111,7 @@ impl PlainReporter {
         let median_str = format!("Median: {}", median_str);
 
         let min_max = min_max_str(stats, input_size_in_bytes);
-        
+
         let mut cols = Vec::new();
         for (_, s) in formatted_custom_metrics {
             cols.push(s.clone());

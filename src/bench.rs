@@ -1,12 +1,6 @@
 use std::sync::atomic;
 
-use crate::{
-    bench_id::BenchId,
-    black_box,
-    output_value::OutputValue,
-    plugins::*,
-    stats::*,
-};
+use crate::{bench_id::BenchId, black_box, output_value::OutputValue, plugins::*, stats::*};
 use quanta::Clock;
 
 /// The trait which typically wraps a InputWithBenchmark and allows to hide the generics.

@@ -7,8 +7,7 @@
 //! Any type that implements the [EventListener] trait can be added to [PluginManager].
 //!
 
-
-use crate::{bench::BenchResult, bench_id::BenchId};
+use crate::{bench::BenchResult, bench_id::BenchId, stats::BenchStats};
 use std::any::Any;
 
 /// Events that can be emitted by the benchmark runner.
@@ -95,10 +94,16 @@ pub trait EventListener: Any {
     fn custom_metrics(&self, _bench_id: &BenchId, _metrics: &mut Vec<(&'static str, f64)>) {}
 
     /// Returns a list of metric keys this plugin will report.
-    fn custom_metric_keys(&self) -> &[&'static str] { &[] }
+    fn custom_metric_keys(&self) -> &[&'static str] {
+        &[]
+    }
 
     /// Formats the custom metrics. Returns a list of (key, formatted_string).
-    fn format_custom_metrics(&self, _stats: &crate::stats::BenchStats, _other: Option<&crate::stats::BenchStats>) -> Vec<(&'static str, String)> {
+    fn format_custom_metrics(
+        &self,
+        _stats: &BenchStats,
+        _other: Option<&BenchStats>,
+    ) -> Vec<(&'static str, String)> {
         Vec::new()
     }
 }
@@ -176,7 +181,11 @@ impl PluginManager {
 
     /// Collect all custom metrics from plugins for a specific benchmark.
     pub fn get_custom_metrics(&self, bench_id: &BenchId) -> Vec<(&'static str, f64)> {
-        let capacity: usize = self.listeners.iter().map(|(_, l)| l.custom_metric_keys().len()).sum();
+        let capacity: usize = self
+            .listeners
+            .iter()
+            .map(|(_, l)| l.custom_metric_keys().len())
+            .sum();
         let mut metrics = Vec::with_capacity(capacity);
         for (_listener_name, listener) in self.listeners.iter() {
             listener.custom_metrics(bench_id, &mut metrics);
@@ -185,7 +194,11 @@ impl PluginManager {
     }
 
     /// Ask plugins to format their custom metrics for reporting.
-    pub fn format_custom_metrics(&self, stats: &crate::stats::BenchStats, other: Option<&crate::stats::BenchStats>) -> Vec<(&'static str, String)> {
+    pub fn format_custom_metrics(
+        &self,
+        stats: &BenchStats,
+        other: Option<&BenchStats>,
+    ) -> Vec<(&'static str, String)> {
         let mut formatted = Vec::new();
         for (_, listener) in self.listeners.iter() {
             for (k, v) in listener.format_custom_metrics(stats, other) {

@@ -114,7 +114,10 @@ pub fn compute_stats<O>(
         max_ns,
         average_ns,
         median_ns,
-        custom_metrics: custom_metrics.into_iter().map(|(k, v)| (k.to_string(), v)).collect(),
+        custom_metrics: custom_metrics
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), v))
+            .collect(),
     }
 }
 

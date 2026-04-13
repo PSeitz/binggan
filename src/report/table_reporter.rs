@@ -88,17 +88,20 @@ impl EventListener for TableReporter {
                 headers.push(Cell::new("Avg"));
                 headers.push(Cell::new("Median"));
                 headers.push(Cell::new("Min .. Max"));
-                
+
                 let has_output_value = results.iter().any(|r| r.output_value.is_some());
                 if has_output_value {
                     headers.push(Cell::new(output_value_column_title));
                 }
                 table.set_titles(Row::new(headers));
                 for result in results {
-                    let (avg_str, median_str) =
-                        avg_median_str(&result.stats, result.input_size_in_bytes, result.old_stats.as_ref());
+                    let (avg_str, median_str) = avg_median_str(
+                        &result.stats,
+                        result.input_size_in_bytes,
+                        result.old_stats.as_ref(),
+                    );
                     let min_max = min_max_str(&result.stats, result.input_size_in_bytes);
-                    
+
                     let mut row = vec![Cell::new(&result.bench_id.bench_name)];
                     for (_, formatted) in &result.formatted_custom_metrics {
                         row.push(Cell::new(formatted));
@@ -106,7 +109,7 @@ impl EventListener for TableReporter {
                     row.push(Cell::new(&avg_str));
                     row.push(Cell::new(&median_str));
                     row.push(Cell::new(&min_max));
-                    
+
                     if has_output_value {
                         row.push(Cell::new(
                             result.output_value.as_ref().unwrap_or(&"".to_string()),

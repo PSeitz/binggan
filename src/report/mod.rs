@@ -67,7 +67,8 @@ pub(crate) fn report_group<'a>(
     }
 
     for result in results.iter_mut() {
-        result.formatted_custom_metrics = events.format_custom_metrics(&result.stats, result.old_stats.as_ref());
+        result.formatted_custom_metrics =
+            events.format_custom_metrics(&result.stats, result.old_stats.as_ref());
     }
 
     events.emit(PluginEvents::GroupStop {
