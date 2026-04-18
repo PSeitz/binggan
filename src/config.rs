@@ -61,8 +61,12 @@ impl Config {
     }
 
     /// Returns the number of iterations for the group.
+    ///
+    /// If the `NUM_ITER_GROUP` environment variable is set, it takes precedence.
     pub fn get_num_iter_for_group(&self) -> usize {
-        self.num_iter_group.unwrap_or(32)
+        num_iter_from_env("NUM_ITER_GROUP")
+            .or(self.num_iter_group)
+            .unwrap_or(32)
     }
 
     /// Manully set the number of iterations the benchmark group is run.
@@ -101,6 +105,13 @@ impl Config {
     }
 }
 
+/// Parses a benchmark iteration override from an environment variable.
+pub(crate) fn num_iter_from_env(var_name: &str) -> Option<usize> {
+    std::env::var(var_name)
+        .ok()
+        .and_then(|val| val.parse::<usize>().ok())
+}
+
 pub(crate) fn parse_args() -> Config {
     let res = opts! {
         synopsis "";
@@ -127,5 +138,86 @@ pub(crate) fn parse_args() -> Config {
         Config::default()
     } else {
         unreachable!();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::{LazyLock, Mutex};
+
+    static ENV_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
+
+    struct EnvVarGuard {
+        key: &'static str,
+        original_value: Option<String>,
+    }
+
+    impl EnvVarGuard {
+        fn set(key: &'static str, value: &str) -> Self {
+            let original_value = std::env::var(key).ok();
+            // SAFETY: The tests serialize environment mutations with ENV_LOCK and restore the
+            // previous state before releasing the lock.
+            unsafe { std::env::set_var(key, value) };
+            Self {
+                key,
+                original_value,
+            }
+        }
+
+        fn unset(key: &'static str) -> Self {
+            let original_value = std::env::var(key).ok();
+            // SAFETY: The tests serialize environment mutations with ENV_LOCK and restore the
+            // previous state before releasing the lock.
+            unsafe { std::env::remove_var(key) };
+            Self {
+                key,
+                original_value,
+            }
+        }
+    }
+
+    impl Drop for EnvVarGuard {
+        fn drop(&mut self) {
+            // SAFETY: The tests serialize environment mutations with ENV_LOCK and restore the
+            // previous state before releasing the lock.
+            unsafe {
+                if let Some(value) = &self.original_value {
+                    std::env::set_var(self.key, value);
+                } else {
+                    std::env::remove_var(self.key);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn num_iter_group_env_overrides_config() {
+        let _env_lock = ENV_LOCK.lock().unwrap();
+        let _env_guard = EnvVarGuard::set("NUM_ITER_GROUP", "17");
+
+        let mut config = Config::default();
+        config.set_num_iter_for_group(9);
+
+        assert_eq!(config.get_num_iter_for_group(), 17);
+    }
+
+    #[test]
+    fn invalid_num_iter_group_env_falls_back_to_config() {
+        let _env_lock = ENV_LOCK.lock().unwrap();
+        let _env_guard = EnvVarGuard::set("NUM_ITER_GROUP", "invalid");
+
+        let mut config = Config::default();
+        config.set_num_iter_for_group(9);
+
+        assert_eq!(config.get_num_iter_for_group(), 9);
+    }
+
+    #[test]
+    fn num_iter_group_defaults_to_32() {
+        let _env_lock = ENV_LOCK.lock().unwrap();
+        let _env_guard = EnvVarGuard::unset("NUM_ITER_GROUP");
+
+        assert_eq!(Config::default().get_num_iter_for_group(), 32);
     }
 }
