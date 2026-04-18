@@ -123,6 +123,19 @@ BINGGAN_FILTER="my_bench OR other_bench" cargo bench
 
 Available fields are `runner_name` (or `r`), `group_name` (or `g`), and `bench_name` (or `b`). If no field is specified, it will match against the full generated `BenchId`.
 
+### Iteration overrides
+
+If you want reproducible iteration counts without changing code, you can override them with environment variables:
+
+```bash
+NUM_ITER_BENCH=100 cargo bench
+NUM_ITER_GROUP=16 cargo bench
+NUM_ITER_GROUP=16 NUM_ITER_BENCH=100 cargo bench
+```
+
+- `NUM_ITER_BENCH` sets the inner benchmark iteration count.
+- `NUM_ITER_GROUP` sets how often the whole benchmark group is repeated.
+
 ### Perf Integration
 Perf may run into limitations where all counters are reported as zero. https://github.com/jimblandy/perf-event/issues/2
 Disabling the NMI watchdog should help:

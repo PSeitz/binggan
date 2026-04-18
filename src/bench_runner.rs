@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
-use std::env;
 
+use crate::config::num_iter_from_env;
 use crate::output_value::OutputValue;
 use crate::plugins::{EventListener, PluginEvents, PluginManager};
 use crate::report::PlainReporter;
@@ -251,10 +251,7 @@ impl BenchRunner {
         verbose: bool,
         plugins: &mut PluginManager,
     ) {
-        if let Some(num_iter) = env::var("NUM_ITER_BENCH")
-            .ok()
-            .and_then(|val| val.parse::<usize>().ok())
-        {
+        if let Some(num_iter) = num_iter_from_env("NUM_ITER_BENCH") {
             for input_and_bench in benches {
                 input_and_bench.set_num_iter(num_iter, plugins);
             }

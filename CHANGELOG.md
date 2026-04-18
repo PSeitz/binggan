@@ -1,5 +1,10 @@
-Unreleased (2026-04-08)
-==================
+Unreleased
+==========
+### Features
+- Added `NUM_ITER_GROUP` environment variable to override benchmark group iterations
+
+0.16.0 (2026-04-12)
+===================
 ### Features
 - Advanced filtering engine via `tantivy-query-grammar`
 ```
