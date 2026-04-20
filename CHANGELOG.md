@@ -4,7 +4,7 @@ Unreleased
 0.16.1 (2026-04-18)
 ===================
 ### Features
-- Added `NUM_ITER_GROUP` environment variable to override benchmark group iterations
+- Added `NUM_ITER_GROUP` environment variable to override benchmark group iterations (it can also be set programmatically, defaults to 32)
 
 0.16.0 (2026-04-12)
 ===================
