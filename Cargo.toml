@@ -50,6 +50,7 @@ table_reporter = ["prettytable-rs"]
 branch_predictor = ["bpu_trasher"]
 default = ["branch_predictor"]
 
+
 [[bench]]
 name = "bench"
 harness = false

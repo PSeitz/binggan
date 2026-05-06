@@ -1,4 +1,5 @@
 use std::any::Any;
+use yansi::Paint;
 
 use peakmem_alloc::PeakMemAllocTrait;
 
@@ -54,5 +55,51 @@ impl EventListener for PeakMemAllocPlugin {
             }
             _ => {}
         }
+    }
+
+    fn custom_metrics(&self, bench_id: &BenchId, metrics: &mut Vec<(&'static str, f64)>) {
+        if let Some(perf) = self.get_by_bench_id(bench_id) {
+            let total_memory: usize = perf.iter().copied().sum();
+            let avg_memory = if perf.is_empty() {
+                0
+            } else {
+                total_memory / perf.len()
+            };
+            metrics.push(("Memory", avg_memory as f64));
+        }
+    }
+
+    fn custom_metric_keys(&self) -> &[&'static str] {
+        &["Memory"]
+    }
+
+    fn format_custom_metrics(
+        &self,
+        stats: &BenchStats,
+        other: Option<&crate::stats::BenchStats>,
+    ) -> Vec<(&'static str, String)> {
+        let avg_memory = stats
+            .custom_metrics
+            .iter()
+            .find(|(k, _)| *k == "Memory")
+            .map(|(_, v)| *v)
+            .unwrap_or(0.0) as u64;
+        let mem_diff = crate::stats::compute_diff(stats, None, other, |stats| {
+            stats
+                .custom_metrics
+                .iter()
+                .find(|(k, _)| *k == "Memory")
+                .map(|(_, v)| *v)
+                .unwrap_or(0.0) as u64
+        });
+
+        let s = format!(
+            "Memory: {} {}",
+            crate::report::format::bytes_to_string(avg_memory)
+                .bright_cyan()
+                .bold(),
+            mem_diff,
+        );
+        vec![("Memory", s)]
     }
 }

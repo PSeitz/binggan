@@ -2,7 +2,7 @@ use std::any::Any;
 
 use yansi::Paint;
 
-use super::{BenchStats, REPORTER_PLUGIN_NAME, avg_median_str, memory_str, min_max_str};
+use super::{BenchStats, REPORTER_PLUGIN_NAME, avg_median_str, min_max_str};
 use crate::{
     plugins::{EventListener, PluginEvents},
     report::{PrintOnce, check_and_print},
@@ -60,11 +60,11 @@ impl EventListener for PlainReporter {
                     let perf_counter = &result.perf_counter;
 
                     let mut stats_columns = self.to_columns(
-                        result.stats,
-                        result.old_stats,
+                        &result.stats,
+                        result.old_stats.as_ref(),
                         result.input_size_in_bytes,
                         &result.output_value,
-                        result.tracked_memory,
+                        &result.formatted_custom_metrics,
                         output_value_column_title,
                     );
                     stats_columns.insert(0, result.bench_id.bench_name.to_string());
@@ -99,34 +99,35 @@ impl PlainReporter {
 
     pub(crate) fn to_columns(
         &self,
-        stats: BenchStats,
-        other: Option<BenchStats>,
+        stats: &BenchStats,
+        other: Option<&BenchStats>,
         input_size_in_bytes: Option<usize>,
         output_value: &Option<String>,
-        report_memory: bool,
+        formatted_custom_metrics: &Vec<(&'static str, String)>,
         output_value_column_title: &'static str,
     ) -> Vec<String> {
-        let (avg_str, median_str) = avg_median_str(&stats, input_size_in_bytes, other);
+        let (avg_str, median_str) = avg_median_str(stats, input_size_in_bytes, other);
         let avg_str = format!("Avg: {}", avg_str);
         let median_str = format!("Median: {}", median_str);
 
-        let min_max = min_max_str(&stats, input_size_in_bytes);
-        let memory_string = memory_str(&stats, other, report_memory);
-        if let Some(output_value) = output_value {
-            vec![
-                memory_string,
-                avg_str,
-                median_str,
-                min_max,
-                format!(
-                    "{}: {}",
-                    output_value_column_title,
-                    output_value.to_string()
-                ),
-            ]
-        } else {
-            vec![memory_string, avg_str, median_str, min_max]
+        let min_max = min_max_str(stats, input_size_in_bytes);
+
+        let mut cols = Vec::new();
+        for (_, s) in formatted_custom_metrics {
+            cols.push(s.clone());
         }
+        cols.push(avg_str);
+        cols.push(median_str);
+        cols.push(min_max);
+
+        if let Some(output_value) = output_value {
+            cols.push(format!(
+                "{}: {}",
+                output_value_column_title,
+                output_value.to_string()
+            ));
+        }
+        cols
     }
 
     fn print_table(&self, table_data: &Vec<Vec<String>>) {

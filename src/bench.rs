@@ -1,12 +1,6 @@
 use std::sync::atomic;
 
-use crate::{
-    bench_id::BenchId,
-    black_box,
-    output_value::OutputValue,
-    plugins::{alloc::*, *},
-    stats::*,
-};
+use crate::{bench_id::BenchId, black_box, output_value::OutputValue, plugins::*, stats::*};
 use quanta::Clock;
 
 /// The trait which typically wraps a InputWithBenchmark and allows to hide the generics.
@@ -65,8 +59,8 @@ pub struct BenchResult {
     pub input_size_in_bytes: Option<usize>,
     /// The size of the output returned by the bench. Enables reporting.
     pub output_value: Option<String>,
-    /// Memory tracking is enabled and the peak memory consumption is reported.
-    pub tracked_memory: bool,
+    /// Formatted custom metrics for reporting
+    pub formatted_custom_metrics: Vec<(&'static str, String)>,
 }
 
 /// Bundle of input and benchmark for running benchmarks
@@ -123,11 +117,8 @@ impl<'a, I, O: OutputValue> Bench<'a> for InputWithBenchmark<'a, I, O> {
     fn get_results(&mut self, plugins: &mut PluginManager) -> BenchResult {
         let num_iter = self.get_num_iter_or_fail();
         let total_num_iter = self.bench.num_group_iter as u64 * num_iter as u64;
-        let memory_consumption: Option<&Vec<usize>> = plugins
-            .downcast_plugin::<PeakMemAllocPlugin>(ALLOC_EVENT_LISTENER_NAME)
-            .and_then(|counters| counters.get_by_bench_id(&self.bench.bench_id));
-        let stats = compute_stats(&self.results, memory_consumption);
-        let tracked_memory = memory_consumption.is_some();
+        let custom_metrics = plugins.get_custom_metrics(&self.bench.bench_id);
+        let stats = compute_stats(&self.results, custom_metrics);
 
         let perf_counter = get_perf_counter(plugins, &self.bench.bench_id, total_num_iter);
         let output_value = (self.bench.fun)(self.input);
@@ -136,7 +127,7 @@ impl<'a, I, O: OutputValue> Bench<'a> for InputWithBenchmark<'a, I, O> {
             stats,
             perf_counter,
             input_size_in_bytes: self.input_size_in_bytes,
-            tracked_memory,
+            formatted_custom_metrics: Vec::new(),
             output_value: output_value.format(),
             old_stats: None,
             old_perf_counter: None,

@@ -2,7 +2,7 @@ use std::any::Any;
 
 use yansi::Paint;
 
-use super::{REPORTER_PLUGIN_NAME, avg_median_str, memory_str, min_max_str};
+use super::{REPORTER_PLUGIN_NAME, avg_median_str, min_max_str};
 use crate::{
     plugins::{EventListener, PluginEvents},
     report::{PrintOnce, check_and_print},
@@ -81,37 +81,41 @@ impl EventListener for TableReporter {
                     .build();
                 table.set_format(format);
 
-                let mut row = prettytable::row!["Name", "Memory", "Avg", "Median", "Min .. Max"];
-                if !results[0].tracked_memory {
-                    row.remove_cell(1);
+                let mut headers = vec![Cell::new("Name")];
+                for (key, _) in &results[0].formatted_custom_metrics {
+                    headers.push(Cell::new(*key));
                 }
+                headers.push(Cell::new("Avg"));
+                headers.push(Cell::new("Median"));
+                headers.push(Cell::new("Min .. Max"));
+
                 let has_output_value = results.iter().any(|r| r.output_value.is_some());
                 if has_output_value {
-                    row.add_cell(Cell::new(output_value_column_title));
+                    headers.push(Cell::new(output_value_column_title));
                 }
-                table.set_titles(row);
+                table.set_titles(Row::new(headers));
                 for result in results {
-                    let (avg_str, median_str) =
-                        avg_median_str(&result.stats, result.input_size_in_bytes, result.old_stats);
+                    let (avg_str, median_str) = avg_median_str(
+                        &result.stats,
+                        result.input_size_in_bytes,
+                        result.old_stats.as_ref(),
+                    );
                     let min_max = min_max_str(&result.stats, result.input_size_in_bytes);
-                    let memory_string =
-                        memory_str(&result.stats, result.old_stats, result.tracked_memory);
-                    let mut row = Row::new(vec![
-                        Cell::new(&result.bench_id.bench_name),
-                        Cell::new(&memory_string),
-                        Cell::new(&avg_str),
-                        Cell::new(&median_str),
-                        Cell::new(&min_max),
-                    ]);
+
+                    let mut row = vec![Cell::new(&result.bench_id.bench_name)];
+                    for (_, formatted) in &result.formatted_custom_metrics {
+                        row.push(Cell::new(formatted));
+                    }
+                    row.push(Cell::new(&avg_str));
+                    row.push(Cell::new(&median_str));
+                    row.push(Cell::new(&min_max));
+
                     if has_output_value {
-                        row.add_cell(Cell::new(
+                        row.push(Cell::new(
                             result.output_value.as_ref().unwrap_or(&"".to_string()),
                         ));
                     }
-                    if !result.tracked_memory {
-                        row.remove_cell(1);
-                    }
-                    table.add_row(row);
+                    table.add_row(Row::new(row));
                 }
                 table.printstd();
             }
