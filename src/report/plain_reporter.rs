@@ -2,8 +2,9 @@ use std::any::Any;
 
 use yansi::Paint;
 
-use super::{BenchStats, REPORTER_PLUGIN_NAME, avg_median_str, memory_str, min_max_str};
+use super::{REPORTER_PLUGIN_NAME, avg_median_str, memory_str, min_max_str};
 use crate::{
+    bench::BenchResult,
     plugins::{EventListener, PluginEvents},
     report::{PrintOnce, check_and_print},
 };
@@ -59,14 +60,7 @@ impl EventListener for PlainReporter {
                 for result in results {
                     let perf_counter = &result.perf_counter;
 
-                    let mut stats_columns = self.to_columns(
-                        result.stats,
-                        result.old_stats,
-                        result.input_size_in_bytes,
-                        &result.output_value,
-                        result.tracked_memory,
-                        output_value_column_title,
-                    );
+                    let mut stats_columns = self.to_columns(result, output_value_column_title);
                     stats_columns.insert(0, result.bench_id.bench_name.to_string());
                     table_data.push(stats_columns);
 
@@ -99,29 +93,33 @@ impl PlainReporter {
 
     pub(crate) fn to_columns(
         &self,
-        stats: BenchStats,
-        other: Option<BenchStats>,
-        input_size_in_bytes: Option<usize>,
-        output_value: &Option<String>,
-        report_memory: bool,
+        result: &BenchResult,
         output_value_column_title: &'static str,
     ) -> Vec<String> {
+        let stats = result.stats;
+        let other = result.old_stats;
+        let input_size_in_bytes = result.input_size_in_bytes;
         let (avg_str, median_str) = avg_median_str(&stats, input_size_in_bytes, other);
         let avg_str = format!("Avg: {}", avg_str);
         let median_str = format!("Median: {}", median_str);
 
         let min_max = min_max_str(&stats, input_size_in_bytes);
-        let memory_string = memory_str(&stats, other, report_memory);
-        if let Some(output_value) = output_value {
+        let memory_string = memory_str(&stats, other, result.tracked_memory);
+        if let Some(output_value) = &result.output_value {
             vec![
                 memory_string,
                 avg_str,
                 median_str,
                 min_max,
                 format!(
-                    "{}: {}",
+                    "{}: {}{}",
                     output_value_column_title,
-                    output_value.to_string()
+                    output_value,
+                    result
+                        .output_value_delta
+                        .as_deref()
+                        .map(|delta| format!(" {delta}"))
+                        .unwrap_or_default()
                 ),
             ]
         } else {

@@ -41,7 +41,7 @@ use crate::{
     bench::Bench,
     plugins::{PluginEvents, PluginManager},
     stats::compute_diff,
-    write_results::fetch_previous_run_and_write_results_to_disk,
+    write_results::write_results_to_disk,
 };
 
 /// The default reporter name. Choose this in `EventListener` to make sure there's only one
@@ -61,8 +61,8 @@ pub(crate) fn report_group<'a>(
 
     let mut results = Vec::new();
     for bench in benches.iter_mut() {
-        let mut result = bench.get_results(events);
-        fetch_previous_run_and_write_results_to_disk(&mut result);
+        let result = bench.get_results(events);
+        write_results_to_disk(&result);
         results.push(result);
     }
     events.emit(PluginEvents::GroupStop {
