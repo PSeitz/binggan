@@ -104,9 +104,20 @@ impl EventListener for TableReporter {
                         Cell::new(&min_max),
                     ]);
                     if has_output_value {
-                        row.add_cell(Cell::new(
-                            result.output_value.as_ref().unwrap_or(&"".to_string()),
-                        ));
+                        let output_value = result
+                            .output_value
+                            .as_ref()
+                            .map(|value| {
+                                // Not every value can be formatted as delta
+                                let delta_formatted = result
+                                    .output_value_delta
+                                    .as_deref()
+                                    .map(|delta| format!(" {delta}"))
+                                    .unwrap_or_default();
+                                format!("{}{delta_formatted}", value,)
+                            })
+                            .unwrap_or_default();
+                        row.add_cell(Cell::new(&output_value));
                     }
                     if !result.tracked_memory {
                         row.remove_cell(1);

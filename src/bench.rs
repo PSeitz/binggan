@@ -6,6 +6,7 @@ use crate::{
     output_value::OutputValue,
     plugins::{alloc::*, *},
     stats::*,
+    write_results::fetch_previous_run,
 };
 use quanta::Clock;
 
@@ -48,7 +49,7 @@ impl<'a, I, O: OutputValue> NamedBench<'a, I, O> {
 }
 
 /// The result of a single benchmark.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct BenchResult {
     /// The bench id uniquely identifies the benchmark.
     /// It is a combination of the group name, input name and benchmark name.
@@ -63,8 +64,11 @@ pub struct BenchResult {
     pub old_perf_counter: Option<PerfCounterValues>,
     /// The size of the input in bytes if available.
     pub input_size_in_bytes: Option<usize>,
-    /// The size of the output returned by the bench. Enables reporting.
+    /// The formatted output returned by the bench. Enables reporting.
     pub output_value: Option<String>,
+    /// The formatted delta between the current and previous output values, if available.
+    pub output_value_delta: Option<String>,
+    pub(crate) serialized_output_value: Option<String>,
     /// Memory tracking is enabled and the peak memory consumption is reported.
     pub tracked_memory: bool,
 }
@@ -130,7 +134,14 @@ impl<'a, I, O: OutputValue> Bench<'a> for InputWithBenchmark<'a, I, O> {
         let tracked_memory = memory_consumption.is_some();
 
         let perf_counter = get_perf_counter(plugins, &self.bench.bench_id, total_num_iter);
+        let previous_run = fetch_previous_run(&self.bench.bench_id);
         let output_value = (self.bench.fun)(self.input);
+        let output_value_delta = previous_run
+            .as_ref()
+            .and_then(|previous_run| previous_run.serialized_output_value.as_deref())
+            .and_then(O::deserialize)
+            .and_then(|old_output_value| output_value.format_delta(&old_output_value));
+        let serialized_output_value = output_value.serialize();
         BenchResult {
             bench_id: self.bench.bench_id.clone(),
             stats,
@@ -138,8 +149,10 @@ impl<'a, I, O: OutputValue> Bench<'a> for InputWithBenchmark<'a, I, O> {
             input_size_in_bytes: self.input_size_in_bytes,
             tracked_memory,
             output_value: output_value.format(),
-            old_stats: None,
-            old_perf_counter: None,
+            output_value_delta,
+            serialized_output_value,
+            old_stats: previous_run.as_ref().map(|previous_run| previous_run.stats),
+            old_perf_counter: previous_run.and_then(|previous_run| previous_run.perf_counter),
         }
     }
 
