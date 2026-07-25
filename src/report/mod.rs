@@ -1,15 +1,22 @@
 //!
-//! Module for reporting
+//! # Reporting Benchmark Results
 //!
-//! The `report` module contains reporters that use the plugin system via the [EventListener](crate::plugins::EventListener)
-//! trait.
-//! By default the [PlainReporter](crate::report::PlainReporter) is used.
+//! The `report` module handles the presentation of benchmark results.
+//! Reporters are plugins that implement the [EventListener](crate::plugins::EventListener)
+//! trait. They receive [PluginEvents](crate::plugins::PluginEvents) and render output when a
+//! benchmark group finishes.
 //!
-//! Use [REPORTER_PLUGIN_NAME](crate::report::REPORTER_PLUGIN_NAME) as the name of a reporter, so
-//! they can be easily replaced by name.
+//! ## Built-in Reporters
 //!
-//! ## Example Set a new Reporter
-//! We need to use `replace_plugin` to replace the existing reporter.
+//! | Reporter | Default? | Description |
+//! |---|---|---|
+//! | [`PlainReporter`] | yes | Plain-text table with ANSI color. Always available. |
+//! | `TableReporter` (feature `table_reporter`) | no | Uses `prettytable-rs` for bordered ASCII tables. |
+//!
+//! `PlainReporter` is registered automatically when you create a `BenchRunner`. To switch
+//! reporters, use [`replace_plugin`](crate::plugins::PluginManager::replace_plugin). For
+//! example, to configure the default reporter to also print iteration counts:
+//!
 //! ```rust
 //! use binggan::*;
 //! use binggan::plugins::*;
@@ -17,6 +24,93 @@
 //! let mut runner = BenchRunner::new();
 //! runner.get_plugin_manager().replace_plugin(PlainReporter::default().print_num_iter(true));
 //! ```
+//!
+//! If the `table_reporter` feature is enabled, you can use `TableReporter` instead for
+//! bordered ASCII tables.
+//!
+//! ## How Reporters Work
+//!
+//! A reporter implements [`EventListener`](crate::plugins::EventListener). The most important event is
+//! [PluginEvents::GroupStop](crate::plugins::PluginEvents::GroupStop), which carries a slice of
+//! [`&[BenchResult]`](BenchResult), one per benchmark in the group. See [`BenchResult`] for the
+//! available fields.
+//!
+//! The helper functions `avg_median_str()`, `min_max_str()`, and `memory_str()` are available for
+//! formatting the common stat columns in a consistent way.
+//!
+//! Use [`REPORTER_PLUGIN_NAME`](crate::report::REPORTER_PLUGIN_NAME) as the name for your
+//! reporter so it can be swapped with
+//! [`replace_plugin`](crate::plugins::PluginManager::replace_plugin). Only one reporter with that
+//! name is kept at a time.
+//!
+//! ## Building a Custom Reporter
+//!
+//! The example below implements a minimal CSV reporter that prints a header and one row per
+//! benchmark result. It handles the lifecycle events that reporters typically care about:
+//! [`GroupStart`](crate::plugins::PluginEvents::GroupStart) for headers and
+//! [`GroupStop`](crate::plugins::PluginEvents::GroupStop) for results.
+//!
+//! ```rust
+//! use std::any::Any;
+//! use binggan::{
+//!     BenchRunner, BenchResult,
+//!     plugins::{EventListener, PluginEvents},
+//!     report::REPORTER_PLUGIN_NAME,
+//! };
+//!
+//! /// A reporter that writes benchmark results as CSV to stdout.
+//! #[derive(Clone)]
+//! pub struct CsvReporter;
+//!
+//! impl EventListener for CsvReporter {
+//!     fn as_any(&mut self) -> &mut dyn Any {
+//!         self
+//!     }
+//!
+//!     fn name(&self) -> &'static str {
+//!         // Use the standard reporter name so it can be swapped with replace_plugin.
+//!         REPORTER_PLUGIN_NAME
+//!     }
+//!
+//!     fn on_event(&mut self, event: PluginEvents) {
+//!         match event {
+//!             PluginEvents::GroupStart { .. } => {
+//!                 println!("runner,group,bench,avg_ns,median_ns,min_ns,max_ns");
+//!             }
+//!             PluginEvents::GroupStop {
+//!                 runner_name,
+//!                 group_name,
+//!                 results,
+//!                 ..
+//!             } => {
+//!                 for result in results {
+//!                     println!(
+//!                         "{},{},{},{},{},{},{}",
+//!                         runner_name.unwrap_or(""),
+//!                         group_name.unwrap_or(""),
+//!                         result.bench_id.bench_name,
+//!                         result.stats.average_ns,
+//!                         result.stats.median_ns,
+//!                         result.stats.min_ns,
+//!                         result.stats.max_ns,
+//!                     );
+//!                 }
+//!             }
+//!             _ => {} // Ignore other events.
+//!         }
+//!     }
+//! }
+//!
+//! // Register the custom reporter by replacing the default:
+//! let mut runner = BenchRunner::new();
+//! runner.get_plugin_manager().replace_plugin(CsvReporter);
+//! ```
+//!
+//! Use [`REPORTER_PLUGIN_NAME`](crate::report::REPORTER_PLUGIN_NAME) as `name()` so that
+//! [`replace_plugin`](crate::plugins::PluginManager::replace_plugin) removes any previously
+//! registered reporter (including the default [`PlainReporter`]).
+//!
+//! [`PlainReporter`]: crate::report::PlainReporter
 
 /// Helper methods to format benchmark results
 pub mod format;
@@ -27,10 +121,12 @@ mod plain_reporter;
 mod table_reporter;
 
 pub use crate::stats::BenchStats;
+#[doc(inline)]
 pub use plain_reporter::PlainReporter;
 
 #[cfg_attr(docsrs, doc(cfg(feature = "table_reporter")))]
 #[cfg(feature = "table_reporter")]
+#[doc(inline)]
 pub use table_reporter::TableReporter;
 
 use yansi::Paint;
