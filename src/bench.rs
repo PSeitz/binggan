@@ -1,11 +1,7 @@
 use std::sync::atomic;
 
 use crate::{
-    bench_id::BenchId,
-    black_box,
-    output_value::OutputValue,
-    plugins::{alloc::*, *},
-    stats::*,
+    bench_id::BenchId, black_box, output_value::OutputValue, plugins::*, stats::*,
     write_results::fetch_previous_run,
 };
 use quanta::Clock;

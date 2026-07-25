@@ -59,9 +59,5 @@ name = "bench_group"
 harness = false
 
 [[bench]]
-name = "bench_input"
-harness = false
-
-[[bench]]
 name = "test_bench"
 harness = false
