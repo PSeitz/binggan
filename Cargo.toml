@@ -1,6 +1,6 @@
 [package]
 name = "binggan"
-version = "0.17.0"
+version = "0.18.0"
 authors = ["Pascal Seitz <pascal.seitz@gmail.com>"]
 edition = "2024"
 homepage = "https://github.com/pseitz/binggan"
@@ -20,6 +20,8 @@ correctness  = { priority = -1, level = "deny" }
 perf         = { priority = -1, level = "deny" }
 style        = { priority = -1, level = "deny" }
 suspicious   = { priority = -1, level = "deny" }
+# Transitive dependencies currently require both syn 2 and syn 3.
+multiple_crate_versions = "allow"
 
 # docs.rs-specific configuratioasdasdsn
 [package.metadata.docs.rs]
@@ -56,10 +58,6 @@ harness = false
 
 [[bench]]
 name = "bench_group"
-harness = false
-
-[[bench]]
-name = "bench_input"
 harness = false
 
 [[bench]]

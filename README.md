@@ -28,55 +28,68 @@ It is designed to be simple to use and to provide a good overview of the perform
 ### Example
 
 ```rust
-use binggan::{black_box, plugins::*, InputGroup, PeakMemAlloc, INSTRUMENTED_SYSTEM};
+use std::collections::HashMap;
+
+use binggan::{black_box, plugins::*, BenchRunner, PeakMemAlloc, INSTRUMENTED_SYSTEM};
 
 #[global_allocator]
 pub static GLOBAL: &PeakMemAlloc<std::alloc::System> = &INSTRUMENTED_SYSTEM;
 
-
-fn test_vec(data: &Vec<usize>) {
-    // ...
+fn test_vec(data: &Vec<usize>) -> Vec<i32> {
+    let mut vec = Vec::new();
+    for idx in data {
+        if vec.len() <= *idx {
+            vec.resize(idx + 1, 0);
+        }
+        vec[*idx] += 1;
+    }
+    vec
 }
-fn test_hashmap(data: &Vec<usize>) {
-    // ...
-}
 
-fn bench_group(mut runner: InputGroup<Vec<usize>>) {
-    runner
-        // Trashes the CPU cache between runs
-        .add_plugin(CacheTrasher::default())
-        // Set the peak mem allocator. This will enable peak memory reporting.
-        .add_plugin(PeakMemAllocPlugin::new(GLOBAL))
-        // Enables the perf integration. Only on Linux, noop on other OS.
-        .add_plugin(PerfCounterPlugin::default());
-    // Enables throughput reporting
-    runner.throughput(|input| input.len() * std::mem::size_of::<usize>());
-    runner.register("vec", |data| {
-        let vec = black_box(test_vec(data));
-        // The return value of the function will be reported as the `OutputValue` 
-        vec.len() as u64
-    });
-    runner.register("hashmap", move |data| {
-        let map = black_box(test_hashmap(data));
-        // The return value of the function will be reported as the `OutputValue` 
-        map.len() as u64 * (std::mem::size_of::<usize>() + std::mem::size_of::<i32>()) as u64
-    });
-    runner.run();
-
+fn test_hashmap(data: &Vec<usize>) -> HashMap<usize, i32> {
+    let mut map = HashMap::new();
+    for idx in data {
+        *map.entry(*idx).or_insert(0) += 1;
+    }
+    map
 }
 
 fn main() {
-    // Tuples of name and data for the inputs
-    let data = vec![
+    let inputs: Vec<(&str, Vec<usize>)> = vec![
         (
             "max id 100; 100 ids all the same",
-            std::iter::repeat(100).take(100).collect(),
+            std::iter::repeat_n(100, 100).collect(),
         ),
         ("max id 100; 100 ids all different", (0..100).collect()),
     ];
-    bench_group(InputGroup::new_with_inputs(data));
-}
 
+    let mut runner = BenchRunner::new();
+    runner
+        // Trashes the CPU cache between runs
+        .add_plugin(CacheTrasher::default())
+        // Enables peak memory reporting
+        .add_plugin(PeakMemAllocPlugin::new(GLOBAL))
+        // Enables perf integration (a no-op outside Linux)
+        .add_plugin(PerfCounterPlugin::default());
+
+    for (input_name, data) in &inputs {
+        let mut group = runner.new_group();
+        group.set_name(input_name);
+        // Enables throughput reporting for this input
+        group.set_input_size(data.len() * std::mem::size_of::<usize>());
+        group.register_with_input("vec", data, |data| {
+            let vec = black_box(test_vec(data));
+            // Return values are reported as `OutputValue`s
+            vec.len() as u64
+        });
+        group.register_with_input("hashmap", data, |data| {
+            let map = black_box(test_hashmap(data));
+            map.len() as u64
+                * (std::mem::size_of::<usize>() + std::mem::size_of::<i32>()) as u64
+        });
+        group.run();
+    }
+}
 ```
 
 ### Example Output

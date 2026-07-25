@@ -1,5 +1,7 @@
 Unreleased
 ==========
+### Breaking Changes
+- Removed `InputGroup`; use `BenchRunner::new_group` to create a `BenchGroup` instead.
 
 0.16.1 (2026-04-20)
 ===================
