@@ -32,7 +32,7 @@ fn run_bench_lifetime() {
     let inputs: Vec<(&str, Vec<usize>)> = vec![
         (
             "max id 100; 100 el all the same",
-            std::iter::repeat(100).take(100).collect(),
+            std::iter::repeat_n(100, 100).collect(),
         ),
         ("max id 100; 100 el all different", (0..100).collect()),
     ];
@@ -41,10 +41,7 @@ fn run_bench_lifetime() {
     for (_input_name, data) in inputs.iter() {
         let infos: HashMap<String, u64> = HashMap::new();
         let mut group = runner.new_group();
-        group.register_with_input("vec", data, |_data| {
-            let entry = infos.get("test").cloned();
-            entry
-        });
+        group.register_with_input("vec", data, |_data| infos.get("test").cloned());
         group.run();
     }
 }

@@ -27,7 +27,7 @@ fn run_bench() {
     let inputs: Vec<(&str, Vec<usize>)> = vec![
         (
             "max id 100; 100 el all the same",
-            std::iter::repeat(100).take(100).collect(),
+            std::iter::repeat_n(100, 100).collect(),
         ),
         ("max id 100; 100 el all different", (0..100).collect()),
     ];

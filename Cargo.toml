@@ -20,6 +20,8 @@ correctness  = { priority = -1, level = "deny" }
 perf         = { priority = -1, level = "deny" }
 style        = { priority = -1, level = "deny" }
 suspicious   = { priority = -1, level = "deny" }
+# Transitive dependencies currently require both syn 2 and syn 3.
+multiple_crate_versions = "allow"
 
 # docs.rs-specific configuratioasdasdsn
 [package.metadata.docs.rs]

@@ -58,7 +58,7 @@ fn main() {
     let inputs: Vec<(&str, Vec<usize>)> = vec![
         (
             "max id 100; 100 ids all the same",
-            std::iter::repeat(100).take(100).collect(),
+            std::iter::repeat_n(100, 100).collect(),
         ),
         ("max id 100; 100 ids all different", (0..100).collect()),
     ];
